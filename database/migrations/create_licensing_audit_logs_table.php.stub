@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('licensing_audit_logs', function (Blueprint $table) {
+            $table->id();
+            $table->string('event_type')->index();
+            $table->nullableMorphs('auditable');
+            $table->string('actor')->nullable();
+            $table->ipAddress('ip')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->json('meta')->nullable();
+            $table->timestamp('occurred_at')->index();
+            
+            $table->index(['auditable_type', 'auditable_id', 'event_type']);
+            $table->index(['actor', 'occurred_at']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('licensing_audit_logs');
+    }
+};

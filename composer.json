@@ -1,24 +1,31 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "masterix21/laravel-licensing",
+    "description": "Laravel licensing package with polymorphic assignment to any model, activation keys, expirations/renewals, and seat control via LicenseUsage. Supports offline verification with public-key–signed tokens, a CLI to generate/rotate/revoke keys, and an extensible architecture via config and contracts.",
     "keywords": [
-        ":vendor_name",
+        "Luca Longo",
         "laravel",
-        ":package_slug"
+        "laravel-licensing"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/masterix21/laravel-licensing",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "Luca Longo",
+            "email": "l.longo@ambita.it",
             "role": "Developer"
         }
     ],
     "require": {
-        "php": "^8.4",
+        "php": "^8.2",
         "spatie/laravel-package-tools": "^1.16",
-        "illuminate/contracts": "^11.0||^12.0"
+        "illuminate/contracts": "^12.0",
+        "illuminate/support": "^12.0",
+        "illuminate/database": "^12.0",
+        "illuminate/console": "^12.0",
+        "illuminate/http": "^12.0",
+        "spatie/crypto": "^2.0",
+        "paragonie/paseto": "^3.0",
+        "symfony/uid": "^7.0"
     },
     "require-dev": {
         "laravel/pint": "^1.14",
@@ -30,18 +37,17 @@
         "pestphp/pest-plugin-laravel": "^4.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan-deprecation-rules": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0",
-        "spatie/laravel-ray": "^1.35"
+        "phpstan/phpstan-phpunit": "^2.0"
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "LucaLongo\\Licensing\\": "src/",
+            "LucaLongo\\Licensing\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "LucaLongo\\Licensing\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -63,10 +69,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "LucaLongo\\Licensing\\LicensingServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "Licensing": "LucaLongo\\Licensing\\Facades\\Licensing"
             }
         }
     },
