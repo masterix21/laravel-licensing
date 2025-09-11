@@ -64,7 +64,7 @@ class TrialService
         // Check for trial reset attempts (same fingerprint on different licenses)
         if ($this->isTrialResetAttempt($hashedFingerprint)) {
             throw new TrialResetAttemptException(
-                "Trial reset attempt detected for fingerprint"
+                'Trial reset attempt detected for fingerprint'
             );
         }
     }
@@ -77,14 +77,14 @@ class TrialService
             ->exists();
     }
 
-    public function convertTrial(LicenseTrial $trial, string $trigger = null, float $value = null): License
+    public function convertTrial(LicenseTrial $trial, ?string $trigger = null, ?float $value = null): License
     {
         return DB::transaction(function () use ($trial, $trigger, $value) {
             return $trial->convert($trigger, $value);
         });
     }
 
-    public function extendTrial(LicenseTrial $trial, int $days, string $reason = null): LicenseTrial
+    public function extendTrial(LicenseTrial $trial, int $days, ?string $reason = null): LicenseTrial
     {
         return DB::transaction(function () use ($trial, $days, $reason) {
             return $trial->extend($days, $reason);
@@ -109,16 +109,16 @@ class TrialService
 
     public function canAccessFeature(LicenseTrial $trial, string $feature): bool
     {
-        if (!$trial->isActive()) {
+        if (! $trial->isActive()) {
             return false;
         }
 
-        return !$trial->isFeatureRestricted($feature);
+        return ! $trial->isFeatureRestricted($feature);
     }
 
     public function checkLimitation(LicenseTrial $trial, string $key, mixed $currentValue): bool
     {
-        if (!$trial->hasLimitation($key)) {
+        if (! $trial->hasLimitation($key)) {
             return true;
         }
 
@@ -137,7 +137,7 @@ class TrialService
             'converted_trials' => $trials->where('status', TrialStatus::Converted)->count(),
             'expired_trials' => $trials->where('status', TrialStatus::Expired)->count(),
             'cancelled_trials' => $trials->where('status', TrialStatus::Cancelled)->count(),
-            'conversion_rate' => $trials->count() > 0 
+            'conversion_rate' => $trials->count() > 0
                 ? round(($trials->where('status', TrialStatus::Converted)->count() / $trials->count()) * 100, 2)
                 : 0,
             'total_conversion_value' => $trials->where('status', TrialStatus::Converted)->sum('conversion_value'),

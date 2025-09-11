@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Enums\TrialStatus;
-use LucaLongo\Licensing\Events\TrialStarted;
 use LucaLongo\Licensing\Events\TrialConverted;
 use LucaLongo\Licensing\Events\TrialExpired;
 use LucaLongo\Licensing\Events\TrialExtended;
+use LucaLongo\Licensing\Events\TrialStarted;
 
 class LicenseTrial extends Model
 {
@@ -64,7 +64,7 @@ class LicenseTrial extends Model
 
     public function canExtend(): bool
     {
-        return $this->status === TrialStatus::Active && !$this->is_extended;
+        return $this->status === TrialStatus::Active && ! $this->is_extended;
     }
 
     public function canCancel(): bool
@@ -74,7 +74,7 @@ class LicenseTrial extends Model
 
     public function isActive(): bool
     {
-        return $this->status === TrialStatus::Active && !$this->isExpired();
+        return $this->status === TrialStatus::Active && ! $this->isExpired();
     }
 
     public function isExpired(): bool
@@ -84,7 +84,7 @@ class LicenseTrial extends Model
 
     public function daysRemaining(): int
     {
-        if (!$this->expires_at || !$this->isActive()) {
+        if (! $this->expires_at || ! $this->isActive()) {
             return 0;
         }
 
@@ -108,9 +108,9 @@ class LicenseTrial extends Model
         return $this;
     }
 
-    public function extend(int $days, string $reason = null): self
+    public function extend(int $days, ?string $reason = null): self
     {
-        if (!$this->canExtend()) {
+        if (! $this->canExtend()) {
             throw new \RuntimeException('Trial cannot be extended');
         }
 
@@ -126,10 +126,10 @@ class LicenseTrial extends Model
         return $this;
     }
 
-    public function convert(string $trigger = null, float $value = null): License
+    public function convert(?string $trigger = null, ?float $value = null): License
     {
-        if (!$this->canConvert()) {
-            throw new \RuntimeException('Trial cannot be converted in current status: ' . $this->status->value);
+        if (! $this->canConvert()) {
+            throw new \RuntimeException('Trial cannot be converted in current status: '.$this->status->value);
         }
 
         $this->update([
@@ -140,7 +140,7 @@ class LicenseTrial extends Model
         ]);
 
         $license = $this->license;
-        
+
         // Only activate if not already active
         if ($license->status !== LicenseStatus::Active) {
             $license->activate();
@@ -153,8 +153,8 @@ class LicenseTrial extends Model
 
     public function cancel(): self
     {
-        if (!$this->canCancel()) {
-            throw new \RuntimeException('Trial cannot be cancelled in current status: ' . $this->status->value);
+        if (! $this->canCancel()) {
+            throw new \RuntimeException('Trial cannot be cancelled in current status: '.$this->status->value);
         }
 
         $this->update([

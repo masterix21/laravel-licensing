@@ -30,7 +30,7 @@ it('can start trial', function () {
         ->and($trial->duration_days)->toBe(7)
         ->and($trial->started_at)->not->toBeNull()
         ->and($trial->expires_at)->not->toBeNull();
-    
+
     $this->license->refresh();
     expect($this->license->status)->toBe(LicenseStatus::Active);
 });
@@ -58,7 +58,7 @@ it('cannot reset trial with same fingerprint', function () {
 
 it('can convert trial to license', function () {
     $trial = $this->trialService->startTrial($this->license, 'test-device-123');
-    
+
     $convertedLicense = $this->trialService->convertTrial(
         trial: $trial,
         trigger: 'user_purchase',
@@ -66,7 +66,7 @@ it('can convert trial to license', function () {
     );
 
     $trial->refresh();
-    
+
     expect($trial->status)->toBe(TrialStatus::Converted)
         ->and($trial->converted_at)->not->toBeNull()
         ->and($trial->conversion_trigger)->toBe('user_purchase')
@@ -76,9 +76,9 @@ it('can convert trial to license', function () {
 
 it('can extend trial', function () {
     $trial = $this->trialService->startTrial($this->license, 'test-device-123', 7);
-    
+
     $originalExpiry = $trial->expires_at;
-    
+
     $extendedTrial = $this->trialService->extendTrial(
         trial: $trial,
         days: 3,
@@ -93,20 +93,20 @@ it('can extend trial', function () {
 
 it('cannot extend trial twice', function () {
     $trial = $this->trialService->startTrial($this->license, 'test-device-123');
-    
+
     $this->trialService->extendTrial($trial, 3);
-    
+
     $this->trialService->extendTrial($trial, 3);
 })->throws(\RuntimeException::class);
 
 it('marks expired trials correctly', function () {
     $trial = $this->trialService->startTrial($this->license, 'test-device-123', 7);
     $trial->update(['expires_at' => now()->subDay()]);
-    
+
     $expiredCount = $this->trialService->checkExpiredTrials();
-    
+
     $trial->refresh();
-    
+
     expect($expiredCount)->toBe(1)
         ->and($trial->status)->toBe(TrialStatus::Expired);
 });
@@ -150,18 +150,18 @@ it('calculates trial stats correctly', function () {
         'licensable_type' => User::class,
         'licensable_id' => 1,
     ]);
-    
+
     // Create various trials
     $trial1 = $this->trialService->startTrial($license, 'device-1');
-    
+
     $trial2 = $this->trialService->startTrial($license, 'device-2');
     $trial2->convert('purchase', 99.99);
-    
+
     $trial3 = $this->trialService->startTrial($license, 'device-3');
     $trial3->expire();
-    
+
     $stats = $this->trialService->getTrialStats($license);
-    
+
     expect($stats['total_trials'])->toBe(3)
         ->and($stats['active_trials'])->toBe(1)
         ->and($stats['converted_trials'])->toBe(1)
