@@ -16,6 +16,22 @@ return [
         'unique_usage_scope' => 'license', // license | global
     ],
 
+    'trials' => [
+        'enabled' => true,
+        'default_duration_days' => 14,
+        'allow_extensions' => true,
+        'max_extension_days' => 7,
+        'prevent_reset_attempts' => true,
+        'default_limitations' => [
+            // 'max_api_calls' => 1000,
+            // 'max_records' => 100,
+        ],
+        'default_feature_restrictions' => [
+            // 'export',
+            // 'api_access',
+        ],
+    ],
+
     'offline_token' => [
         'enabled' => true,
         'service' => \LucaLongo\Licensing\Services\PasetoTokenService::class,

@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Models;
 
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -16,7 +17,7 @@ use LucaLongo\Licensing\Events\LicenseRenewed;
 
 class License extends Model
 {
-    use HasUlids;
+    use HasFactory, HasUlids;
 
     protected $fillable = [
         'key_hash',
@@ -60,6 +61,11 @@ class License extends Model
     public function renewals(): HasMany
     {
         return $this->hasMany(config('licensing.models.license_renewal'));
+    }
+
+    public function trials(): HasMany
+    {
+        return $this->hasMany(LicenseTrial::class);
     }
 
     public function activeUsages(): HasMany

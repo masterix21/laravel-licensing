@@ -38,6 +38,14 @@
 - **Usage heartbeat monitoring** with automatic inactive device cleanup
 - **Per-license or global uniqueness scopes**
 
+### 🎯 **Trial Management** (New!)
+- **Flexible trial periods** with configurable duration and extensions
+- **Trial-to-license conversion** tracking with revenue attribution
+- **Feature limitations** during trial period
+- **Trial reset prevention** using device fingerprinting
+- **Trial analytics** with conversion rate tracking
+- **Automatic trial expiration** handling
+
 ### 🛠️ **Developer-Friendly**
 - **Comprehensive CLI tools** for key management and token generation
 - **RESTful API endpoints** with built-in rate limiting
@@ -169,6 +177,20 @@ try {
 }
 ```
 
+### 6. Trial Management
+
+```php
+use LucaLongo\Licensing\Services\TrialService;
+
+$trialService = app(TrialService::class);
+
+// Start a 14-day trial
+$trial = $trialService->startTrial($license, 'device-fingerprint', 14);
+
+// Convert trial to full license after purchase
+$license = $trialService->convertTrial($trial, 'user_purchase', 99.99);
+```
+
 ## Advanced Configuration
 
 ### Policies Configuration
@@ -192,6 +214,18 @@ try {
     'ttl_days' => 7, // How long tokens work offline
     'force_online_after_days' => 14, // Force online check after X days
     'clock_skew_seconds' => 60, // Tolerance for time sync issues
+],
+```
+
+### Trial Configuration
+
+```php
+'trials' => [
+    'enabled' => true,
+    'default_duration_days' => 14,
+    'allow_extensions' => true,
+    'max_extension_days' => 7,
+    'prevent_reset_attempts' => true,
 ],
 ```
 
@@ -263,6 +297,10 @@ The package emits the following events for integration:
 - `UsageRegistered` - When new device/usage is registered
 - `UsageRevoked` - When device/usage is revoked
 - `UsageLimitReached` - When max seats are occupied
+- `TrialStarted` - When a trial period begins
+- `TrialConverted` - When trial converts to full license
+- `TrialExpired` - When trial period expires
+- `TrialExtended` - When trial is extended
 
 ## Security Best Practices
 

@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use LucaLongo\Licensing\Enums\TrialStatus;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('license_trials', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('license_id')->constrained()->cascadeOnDelete();
+            $table->string('trial_fingerprint')->index();
+            $table->string('status')->default(TrialStatus::Active->value)->index();
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('expires_at')->nullable()->index();
+            $table->timestamp('converted_at')->nullable();
+            $table->integer('duration_days');
+            $table->boolean('is_extended')->default(false);
+            $table->integer('extension_days')->default(0);
+            $table->string('extension_reason')->nullable();
+            $table->json('limitations')->nullable();
+            $table->json('feature_restrictions')->nullable();
+            $table->string('conversion_trigger')->nullable();
+            $table->decimal('conversion_value', 10, 2)->nullable();
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            
+            $table->index(['license_id', 'status']);
+            $table->index(['trial_fingerprint', 'status']);
+            $table->unique(['license_id', 'trial_fingerprint']);
+        });
+    }
+};
