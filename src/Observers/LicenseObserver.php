@@ -2,15 +2,15 @@
 
 namespace LucaLongo\Licensing\Observers;
 
+use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicensingAuditLog;
-use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Observers\Concerns\TracksActor;
 
 class LicenseObserver
 {
     use TracksActor;
-    
+
     public function created(License $license): void
     {
         if (! config('licensing.audit.enabled', true)) {
@@ -51,7 +51,7 @@ class LicenseObserver
         if ($license->wasChanged('expires_at') && $license->exists) {
             $oldExpiresAt = $license->getOriginal('expires_at');
             // Only log as renewal if there was a previous expires_at value and not just created
-            if ($oldExpiresAt !== null && !$license->wasRecentlyCreated) {
+            if ($oldExpiresAt !== null && ! $license->wasRecentlyCreated) {
                 LicensingAuditLog::create($this->withActorData([
                     'event_type' => AuditEventType::LicenseRenewed,
                     'auditable_type' => get_class($license),

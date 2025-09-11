@@ -13,13 +13,13 @@ trait HasKeyStore
     public function generate(array $options = []): self
     {
         $type = $options['type'] ?? KeyType::Signing;
-        
+
         // Generate Ed25519 key pair for PASETO v4
-        $secretKey = AsymmetricSecretKey::generate(new Version4());
+        $secretKey = AsymmetricSecretKey::generate(new Version4);
         $publicKey = $secretKey->getPublicKey();
-        
+
         // Use existing kid if set, otherwise generate new one
-        $this->kid = $this->kid ?? 'kid_' . Str::random(32);
+        $this->kid = $this->kid ?? 'kid_'.Str::random(32);
         $this->type = $type;
         $this->algorithm = 'Ed25519';
         $this->public_key = base64_encode($publicKey->raw());
@@ -27,13 +27,13 @@ trait HasKeyStore
         $this->valid_from = $this->valid_from ?? ($options['valid_from'] ?? now());
         $this->valid_until = $this->valid_until ?? ($options['valid_until'] ?? null);
         $this->status = KeyStatus::Active;
-        
-        if ($type === KeyType::Signing && !$this->valid_until) {
+
+        if ($type === KeyType::Signing && ! $this->valid_until) {
             $this->valid_until = $this->valid_from->addDays(30);
         }
-        
+
         $this->save();
-        
+
         return $this;
     }
 
@@ -47,7 +47,7 @@ trait HasKeyStore
         if (! $this->private_key_encrypted) {
             return null;
         }
-        
+
         return $this->decryptPrivateKey($this->private_key_encrypted);
     }
 
@@ -61,17 +61,17 @@ trait HasKeyStore
         if ($this->status !== KeyStatus::Active) {
             return false;
         }
-        
+
         $now = now();
-        
+
         if ($this->valid_from && $this->valid_from->isFuture()) {
             return false;
         }
-        
+
         if ($this->valid_until && $this->valid_until->isPast()) {
             return false;
         }
-        
+
         return true;
     }
 
@@ -82,30 +82,30 @@ trait HasKeyStore
             'revoked_at' => $revokedAt ?? now(),
             'revocation_reason' => $reason,
         ]);
-        
+
         return $this;
     }
 
     public static function findActiveRoot(): ?self
     {
         return static::where('type', KeyType::Root)
-                     ->where('status', KeyStatus::Active)
-                     ->where(function ($query) {
-                         $query->whereNull('valid_until')
-                               ->orWhere('valid_until', '>', now());
-                     })
-                     ->where('valid_from', '<=', now())
-                     ->first();
+            ->where('status', KeyStatus::Active)
+            ->where(function ($query) {
+                $query->whereNull('valid_until')
+                    ->orWhere('valid_until', '>', now());
+            })
+            ->where('valid_from', '<=', now())
+            ->first();
     }
 
     public static function findActiveSigning(): ?self
     {
         return static::where('type', KeyType::Signing)
-                     ->where('status', KeyStatus::Active)
-                     ->where('valid_until', '>', now())
-                     ->where('valid_from', '<=', now())
-                     ->orderBy('created_at', 'desc')
-                     ->first();
+            ->where('status', KeyStatus::Active)
+            ->where('valid_until', '>', now())
+            ->where('valid_from', '<=', now())
+            ->orderBy('created_at', 'desc')
+            ->first();
     }
 
     public static function findByKid(string $kid): ?self
@@ -116,38 +116,38 @@ trait HasKeyStore
     protected function encryptPrivateKey(string $privateKey): string
     {
         $passphrase = env(config('licensing.crypto.keystore.passphrase_env'));
-        
+
         if (! $passphrase) {
             throw new \RuntimeException('Key passphrase not configured');
         }
-        
+
         // Simple encryption for Ed25519 keys
         $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $key = hash('sha256', $passphrase, true);
         $encrypted = sodium_crypto_secretbox($privateKey, $nonce, $key);
-        
-        return base64_encode($nonce . $encrypted);
+
+        return base64_encode($nonce.$encrypted);
     }
 
     protected function decryptPrivateKey(string $encryptedKey): string
     {
         $passphrase = env(config('licensing.crypto.keystore.passphrase_env'));
-        
+
         if (! $passphrase) {
             throw new \RuntimeException('Key passphrase not configured');
         }
-        
+
         $decoded = base64_decode($encryptedKey);
         $nonce = substr($decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $ciphertext = substr($decoded, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $key = hash('sha256', $passphrase, true);
-        
+
         $decrypted = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
-        
+
         if ($decrypted === false) {
             throw new \RuntimeException('Failed to decrypt private key');
         }
-        
+
         return $decrypted;
     }
 }

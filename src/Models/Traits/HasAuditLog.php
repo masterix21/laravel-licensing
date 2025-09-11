@@ -77,9 +77,9 @@ trait HasAuditLog
     protected function forModel(Builder $query, Model $model): void
     {
         $query->where('auditable_type', $model->getMorphClass())
-              ->where('auditable_id', $model->getKey());
+            ->where('auditable_id', $model->getKey());
     }
-    
+
     public function calculateHash(): string
     {
         $data = [
@@ -90,16 +90,16 @@ trait HasAuditLog
             'meta' => json_encode($this->meta),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
-        
+
         return hash('sha256', json_encode($data));
     }
-    
+
     public function verifyChain($previousLog): bool
     {
         if (! $previousLog) {
             return ! $this->previous_hash;
         }
-        
+
         return $this->previous_hash === $previousLog->calculateHash();
     }
 }

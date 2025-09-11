@@ -8,7 +8,7 @@ use LucaLongo\Licensing\Enums\AuditEventType;
 interface AuditLog
 {
     public function auditable(): MorphTo;
-    
+
     public static function record(
         AuditEventType $eventType,
         array $data,

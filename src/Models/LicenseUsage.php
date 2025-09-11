@@ -58,10 +58,11 @@ class LicenseUsage extends Model
     public function heartbeat(): self
     {
         $this->update(['last_seen_at' => now()]);
+
         return $this;
     }
 
-    public function revoke(string $reason = null): self
+    public function revoke(?string $reason = null): self
     {
         if ($this->status === UsageStatus::Revoked) {
             return $this;
@@ -71,13 +72,13 @@ class LicenseUsage extends Model
             'status' => UsageStatus::Revoked,
             'revoked_at' => now(),
         ];
-        
+
         if ($reason) {
             $meta = $this->meta ?? [];
             $meta['revocation_reason'] = $reason;
             $updateData['meta'] = $meta;
         }
-        
+
         $this->update($updateData);
 
         event(new UsageRevoked($this, $reason));
@@ -93,7 +94,7 @@ class LicenseUsage extends Model
     public function isStale(): bool
     {
         $inactivityDays = $this->license->getInactivityAutoRevokeDays();
-        
+
         if ($inactivityDays === null) {
             return false;
         }

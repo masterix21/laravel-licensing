@@ -12,12 +12,12 @@ interface UsageRegistrar
         string $fingerprint,
         array $metadata = []
     ): LicenseUsage;
-    
+
     public function heartbeat(LicenseUsage $usage): void;
-    
-    public function revoke(LicenseUsage $usage, string $reason = null): void;
-    
+
+    public function revoke(LicenseUsage $usage, ?string $reason = null): void;
+
     public function findByFingerprint(License $license, string $fingerprint): ?LicenseUsage;
-    
+
     public function canRegister(License $license, string $fingerprint): bool;
 }

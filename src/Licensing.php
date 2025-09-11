@@ -55,7 +55,7 @@ class Licensing
         $this->usageRegistrar->heartbeat($usage);
     }
 
-    public function revoke(LicenseUsage $usage, string $reason = null): void
+    public function revoke(LicenseUsage $usage, ?string $reason = null): void
     {
         $this->usageRegistrar->revoke($usage, $reason);
     }
