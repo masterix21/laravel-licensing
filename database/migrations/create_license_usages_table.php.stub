@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use LucaLongo\Licensing\Enums\UsageStatus;
 
 return new class extends Migration
 {
@@ -12,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('license_id')->constrained()->cascadeOnDelete();
             $table->string('usage_fingerprint');
-            $table->enum('status', ['active', 'revoked'])->default('active')->index();
+            $table->string('status', 20)->default(UsageStatus::Active->value)->index();
             $table->timestamp('registered_at');
             $table->timestamp('last_seen_at')->nullable()->index();
             $table->timestamp('revoked_at')->nullable()->index();

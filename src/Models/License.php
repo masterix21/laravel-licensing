@@ -175,7 +175,7 @@ class License extends Model
             return null;
         }
 
-        return now()->diffInDays($this->expires_at, false);
+        return now()->startOfDay()->diffInDays($this->expires_at->startOfDay(), false);
     }
 
     public function hasAvailableSeats(): bool

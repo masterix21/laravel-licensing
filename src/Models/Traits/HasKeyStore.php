@@ -5,8 +5,8 @@ namespace LucaLongo\Licensing\Models\Traits;
 use Illuminate\Support\Str;
 use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
-use Spatie\Crypto\Rsa\KeyPair;
-use Spatie\Crypto\Rsa\PrivateKey;
+use ParagonIE\Paseto\Keys\AsymmetricSecretKey;
+use ParagonIE\Paseto\Protocol\Version4;
 
 trait HasKeyStore
 {
@@ -14,16 +14,21 @@ trait HasKeyStore
     {
         $type = $options['type'] ?? KeyType::Signing;
         
-        $keyPair = KeyPair::generate();
+        // Generate Ed25519 key pair for PASETO v4
+        $secretKey = AsymmetricSecretKey::generate(new Version4());
+        $publicKey = $secretKey->getPublicKey();
         
-        $this->kid = 'kid_' . Str::random(32);
+        // Use existing kid if set, otherwise generate new one
+        $this->kid = $this->kid ?? 'kid_' . Str::random(32);
         $this->type = $type;
-        $this->public_key = $keyPair->publicKey()->toString();
-        $this->private_key_encrypted = $this->encryptPrivateKey($keyPair->privateKey()->toString());
-        $this->valid_from = $options['valid_from'] ?? now();
-        $this->valid_until = $options['valid_until'] ?? null;
+        $this->algorithm = 'Ed25519';
+        $this->public_key = base64_encode($publicKey->raw());
+        $this->private_key_encrypted = $this->encryptPrivateKey(base64_encode($secretKey->raw()));
+        $this->valid_from = $this->valid_from ?? ($options['valid_from'] ?? now());
+        $this->valid_until = $this->valid_until ?? ($options['valid_until'] ?? null);
+        $this->status = KeyStatus::Active;
         
-        if ($type === KeyType::Signing) {
+        if ($type === KeyType::Signing && !$this->valid_until) {
             $this->valid_until = $this->valid_from->addDays(30);
         }
         
@@ -116,9 +121,12 @@ trait HasKeyStore
             throw new \RuntimeException('Key passphrase not configured');
         }
         
-        return PrivateKey::fromString($privateKey)
-            ->encrypt($passphrase)
-            ->toString();
+        // Simple encryption for Ed25519 keys
+        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $key = hash('sha256', $passphrase, true);
+        $encrypted = sodium_crypto_secretbox($privateKey, $nonce, $key);
+        
+        return base64_encode($nonce . $encrypted);
     }
 
     protected function decryptPrivateKey(string $encryptedKey): string
@@ -129,8 +137,17 @@ trait HasKeyStore
             throw new \RuntimeException('Key passphrase not configured');
         }
         
-        return PrivateKey::fromString($encryptedKey)
-            ->decrypt($passphrase)
-            ->toString();
+        $decoded = base64_decode($encryptedKey);
+        $nonce = substr($decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $ciphertext = substr($decoded, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $key = hash('sha256', $passphrase, true);
+        
+        $decrypted = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
+        
+        if ($decrypted === false) {
+            throw new \RuntimeException('Failed to decrypt private key');
+        }
+        
+        return $decrypted;
     }
 }

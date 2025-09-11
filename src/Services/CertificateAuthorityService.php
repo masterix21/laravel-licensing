@@ -4,8 +4,6 @@ namespace LucaLongo\Licensing\Services;
 
 use LucaLongo\Licensing\Contracts\CertificateAuthority;
 use LucaLongo\Licensing\Models\LicensingKey;
-use Spatie\Crypto\Rsa\PrivateKey;
-use Spatie\Crypto\Rsa\PublicKey;
 
 class CertificateAuthorityService implements CertificateAuthority
 {
@@ -31,13 +29,15 @@ class CertificateAuthorityService implements CertificateAuthority
         ];
 
         $certificateJson = json_encode($certificate);
-        $privateKey = $rootKey->getPrivateKey();
+        $privateKeyBase64 = $rootKey->getPrivateKey();
         
-        if (! $privateKey) {
+        if (! $privateKeyBase64) {
             throw new \RuntimeException('Root private key not available');
         }
 
-        $signature = PrivateKey::fromString($privateKey)->sign($certificateJson);
+        // Sign with Ed25519
+        $privateKey = base64_decode($privateKeyBase64);
+        $signature = sodium_crypto_sign_detached($certificateJson, $privateKey);
 
         $signedCertificate = [
             'certificate' => $certificate,
@@ -64,9 +64,9 @@ class CertificateAuthorityService implements CertificateAuthority
 
             $certificateJson = json_encode($data['certificate']);
             $signature = base64_decode($data['signature']);
+            $publicKey = base64_decode($rootKey->getPublicKey());
 
-            return PublicKey::fromString($rootKey->getPublicKey())
-                ->verify($certificateJson, $signature);
+            return sodium_crypto_sign_verify_detached($signature, $certificateJson, $publicKey);
         } catch (\Exception $e) {
             return false;
         }

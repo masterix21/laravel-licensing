@@ -12,14 +12,13 @@ return new class extends Migration
             $table->id();
             $table->string('event_type')->index();
             $table->nullableMorphs('auditable');
-            $table->string('actor')->nullable();
-            $table->ipAddress('ip')->nullable();
-            $table->text('user_agent')->nullable();
+            $table->nullableMorphs('actor');
             $table->json('meta')->nullable();
-            $table->timestamp('occurred_at')->index();
+            $table->string('previous_hash', 64)->nullable();
+            $table->timestamps();
             
             $table->index(['auditable_type', 'auditable_id', 'event_type']);
-            $table->index(['actor', 'occurred_at']);
+            $table->index('created_at');
         });
     }
 

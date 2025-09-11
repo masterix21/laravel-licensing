@@ -49,6 +49,7 @@ return [
         'enabled' => true,
         'store' => 'database', // database | file
         'retention_days' => 90,
+        'hash_chain' => true, // Enable hash chaining for tamper-evidence
     ],
 
     'api' => [

@@ -67,16 +67,18 @@ class LicenseUsage extends Model
             return $this;
         }
 
-        $this->update([
+        $updateData = [
             'status' => UsageStatus::Revoked,
             'revoked_at' => now(),
-        ]);
-
+        ];
+        
         if ($reason) {
             $meta = $this->meta ?? [];
             $meta['revocation_reason'] = $reason;
-            $this->update(['meta' => $meta]);
+            $updateData['meta'] = $meta;
         }
+        
+        $this->update($updateData);
 
         event(new UsageRevoked($this, $reason));
 

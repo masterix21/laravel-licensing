@@ -4,9 +4,13 @@ namespace LucaLongo\Licensing;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use LucaLongo\Licensing\Console\Commands\IssueSigningKeyCommand;
-use LucaLongo\Licensing\Console\Commands\MakeRootKeyCommand;
-use LucaLongo\Licensing\Console\Commands\RotateKeysCommand;
+use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
+use LucaLongo\Licensing\Commands\MakeRootKeyCommand;
+use LucaLongo\Licensing\Commands\RotateKeysCommand;
+use LucaLongo\Licensing\Commands\ListKeysCommand;
+use LucaLongo\Licensing\Commands\RevokeKeyCommand;
+use LucaLongo\Licensing\Commands\ExportKeysCommand;
+use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
 use LucaLongo\Licensing\Contracts\AuditLogger;
 use LucaLongo\Licensing\Contracts\CertificateAuthority;
 use LucaLongo\Licensing\Contracts\FingerprintResolver;
@@ -17,6 +21,14 @@ use LucaLongo\Licensing\Services\AuditLoggerService;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
 use LucaLongo\Licensing\Services\FingerprintResolverService;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
+use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseUsage;
+use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
+use LucaLongo\Licensing\Observers\LicenseObserver;
+use LucaLongo\Licensing\Observers\LicenseUsageObserver;
+use LucaLongo\Licensing\Observers\LicensingKeyObserver;
+use LucaLongo\Licensing\Observers\LicensingAuditLogObserver;
 
 class LicensingServiceProvider extends PackageServiceProvider
 {
@@ -36,6 +48,10 @@ class LicensingServiceProvider extends PackageServiceProvider
                 MakeRootKeyCommand::class,
                 IssueSigningKeyCommand::class,
                 RotateKeysCommand::class,
+                ListKeysCommand::class,
+                RevokeKeyCommand::class,
+                ExportKeysCommand::class,
+                IssueOfflineTokenCommand::class,
             ]);
 
         if (config('licensing.api.enabled')) {
@@ -48,6 +64,7 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->registerServices();
         $this->registerTokenService();
         $this->registerLicensing();
+        $this->registerObservers();
     }
 
     protected function registerServices(): void
@@ -82,5 +99,13 @@ class LicensingServiceProvider extends PackageServiceProvider
                 $app->make(TokenVerifier::class)
             )
         );
+    }
+
+    protected function registerObservers(): void
+    {
+        License::observe(LicenseObserver::class);
+        LicenseUsage::observe(LicenseUsageObserver::class);
+        LicensingKey::observe(LicensingKeyObserver::class);
+        LicensingAuditLog::observe(LicensingAuditLogObserver::class);
     }
 }

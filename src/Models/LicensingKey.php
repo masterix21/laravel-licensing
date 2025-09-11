@@ -87,4 +87,79 @@ class LicensingKey extends Model implements KeyStore
     {
         $query->where('type', $type);
     }
+    
+    public function revoke(string $reason, ?\DateTimeInterface $revokedAt = null): KeyStore
+    {
+        $this->update([
+            'status' => KeyStatus::Revoked,
+            'revoked_at' => $revokedAt ?? now(),
+            'revocation_reason' => $reason,
+        ]);
+        
+        return $this;
+    }
+    
+    public function isRevoked(): bool
+    {
+        return $this->status === KeyStatus::Revoked;
+    }
+    
+    public static function findActiveRoot(): ?self
+    {
+        return self::where('type', KeyType::Root)
+            ->where('status', KeyStatus::Active)
+            ->first();
+    }
+    
+    public static function findActiveSigning(): ?self
+    {
+        return self::where('type', KeyType::Signing)
+            ->where('status', KeyStatus::Active)
+            ->orderBy('created_at', 'desc')
+            ->first();
+    }
+    
+    public static function activeSigning(): Builder
+    {
+        return self::where('type', KeyType::Signing)
+            ->where('status', KeyStatus::Active)
+            ->where(function ($query) {
+                $query->whereNull('valid_from')
+                      ->orWhere('valid_from', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('valid_until')
+                      ->orWhere('valid_until', '>', now());
+            });
+    }
+    
+
+    public static function generateRootKey(string $kid = null): self
+    {
+        $key = new self();
+        $key->kid = $kid ?? 'root_' . Str::random(32);
+        
+        return $key->generate([
+            'type' => KeyType::Root,
+        ]);
+    }
+    
+    public static function generateSigningKey(string $kid = null): self
+    {
+        $key = new self();
+        $key->kid = $kid ?? 'signing_' . Str::random(32);
+        
+        // Don't save yet - certificate needs to be added
+        $key->generate([
+            'type' => KeyType::Signing,
+        ]);
+        
+        // Remove from database until certificate is added
+        if ($key->exists) {
+            $key->delete();
+            $key->exists = false;
+        }
+        
+        return $key;
+    }
 }

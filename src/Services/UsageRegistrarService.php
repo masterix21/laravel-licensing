@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 use LucaLongo\Licensing\Contracts\UsageRegistrar;
 use LucaLongo\Licensing\Enums\OverLimitPolicy;
 use LucaLongo\Licensing\Events\UsageLimitReached;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
+use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Events\UsageRegistered;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseUsage;
@@ -17,21 +19,54 @@ class UsageRegistrarService implements UsageRegistrar
         string $fingerprint,
         array $metadata = []
     ): LicenseUsage {
-        return DB::transaction(function () use ($license, $fingerprint, $metadata) {
+        $shouldLogLimitReached = false;
+        $auditData = [];
+        
+        try {
+            return DB::transaction(function () use ($license, $fingerprint, $metadata, &$shouldLogLimitReached, &$auditData) {
             $license->lockForUpdate();
 
             $existingUsage = $this->findByFingerprint($license, $fingerprint);
             
             if ($existingUsage && $existingUsage->isActive()) {
-                $existingUsage->heartbeat();
-                return $existingUsage;
+                // Check if it's the same license
+                if ($existingUsage->license_id === $license->id) {
+                    $existingUsage->heartbeat();
+                    return $existingUsage;
+                }
+                
+                // If global scope and different license, throw error
+                if ($license->getUniqueUsageScope() === 'global') {
+                    throw new \RuntimeException('Fingerprint already in use globally');
+                }
             }
 
             if (! $this->canRegister($license, $fingerprint)) {
+                // Check if it's a global scope conflict
+                if ($license->getUniqueUsageScope() === 'global') {
+                    $existingGlobal = LicenseUsage::forFingerprint($fingerprint)
+                        ->active()
+                        ->where('license_id', '!=', $license->id)
+                        ->first();
+                    
+                    if ($existingGlobal) {
+                        throw new \RuntimeException('Fingerprint already in use globally');
+                    }
+                }
+                
                 $policy = $license->getOverLimitPolicy();
                 
                 if ($policy === OverLimitPolicy::Reject) {
                     event(new UsageLimitReached($license, $fingerprint, $metadata));
+                    
+                    // Store details for audit log (will be created after transaction rollback)
+                    $shouldLogLimitReached = true;
+                    $auditData = [
+                        'license_id' => $license->id,
+                        'license_class' => get_class($license),
+                        'fingerprint' => $fingerprint,
+                    ];
+                    
                     throw new \RuntimeException('License usage limit reached');
                 }
 
@@ -56,6 +91,19 @@ class UsageRegistrarService implements UsageRegistrar
 
             return $usage;
         });
+        } catch (\Exception $e) {
+            if ($shouldLogLimitReached && config('licensing.audit.enabled', true)) {
+                LicensingAuditLog::create([
+                    'event_type' => AuditEventType::UsageLimitReached,
+                    'auditable_type' => $auditData['license_class'],
+                    'auditable_id' => $auditData['license_id'],
+                    'meta' => [
+                        'fingerprint' => $auditData['fingerprint'],
+                    ],
+                ]);
+            }
+            throw $e;
+        }
     }
 
     public function heartbeat(LicenseUsage $usage): void
@@ -96,6 +144,11 @@ class UsageRegistrarService implements UsageRegistrar
         $existingUsage = $this->findByFingerprint($license, $fingerprint);
         
         if ($existingUsage && $existingUsage->isActive()) {
+            // If it's global scope and the usage belongs to a different license, can't register
+            if ($license->getUniqueUsageScope() === 'global' && 
+                $existingUsage->license_id !== $license->id) {
+                return false;
+            }
             return true;
         }
 

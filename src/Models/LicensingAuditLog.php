@@ -12,31 +12,18 @@ class LicensingAuditLog extends Model implements AuditLog
 {
     use HasAuditLog;
 
-    public $timestamps = false;
-
     protected $fillable = [
         'event_type',
         'auditable_type',
         'auditable_id',
-        'actor',
-        'ip',
-        'user_agent',
+        'actor_type',
+        'actor_id',
         'meta',
-        'occurred_at',
+        'previous_hash',
     ];
 
     protected $casts = [
         'event_type' => AuditEventType::class,
         'meta' => AsArrayObject::class,
-        'occurred_at' => 'datetime',
     ];
-
-    protected static function booted(): void
-    {
-        static::creating(function (self $log) {
-            if (! $log->occurred_at) {
-                $log->occurred_at = now();
-            }
-        });
-    }
 }

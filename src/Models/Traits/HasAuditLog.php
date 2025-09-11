@@ -79,4 +79,27 @@ trait HasAuditLog
         $query->where('auditable_type', $model->getMorphClass())
               ->where('auditable_id', $model->getKey());
     }
+    
+    public function calculateHash(): string
+    {
+        $data = [
+            'id' => $this->id,
+            'event_type' => $this->event_type->value,
+            'auditable_type' => $this->auditable_type,
+            'auditable_id' => $this->auditable_id,
+            'meta' => json_encode($this->meta),
+            'created_at' => $this->created_at?->toIso8601String(),
+        ];
+        
+        return hash('sha256', json_encode($data));
+    }
+    
+    public function verifyChain($previousLog): bool
+    {
+        if (! $previousLog) {
+            return ! $this->previous_hash;
+        }
+        
+        return $this->previous_hash === $previousLog->calculateHash();
+    }
 }
