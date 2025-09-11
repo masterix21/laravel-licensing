@@ -14,7 +14,7 @@ class CertificateAuthorityService implements CertificateAuthority
         \DateTimeInterface $validUntil
     ): string {
         $rootKey = LicensingKey::findActiveRoot();
-        
+
         if (! $rootKey) {
             throw new \RuntimeException('No active root key found');
         }
@@ -30,7 +30,7 @@ class CertificateAuthorityService implements CertificateAuthority
 
         $certificateJson = json_encode($certificate);
         $privateKeyBase64 = $rootKey->getPrivateKey();
-        
+
         if (! $privateKeyBase64) {
             throw new \RuntimeException('Root private key not available');
         }
@@ -51,13 +51,13 @@ class CertificateAuthorityService implements CertificateAuthority
     {
         try {
             $data = json_decode($certificate, true);
-            
+
             if (! isset($data['certificate'], $data['signature'])) {
                 return false;
             }
 
             $rootKey = LicensingKey::findByKid($data['certificate']['issuer_kid'] ?? '');
-            
+
             if (! $rootKey || ! $rootKey->isActive()) {
                 return false;
             }
@@ -75,13 +75,13 @@ class CertificateAuthorityService implements CertificateAuthority
     public function getCertificateChain(string $kid): array
     {
         $signingKey = LicensingKey::findByKid($kid);
-        
+
         if (! $signingKey) {
             throw new \RuntimeException("Signing key not found: {$kid}");
         }
 
         $rootKey = LicensingKey::findActiveRoot();
-        
+
         if (! $rootKey) {
             throw new \RuntimeException('No active root key found');
         }
@@ -106,7 +106,7 @@ class CertificateAuthorityService implements CertificateAuthority
     public function getRootPublicKey(): string
     {
         $rootKey = LicensingKey::findActiveRoot();
-        
+
         if (! $rootKey) {
             throw new \RuntimeException('No active root key found');
         }

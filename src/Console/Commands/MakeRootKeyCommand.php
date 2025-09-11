@@ -21,6 +21,7 @@ class MakeRootKeyCommand extends Command
 
         if ($existingRoot && ! $this->option('force')) {
             $this->error('An active root key already exists. Use --force to overwrite.');
+
             return 1;
         }
 
@@ -36,7 +37,7 @@ class MakeRootKeyCommand extends Command
         $this->info('Generating new root keypair...');
 
         try {
-            $rootKey = new LicensingKey();
+            $rootKey = new LicensingKey;
             $rootKey->generate(['type' => KeyType::Root]);
 
             $publicBundlePath = config('licensing.publishing.public_bundle_path');
@@ -64,14 +65,15 @@ class MakeRootKeyCommand extends Command
 
             $this->info('Root key generated successfully!');
             $this->line('');
-            $this->line('Key ID: ' . $rootKey->kid);
-            $this->line('Public bundle saved to: ' . $publicBundlePath);
+            $this->line('Key ID: '.$rootKey->kid);
+            $this->line('Public bundle saved to: '.$publicBundlePath);
             $this->line('');
             $this->warn('IMPORTANT: Back up your key passphrase and private keys securely!');
 
             return 0;
         } catch (\Exception $e) {
-            $this->error('Failed to generate root key: ' . $e->getMessage());
+            $this->error('Failed to generate root key: '.$e->getMessage());
+
             return 3;
         }
     }

@@ -24,18 +24,19 @@ class IssueSigningKeyCommand extends Command
         CertificateAuthorityService $ca
     ): int {
         $rootKey = LicensingKey::findActiveRoot();
-        
+
         if (! $rootKey) {
             $this->error('No active root key found. Run licensing:keys:make-root first.');
+
             return 2;
         }
 
-        $kid = $this->option('kid') ?? 'kid_' . bin2hex(random_bytes(16));
-        
-        $validFrom = $this->option('nbf') 
+        $kid = $this->option('kid') ?? 'kid_'.bin2hex(random_bytes(16));
+
+        $validFrom = $this->option('nbf')
             ? new DateTimeImmutable($this->option('nbf'))
-            : new DateTimeImmutable();
-            
+            : new DateTimeImmutable;
+
         $validUntil = $this->option('exp')
             ? new DateTimeImmutable($this->option('exp'))
             : $validFrom->modify('+30 days');
@@ -43,13 +44,13 @@ class IssueSigningKeyCommand extends Command
         $this->info('Generating new signing keypair...');
 
         try {
-            $signingKey = new LicensingKey();
+            $signingKey = new LicensingKey;
             $signingKey->generate([
                 'type' => KeyType::Signing,
                 'valid_from' => $validFrom,
                 'valid_until' => $validUntil,
             ]);
-            
+
             $signingKey->kid = $kid;
             $signingKey->save();
 
@@ -74,13 +75,14 @@ class IssueSigningKeyCommand extends Command
 
             $this->info('Signing key issued successfully!');
             $this->line('');
-            $this->line('Key ID: ' . $kid);
-            $this->line('Valid from: ' . $validFrom->format('Y-m-d H:i:s'));
-            $this->line('Valid until: ' . $validUntil->format('Y-m-d H:i:s'));
+            $this->line('Key ID: '.$kid);
+            $this->line('Valid from: '.$validFrom->format('Y-m-d H:i:s'));
+            $this->line('Valid until: '.$validUntil->format('Y-m-d H:i:s'));
 
             return 0;
         } catch (\Exception $e) {
-            $this->error('Failed to issue signing key: ' . $e->getMessage());
+            $this->error('Failed to issue signing key: '.$e->getMessage());
+
             return 3;
         }
     }

@@ -22,42 +22,43 @@ class RotateKeysCommand extends Command
         CertificateAuthorityService $ca
     ): int {
         $reason = $this->option('reason');
-        
+
         if (! in_array($reason, ['routine', 'compromised'])) {
             $this->error('Invalid reason. Must be "routine" or "compromised".');
+
             return 1;
         }
 
         $currentSigningKey = LicensingKey::findActiveSigning();
-        
+
         if (! $currentSigningKey) {
             $this->warn('No active signing key found. Issuing new one...');
         } else {
-            $this->info('Revoking current signing key: ' . $currentSigningKey->kid);
-            
-            $revokedAt = $reason === 'compromised' 
+            $this->info('Revoking current signing key: '.$currentSigningKey->kid);
+
+            $revokedAt = $reason === 'compromised'
                 ? now()->subHour() // Backdate for compromised keys
                 : now();
-                
+
             $currentSigningKey->revoke($reason, $revokedAt);
-            
+
             $this->info('Current signing key revoked.');
         }
 
         $this->info('Issuing new signing key...');
 
         try {
-            $validFrom = new DateTimeImmutable();
+            $validFrom = new DateTimeImmutable;
             $validUntil = $validFrom->modify('+30 days');
-            $kid = 'kid_' . bin2hex(random_bytes(16));
+            $kid = 'kid_'.bin2hex(random_bytes(16));
 
-            $signingKey = new LicensingKey();
+            $signingKey = new LicensingKey;
             $signingKey->generate([
                 'type' => KeyType::Signing,
                 'valid_from' => $validFrom,
                 'valid_until' => $validUntil,
             ]);
-            
+
             $signingKey->kid = $kid;
             $signingKey->save();
 
@@ -101,10 +102,10 @@ class RotateKeysCommand extends Command
 
             $this->info('Key rotation completed successfully!');
             $this->line('');
-            $this->line('New Key ID: ' . $kid);
-            $this->line('Reason: ' . $reason);
-            $this->line('Public bundle updated: ' . $publicBundlePath);
-            
+            $this->line('New Key ID: '.$kid);
+            $this->line('Reason: '.$reason);
+            $this->line('Public bundle updated: '.$publicBundlePath);
+
             if ($reason === 'compromised') {
                 $this->warn('IMPORTANT: All tokens signed with the compromised key are now invalid.');
                 $this->warn('Clients must update their public key bundle immediately.');
@@ -112,7 +113,8 @@ class RotateKeysCommand extends Command
 
             return 0;
         } catch (\Exception $e) {
-            $this->error('Failed to rotate keys: ' . $e->getMessage());
+            $this->error('Failed to rotate keys: '.$e->getMessage());
+
             return 3;
         }
     }

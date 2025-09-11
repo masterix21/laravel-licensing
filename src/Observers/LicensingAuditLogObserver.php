@@ -13,7 +13,7 @@ class LicensingAuditLogObserver
     {
         throw new \RuntimeException('Audit logs are append-only and cannot be updated');
     }
-    
+
     /**
      * Set previous hash on creation if hash chaining is enabled
      */
@@ -22,7 +22,7 @@ class LicensingAuditLogObserver
         if (! config('licensing.audit.hash_chain', true)) {
             return;
         }
-        
+
         $previous = LicensingAuditLog::latest('id')->first();
         if ($previous) {
             $log->previous_hash = $previous->calculateHash();

@@ -30,13 +30,13 @@ class FingerprintResolverService implements FingerprintResolver
     public function generate(array $components): string
     {
         ksort($components);
-        
+
         $normalized = array_filter($components, function ($value) {
             return $value !== null && $value !== '';
         });
 
         $serialized = json_encode($normalized);
-        
+
         return hash('sha256', $serialized);
     }
 

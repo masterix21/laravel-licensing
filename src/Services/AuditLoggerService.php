@@ -87,11 +87,12 @@ class AuditLoggerService implements AuditLogger
     {
         if (auth()->check()) {
             $user = auth()->user();
-            return get_class($user) . ':' . $user->getKey();
+
+            return get_class($user).':'.$user->getKey();
         }
 
         if (app()->runningInConsole()) {
-            return 'console:' . get_current_user();
+            return 'console:'.get_current_user();
         }
 
         return null;

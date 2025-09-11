@@ -12,8 +12,8 @@ interface AuditLogger
         ?string $actor = null,
         array $context = []
     ): void;
-    
+
     public function query(array $filters = []): iterable;
-    
+
     public function purge(\DateTimeInterface $before): int;
 }

@@ -41,14 +41,15 @@ class LicenseRenewal extends Model
         }
 
         $amount = $this->amount_cents / 100;
-        return number_format($amount, 2) . ' ' . strtoupper($this->currency);
+
+        return number_format($amount, 2).' '.strtoupper($this->currency);
     }
 
     #[Scope]
     protected function inPeriod(Builder $query, \DateTimeInterface $date): void
     {
         $query->where('period_start', '<=', $date)
-              ->where('period_end', '>=', $date);
+            ->where('period_end', '>=', $date);
     }
 
     #[Scope]

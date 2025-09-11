@@ -2,10 +2,10 @@
 
 namespace LucaLongo\Licensing\Observers;
 
-use LucaLongo\Licensing\Models\LicensingKey;
-use LucaLongo\Licensing\Models\LicensingAuditLog;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Enums\KeyType;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
+use LucaLongo\Licensing\Models\LicensingKey;
 
 class LicensingKeyObserver
 {
@@ -15,8 +15,8 @@ class LicensingKeyObserver
             return;
         }
 
-        $eventType = $key->type === KeyType::Root 
-            ? AuditEventType::KeyRootGenerated 
+        $eventType = $key->type === KeyType::Root
+            ? AuditEventType::KeyRootGenerated
             : AuditEventType::KeySigningIssued;
 
         LicensingAuditLog::create([

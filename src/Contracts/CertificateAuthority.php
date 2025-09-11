@@ -10,10 +10,10 @@ interface CertificateAuthority
         \DateTimeInterface $validFrom,
         \DateTimeInterface $validUntil
     ): string;
-    
+
     public function verifyCertificate(string $certificate): bool;
-    
+
     public function getCertificateChain(string $kid): array;
-    
+
     public function getRootPublicKey(): string;
 }

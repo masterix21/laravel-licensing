@@ -11,9 +11,9 @@ trait TracksActor
         if (! Auth::check()) {
             return [];
         }
-        
+
         $user = Auth::user();
-        
+
         return [
             'actor_id' => $user->id,
             'actor_type' => get_class($user),
@@ -21,17 +21,17 @@ trait TracksActor
             'actor_email' => $user->email ?? null,
         ];
     }
-    
+
     protected function withActorData(array $data): array
     {
         $actorData = $this->getActorData();
-        
+
         if (! empty($actorData)) {
             $data['meta'] = array_merge($data['meta'] ?? [], [
                 'actor' => $actorData,
             ]);
         }
-        
+
         return $data;
     }
 }
