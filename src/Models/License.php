@@ -3,6 +3,7 @@
 namespace LucaLongo\Licensing\Models;
 
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -12,11 +13,11 @@ use LucaLongo\Licensing\Enums\TokenFormat;
 use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
 use LucaLongo\Licensing\Events\LicenseRenewed;
-use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 class License extends Model
 {
     use HasUlids;
+
     protected $fillable = [
         'key_hash',
         'status',
