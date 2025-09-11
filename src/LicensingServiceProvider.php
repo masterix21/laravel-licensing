@@ -26,6 +26,7 @@ use LucaLongo\Licensing\Observers\LicensingKeyObserver;
 use LucaLongo\Licensing\Services\AuditLoggerService;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
 use LucaLongo\Licensing\Services\FingerprintResolverService;
+use LucaLongo\Licensing\Services\TemplateService;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -41,6 +42,8 @@ class LicensingServiceProvider extends PackageServiceProvider
                 'create_licenses_table',
                 'create_license_usages_table',
                 'create_license_renewals_table',
+                'create_license_trials_table',
+                'create_license_templates_table',
                 'create_licensing_keys_table',
                 'create_licensing_audit_logs_table',
             ])
@@ -73,6 +76,7 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->app->singleton(UsageRegistrar::class, UsageRegistrarService::class);
         $this->app->singleton(FingerprintResolver::class, FingerprintResolverService::class);
         $this->app->singleton(AuditLogger::class, AuditLoggerService::class);
+        $this->app->singleton(TemplateService::class);
     }
 
     protected function registerTokenService(): void

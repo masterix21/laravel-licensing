@@ -5,6 +5,7 @@ return [
         'license' => \LucaLongo\Licensing\Models\License::class,
         'license_usage' => \LucaLongo\Licensing\Models\LicenseUsage::class,
         'license_renewal' => \LucaLongo\Licensing\Models\LicenseRenewal::class,
+        'license_template' => \LucaLongo\Licensing\Models\LicenseTemplate::class,
         'licensing_key' => \LucaLongo\Licensing\Models\LicensingKey::class,
         'audit_log' => \LucaLongo\Licensing\Models\LicensingAuditLog::class,
     ],
@@ -14,6 +15,12 @@ return [
         'grace_days' => 14,
         'usage_inactivity_auto_revoke_days' => null, // null to disable
         'unique_usage_scope' => 'license', // license | global
+    ],
+
+    'templates' => [
+        'enabled' => true,
+        'allow_inheritance' => true,
+        'default_group' => 'default',
     ],
 
     'trials' => [

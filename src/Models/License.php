@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use LucaLongo\Licensing\Enums\LicenseStatus;
@@ -24,6 +25,7 @@ class License extends Model
         'status',
         'licensable_type',
         'licensable_id',
+        'template_id',
         'activated_at',
         'expires_at',
         'max_usages',
@@ -66,6 +68,11 @@ class License extends Model
     public function trials(): HasMany
     {
         return $this->hasMany(LicenseTrial::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(LicenseTemplate::class, 'template_id');
     }
 
     public function activeUsages(): HasMany
@@ -272,5 +279,69 @@ class License extends Model
     public function getClockSkewSeconds(): int
     {
         return (int) $this->getOfflineTokenConfig('clock_skew_seconds');
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        if (!$this->template) {
+            return false;
+        }
+
+        return $this->template->hasFeature($feature);
+    }
+
+    public function getEntitlement(string $key): mixed
+    {
+        if (!$this->template) {
+            return null;
+        }
+
+        return $this->template->getEntitlement($key);
+    }
+
+    public function getFeatures(): array
+    {
+        if (!$this->template) {
+            return [];
+        }
+
+        return $this->template->resolveFeatures();
+    }
+
+    public function getEntitlements(): array
+    {
+        if (!$this->template) {
+            return [];
+        }
+
+        return $this->template->resolveEntitlements();
+    }
+
+    public static function createFromTemplate(string|LicenseTemplate $template, array $attributes = []): self
+    {
+        if (is_string($template)) {
+            $template = LicenseTemplate::findBySlug($template);
+            
+            if (!$template) {
+                throw new \InvalidArgumentException("Template not found: {$template}");
+            }
+        }
+
+        $config = $template->resolveConfiguration();
+        
+        $defaultAttributes = [
+            'template_id' => $template->id,
+            'max_usages' => $config['max_usages'] ?? 1,
+            'meta' => array_merge(
+                $config,
+                $attributes['meta'] ?? []
+            ),
+        ];
+
+        if (isset($config['validity_days'])) {
+            $defaultAttributes['expires_at'] = now()->addDays($config['validity_days']);
+        }
+
+        return static::create(array_merge($defaultAttributes, $attributes));
     }
 }

@@ -38,13 +38,21 @@
 - **Usage heartbeat monitoring** with automatic inactive device cleanup
 - **Per-license or global uniqueness scopes**
 
-### 🎯 **Trial Management** (New!)
+### 🎯 **Trial Management**
 - **Flexible trial periods** with configurable duration and extensions
 - **Trial-to-license conversion** tracking with revenue attribution
 - **Feature limitations** during trial period
 - **Trial reset prevention** using device fingerprinting
 - **Trial analytics** with conversion rate tracking
 - **Automatic trial expiration** handling
+
+### 📋 **License Templates & Tiers**
+- **Predefined license templates** (Basic, Pro, Enterprise) with auto-generated slugs
+- **Multi-product support** via template groups for different software offerings
+- **Template inheritance system** with tier-based configuration overrides
+- **Feature flags & entitlements** with boolean switches and quantitative limits
+- **Upgrade/downgrade paths** with tier validation and constraint enforcement
+- **Centralized licensing strategy** for complex product portfolios
 
 ### 🛠️ **Developer-Friendly**
 - **Comprehensive CLI tools** for key management and token generation
@@ -191,6 +199,64 @@ $trial = $trialService->startTrial($license, 'device-fingerprint', 14);
 $license = $trialService->convertTrial($trial, 'user_purchase', 99.99);
 ```
 
+### 7. License Templates & Tiers
+
+```php
+use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Services\TemplateService;
+
+// Create license templates for different tiers
+$basic = LicenseTemplate::create([
+    'group' => 'saas-app',
+    'name' => 'Basic',
+    'tier_level' => 1,
+    'base_configuration' => [
+        'max_usages' => 1,
+        'validity_days' => 365,
+    ],
+    'features' => [
+        'basic_features' => true,
+        'api_access' => false,
+    ],
+    'entitlements' => [
+        'max_api_calls_per_day' => 100,
+        'max_storage_gb' => 1,
+    ],
+]);
+
+$pro = LicenseTemplate::create([
+    'group' => 'saas-app',
+    'name' => 'Pro',
+    'tier_level' => 2,
+    'parent_template_id' => $basic->id, // Inherits from Basic
+    'base_configuration' => [
+        'max_usages' => 5,
+    ],
+    'features' => [
+        'api_access' => true,
+        'export_data' => true,
+    ],
+    'entitlements' => [
+        'max_api_calls_per_day' => 5000,
+        'max_storage_gb' => 10,
+    ],
+]);
+
+// Create license from template
+$license = License::createFromTemplate('saas-app-pro', [
+    'licensable' => $user,
+]);
+
+// Check features and entitlements
+if ($license->hasFeature('api_access')) {
+    $apiLimit = $license->getEntitlement('max_api_calls_per_day'); // 5000
+}
+
+// Upgrade license to higher tier
+$templateService = app(TemplateService::class);
+$templateService->upgradeLicense($license, 'saas-app-enterprise');
+```
+
 ## Advanced Configuration
 
 ### Policies Configuration
@@ -226,6 +292,16 @@ $license = $trialService->convertTrial($trial, 'user_purchase', 99.99);
     'allow_extensions' => true,
     'max_extension_days' => 7,
     'prevent_reset_attempts' => true,
+],
+```
+
+### Template Configuration
+
+```php
+'templates' => [
+    'enabled' => true,
+    'allow_inheritance' => true,
+    'default_group' => 'default',
 ],
 ```
 
@@ -317,19 +393,22 @@ The package emits the following events for integration:
 ## Use Cases
 
 ### SaaS Applications
-Control feature access and enforce subscription limits with seat-based licensing and automatic renewals.
+Control feature access and enforce subscription limits with seat-based licensing, template-based tiers (Basic/Pro/Enterprise), and automatic renewals.
 
 ### Desktop Software
-Provide offline license verification for applications that can't always connect to the internet.
+Provide offline license verification for applications that can't always connect to the internet, with flexible licensing tiers and feature flags.
 
 ### API Services
-Manage API access with usage-based licensing and concurrent request limits.
+Manage API access with usage-based licensing, concurrent request limits, and entitlement-based quotas.
 
 ### Enterprise Software
-Deploy on-premise solutions with air-gapped license verification and compliance tracking.
+Deploy on-premise solutions with air-gapped license verification, multi-product template management, and compliance tracking.
 
 ### Mobile Applications
-Lightweight offline verification with periodic online synchronization.
+Lightweight offline verification with periodic online synchronization and tier-based feature control.
+
+### Multi-Product Portfolios
+Centralize license management across different software offerings using template groups and inheritance hierarchies.
 
 ## Testing
 
@@ -385,4 +464,4 @@ For commercial support, custom integrations, or enterprise features, please cont
 
 ---
 
-**Keywords**: Laravel license management, offline license verification, software licensing Laravel, PASETO tokens, Ed25519 signatures, seat-based licensing, SaaS license management, Laravel package, enterprise licensing, device fingerprinting, license key validation, subscription management, API licensing, concurrent usage tracking, cryptographic signatures
+**Keywords**: Laravel license management, offline license verification, software licensing Laravel, PASETO tokens, Ed25519 signatures, seat-based licensing, SaaS license management, Laravel package, enterprise licensing, device fingerprinting, license key validation, subscription management, API licensing, concurrent usage tracking, cryptographic signatures, license templates, tier-based licensing, feature flags, entitlements, multi-product licensing
