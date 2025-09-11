@@ -18,6 +18,7 @@
 
 ### 🪪 **Flexible License Management**
 - **Polymorphic license assignment** - attach licenses to any Laravel model (User, Organization, Team, etc.)
+- **Secure API identification** using ULIDs instead of sequential IDs to prevent enumeration attacks
 - **Seat-based licensing** with configurable usage limits and policies
 - **Multiple license states** - pending, active, grace period, expired, suspended, cancelled
 - **Automatic state transitions** via scheduled jobs
@@ -101,6 +102,9 @@ $license = License::create([
     ],
 ]);
 
+// License automatically gets a unique UID for API usage
+echo $license->uid; // e.g., '01k4wgkvtm4zth0nnz3dawx6yj'
+
 // Activate the license
 $license->activate();
 ```
@@ -136,8 +140,11 @@ $token = Licensing::issueToken($license, $usage, [
 ### 4. Verify License (Online)
 
 ```php
-// Find and verify license by activation key
-$license = Licensing::findByKey($activationKey);
+// Find license by activation key (internal use)
+$license = License::findByKey($activationKey);
+
+// Find license by UID (for API endpoints)
+$license = License::findByUid($uid);
 
 if ($license && $license->isUsable()) {
     // License is valid and active
@@ -239,9 +246,11 @@ When API is enabled, the following endpoints are available:
 - `POST /api/licensing/v1/validate` - Validate license online
 - `POST /api/licensing/v1/token` - Issue/refresh offline token
 - `GET /api/licensing/v1/jwks.json` - Public keys (JWS mode)
-- `POST /api/licensing/v1/licenses/{id}/usages:register` - Register new device
-- `POST /api/licensing/v1/licenses/{id}/usages:heartbeat` - Update device heartbeat
-- `POST /api/licensing/v1/licenses/{id}/usages:revoke` - Revoke device access
+- `POST /api/licensing/v1/licenses/{uid}/usages:register` - Register new device
+- `POST /api/licensing/v1/licenses/{uid}/usages:heartbeat` - Update device heartbeat
+- `POST /api/licensing/v1/licenses/{uid}/usages:revoke` - Revoke device access
+
+**Note:** All license-specific endpoints use the license UID (not the internal ID) to prevent enumeration attacks. The UID is a non-sequential, cryptographically random identifier generated automatically when a license is created.
 
 ## Events
 
@@ -258,13 +267,14 @@ The package emits the following events for integration:
 ## Security Best Practices
 
 1. **Never expose activation keys** - Store only salted hashes
-2. **Use environment variables** for key passphrases
-3. **Rotate signing keys regularly** (monthly recommended)
-4. **Monitor audit logs** for suspicious activity
-5. **Implement rate limiting** on validation endpoints
-6. **Use HTTPS only** for API endpoints
-7. **Keep offline token TTL short** (7-14 days)
-8. **Enable forced online verification** for critical licenses
+2. **Use UIDs for API endpoints** - Never expose internal sequential IDs
+3. **Use environment variables** for key passphrases
+4. **Rotate signing keys regularly** (monthly recommended)
+5. **Monitor audit logs** for suspicious activity
+6. **Implement rate limiting** on validation endpoints
+7. **Use HTTPS only** for API endpoints
+8. **Keep offline token TTL short** (7-14 days)
+9. **Enable forced online verification** for critical licenses
 
 ## Use Cases
 

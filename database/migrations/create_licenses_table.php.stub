@@ -11,6 +11,7 @@ return new class extends Migration
     {
         Schema::create('licenses', function (Blueprint $table) {
             $table->id();
+            $table->ulid('uid')->unique()->index()->comment('Public unique identifier for API usage');
             $table->string('key_hash')->unique();
             $table->string('status', 20)->default(LicenseStatus::Pending->value)->index();
             $table->morphs('licensable');
@@ -19,7 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('max_usages')->default(1);
             $table->json('meta')->nullable();
             $table->timestamps();
-            
+
             $table->index(['status', 'expires_at']);
         });
     }

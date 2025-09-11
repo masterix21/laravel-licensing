@@ -40,6 +40,30 @@ test('can find license by key', function () {
         ->and($found->id)->toBe($license->id);
 });
 
+test('automatically generates uid on creation', function () {
+    $license = $this->createLicense();
+    
+    expect($license->uid)->not->toBeNull()
+        ->and(strlen($license->uid))->toBe(26)
+        ->and($license->uid)->toMatch('/^[0-9a-z]{26}$/');
+});
+
+test('can find license by uid', function () {
+    $license = $this->createLicense();
+    
+    $found = License::findByUid($license->uid);
+    
+    expect($found)->not->toBeNull()
+        ->and($found->id)->toBe($license->id);
+});
+
+test('uid is unique across licenses', function () {
+    $license1 = $this->createLicense();
+    $license2 = $this->createLicense();
+    
+    expect($license1->uid)->not->toBe($license2->uid);
+});
+
 test('can verify license key', function () {
     $key = 'SECRET-LICENSE-KEY';
     $license = $this->createLicense([

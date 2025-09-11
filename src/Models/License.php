@@ -12,9 +12,11 @@ use LucaLongo\Licensing\Enums\TokenFormat;
 use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
 use LucaLongo\Licensing\Events\LicenseRenewed;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 class License extends Model
 {
+    use HasUlids;
     protected $fillable = [
         'key_hash',
         'status',
@@ -39,6 +41,11 @@ class License extends Model
         'max_usages' => 1,
     ];
 
+    public function uniqueIds(): array
+    {
+        return ['uid'];
+    }
+
     public function licensable(): MorphTo
     {
         return $this->morphTo();
@@ -62,6 +69,11 @@ class License extends Model
     public static function findByKey(string $key): ?self
     {
         return static::where('key_hash', static::hashKey($key))->first();
+    }
+
+    public static function findByUid(string $uid): ?self
+    {
+        return static::where('uid', $uid)->first();
     }
 
     public static function hashKey(string $key): string
