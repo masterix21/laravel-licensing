@@ -1,75 +1,10 @@
-# Laravel Licensing - Enterprise-Grade License Management for Laravel Applications
+# Laravel Licensing
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/masterix21/laravel-licensing.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/masterix21/laravel-licensing/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/masterix21/laravel-licensing/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/masterix21/laravel-licensing.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing)
-[![License](https://img.shields.io/packagist/l/masterix21/laravel-licensing.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing)
 
-**Laravel Licensing** is a comprehensive license management system for Laravel applications that provides enterprise-grade security, offline verification capabilities, and flexible seat-based licensing. Perfect for SaaS applications, desktop software, APIs, and any Laravel-based product requiring robust license enforcement.
-
-## Key Features
-
-### 🔐 **Enterprise Security Architecture**
-- **Two-level cryptographic key hierarchy** with root certificate authority and rotating signing keys
-- **Ed25519 digital signatures** for maximum security and performance
-- **PASETO v4 tokens** for offline license verification (superior to JWT)
-- **Tamper-evident audit logging** with hash-chained records
-- **Zero-knowledge key storage** - private keys never exposed in plaintext
-
-### 🪪 **Flexible License Management**
-- **Polymorphic license assignment** - attach licenses to any Laravel model (User, Organization, Team, etc.)
-- **Secure API identification** using ULIDs instead of sequential IDs to prevent enumeration attacks
-- **Seat-based licensing** with configurable usage limits and policies
-- **Multiple license states** - pending, active, grace period, expired, suspended, cancelled
-- **Automatic state transitions** via scheduled jobs
-- **License renewals** with full history tracking
-
-### 🖥️ **Offline-First Verification**
-- **No internet required** for license validation after initial activation
-- **Cryptographically signed tokens** with configurable TTL (Time To Live)
-- **Forced online verification windows** to ensure periodic synchronization
-- **Clock skew tolerance** for time synchronization issues
-- **Certificate chain validation** for trust verification
-
-### 📊 **Advanced Usage Tracking**
-- **Device/VM/Service fingerprinting** without storing PII
-- **Concurrent usage enforcement** with pessimistic locking
-- **Configurable over-limit policies** - reject or auto-replace oldest
-- **Usage heartbeat monitoring** with automatic inactive device cleanup
-- **Per-license or global uniqueness scopes**
-
-### 🎯 **Trial Management**
-- **Flexible trial periods** with configurable duration and extensions
-- **Trial-to-license conversion** tracking with revenue attribution
-- **Feature limitations** during trial period
-- **Trial reset prevention** using device fingerprinting
-- **Trial analytics** with conversion rate tracking
-- **Automatic trial expiration** handling
-
-### 📋 **License Templates & Tiers**
-- **Predefined license templates** (Basic, Pro, Enterprise) with auto-generated slugs
-- **Multi-product support** via template groups for different software offerings
-- **Template inheritance system** with tier-based configuration overrides
-- **Feature flags & entitlements** with boolean switches and quantitative limits
-- **Upgrade/downgrade paths** with tier validation and constraint enforcement
-- **Centralized licensing strategy** for complex product portfolios
-
-### 🔄 **License Transfer & Migration**
-- **Secure license transfers** between users and organizations with multi-level approval workflow
-- **Transfer types** - User-to-User, User-to-Organization, Organization-to-Organization, Recovery, Migration
-- **Immutable transfer history** with cryptographic integrity verification
-- **Fraud detection** - Ping-pong patterns, frequent transfers, high-value monitoring
-- **Configurable cooling periods** between transfers to prevent abuse
-- **Approval workflow** with source, target, and admin authorization levels
-- **Usage preservation options** during transfer with automatic revocation handling
-
-### 🛠️ **Developer-Friendly**
-- **Comprehensive CLI tools** for key management and token generation
-- **RESTful API endpoints** with built-in rate limiting
-- **Event-driven architecture** for custom integrations
-- **Fully configurable** via published config files
-- **Extensive test coverage** including security scenarios
-- **Laravel best practices** throughout
+Enterprise-grade license management for Laravel applications with offline verification, seat-based licensing, and cryptographic security.
 
 ## Installation
 
