@@ -115,9 +115,9 @@ For comprehensive documentation visit the [documentation](docs/README.md).
 ## Requirements
 
 - PHP 8.2+
-- Laravel 11.0+ or 12.0+
+- Laravel 12.0+
 - OpenSSL extension
-- Sodium extension (for Ed25519)
+- Sodium extension (for PASETO tokens and Ed25519 signatures)
 
 ## Contributing
 

@@ -17,6 +17,8 @@
     ],
     "require": {
         "php": "^8.2",
+        "ext-openssl": "*",
+        "ext-sodium": "*",
         "illuminate/console": "^12.0",
         "illuminate/contracts": "^12.0",
         "illuminate/database": "^12.0",

@@ -113,10 +113,10 @@ $apiCallsLimit = $license->getEntitlement('api_calls_per_month');
 
 ## 📋 Requirements
 
-- PHP 8.1 or higher
-- Laravel 10.0 or higher
+- PHP 8.2+
+- Laravel 12.0+
 - OpenSSL extension
-- Sodium extension (for PASETO tokens)
+- Sodium extension (for PASETO tokens and Ed25519 signatures)
 
 ## 🤝 Support
 
