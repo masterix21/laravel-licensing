@@ -16,24 +16,24 @@ class TransferValidationService
         Model $targetEntity,
         TransferType $transferType
     ): void {
-        if (!$license->isTransferable()) {
+        if (! $license->isTransferable()) {
             throw new TransferValidationException('License is not transferable in its current state');
         }
 
         $this->validateCoolingPeriod($license);
         $this->validateTransferType($license, $targetEntity, $transferType);
-        
+
         if ($targetEntity instanceof CanReceiveLicenseTransfers) {
             $this->validateTargetEntity($targetEntity);
         }
-        
+
         $this->detectSuspiciousPatterns($license, $targetEntity);
     }
 
     protected function validateCoolingPeriod(License $license): void
     {
         $coolingDays = config('licensing.transfer.cooling_period_days', 30);
-        
+
         if ($coolingDays <= 0) {
             return;
         }
@@ -43,12 +43,12 @@ class TransferValidationService
             ->latest('completed_at')
             ->first();
 
-        if (!$lastTransfer) {
+        if (! $lastTransfer) {
             return;
         }
 
         $daysSinceLastTransfer = $lastTransfer->completed_at->diffInDays(now());
-        
+
         if ($daysSinceLastTransfer < $coolingDays) {
             throw new TransferValidationException(
                 "Transfer cooling period not met. Please wait {$coolingDays} days between transfers."
@@ -63,7 +63,7 @@ class TransferValidationService
     ): void {
         $sourceType = class_basename($license->licensable_type);
         $targetType = class_basename($targetEntity::class);
-        
+
         $expectedType = match ([$sourceType, $targetType]) {
             ['User', 'User'] => TransferType::UserToUser,
             ['User', 'Organization'] => TransferType::UserToOrg,
@@ -72,8 +72,8 @@ class TransferValidationService
             default => null,
         };
 
-        if ($expectedType && $transferType !== $expectedType && 
-            !in_array($transferType, [TransferType::Recovery, TransferType::Migration])) {
+        if ($expectedType && $transferType !== $expectedType &&
+            ! in_array($transferType, [TransferType::Recovery, TransferType::Migration])) {
             throw new TransferValidationException(
                 "Invalid transfer type. Expected {$expectedType->value}, got {$transferType->value}"
             );
@@ -82,7 +82,7 @@ class TransferValidationService
 
     protected function validateTargetEntity(CanReceiveLicenseTransfers $targetEntity): void
     {
-        if (!$targetEntity->canReceiveLicenseTransfers()) {
+        if (! $targetEntity->canReceiveLicenseTransfers()) {
             throw new TransferValidationException(
                 'Target entity cannot receive license transfers at this time'
             );
@@ -98,7 +98,7 @@ class TransferValidationService
     protected function detectSuspiciousPatterns(License $license, Model $targetEntity): void
     {
         $patterns = [];
-        
+
         if ($this->detectFrequentTransfers($license)) {
             $patterns[] = 'frequent_transfers';
         }
@@ -111,9 +111,9 @@ class TransferValidationService
             $patterns[] = 'high_value_transfer';
         }
 
-        if (!empty($patterns)) {
+        if (! empty($patterns)) {
             $requiresReview = config('licensing.transfer.suspicious_pattern_requires_review', true);
-            
+
             if ($requiresReview) {
                 throw new TransferValidationException(
                     'Transfer blocked due to suspicious patterns'
@@ -138,7 +138,7 @@ class TransferValidationService
             ->latest('completed_at')
             ->first();
 
-        if (!$lastTransfer) {
+        if (! $lastTransfer) {
             return false;
         }
 
@@ -148,18 +148,18 @@ class TransferValidationService
 
     protected function detectUnusualValueTransfer(License $license): bool
     {
-        if (!$license->template) {
+        if (! $license->template) {
             return false;
         }
 
         $value = $license->template->getMetadata('estimated_value');
-        
-        if (!$value) {
+
+        if (! $value) {
             return false;
         }
 
         $highValueThreshold = config('licensing.transfer.high_value_threshold', 10000);
-        
+
         return $value > $highValueThreshold;
     }
 

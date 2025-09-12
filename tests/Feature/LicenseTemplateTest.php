@@ -217,8 +217,8 @@ it('prevents downgrade to lower tier', function () {
     ]);
 
     $templateService = app(TemplateService::class);
-    
-    expect(fn() => $templateService->upgradeLicense($license, $basic))
+
+    expect(fn () => $templateService->upgradeLicense($license, $basic))
         ->toThrow(\InvalidArgumentException::class, 'Can only upgrade to a higher tier');
 });
 

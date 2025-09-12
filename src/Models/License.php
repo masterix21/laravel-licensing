@@ -294,7 +294,7 @@ class License extends Model
 
     public function hasFeature(string $feature): bool
     {
-        if (!$this->template) {
+        if (! $this->template) {
             return false;
         }
 
@@ -303,7 +303,7 @@ class License extends Model
 
     public function getEntitlement(string $key): mixed
     {
-        if (!$this->template) {
+        if (! $this->template) {
             return null;
         }
 
@@ -312,7 +312,7 @@ class License extends Model
 
     public function getFeatures(): array
     {
-        if (!$this->template) {
+        if (! $this->template) {
             return [];
         }
 
@@ -321,7 +321,7 @@ class License extends Model
 
     public function getEntitlements(): array
     {
-        if (!$this->template) {
+        if (! $this->template) {
             return [];
         }
 
@@ -332,14 +332,14 @@ class License extends Model
     {
         if (is_string($template)) {
             $template = LicenseTemplate::findBySlug($template);
-            
-            if (!$template) {
+
+            if (! $template) {
                 throw new \InvalidArgumentException("Template not found: {$template}");
             }
         }
 
         $config = $template->resolveConfiguration();
-        
+
         $defaultAttributes = [
             'template_id' => $template->id,
             'max_usages' => $config['max_usages'] ?? 1,
@@ -370,7 +370,7 @@ class License extends Model
 
     public function isTransferable(): bool
     {
-        if (!$this->isUsable()) {
+        if (! $this->isUsable()) {
             return false;
         }
 
@@ -383,7 +383,7 @@ class License extends Model
 
     public function initiateTransfer(array $data): LicenseTransfer
     {
-        if (!$this->isTransferable()) {
+        if (! $this->isTransferable()) {
             throw new \RuntimeException('License is not transferable in its current state');
         }
 

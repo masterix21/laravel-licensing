@@ -15,7 +15,7 @@ use Spatie\Sluggable\SlugOptions;
 
 class LicenseTemplate extends Model
 {
-    use HasFactory, HasUlids, HasSlug;
+    use HasFactory, HasSlug, HasUlids;
 
     protected $fillable = [
         'group',
@@ -105,14 +105,14 @@ class LicenseTemplate extends Model
     public function hasFeature(string $feature): bool
     {
         $features = $this->resolveFeatures();
-        
+
         return isset($features[$feature]) && $features[$feature] === true;
     }
 
     public function getEntitlement(string $key): mixed
     {
         $entitlements = $this->resolveEntitlements();
-        
+
         return $entitlements[$key] ?? null;
     }
 
