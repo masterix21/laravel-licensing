@@ -54,6 +54,9 @@ class TestCase extends Orchestra
             'create_license_renewals_table.php.stub',
             'create_license_trials_table.php.stub',
             'create_license_templates_table.php.stub',
+            'create_license_transfers_table.php.stub',
+            'create_license_transfer_histories_table.php.stub',
+            'create_license_transfer_approvals_table.php.stub',
             'create_licensing_keys_table.php.stub',
             'create_licensing_audit_logs_table.php.stub',
         ];

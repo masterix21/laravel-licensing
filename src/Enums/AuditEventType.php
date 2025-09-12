@@ -32,6 +32,14 @@ enum AuditEventType: string
     case TokenRefreshed = 'token.refreshed';
     case TokenVerificationFailed = 'token.verification_failed';
 
+    // Transfer events
+    case TransferInitiated = 'transfer.initiated';
+    case TransferApproved = 'transfer.approved';
+    case TransferRejected = 'transfer.rejected';
+    case TransferCompleted = 'transfer.completed';
+    case TransferCancelled = 'transfer.cancelled';
+    case TransferExpired = 'transfer.expired';
+
     // API events
     case ApiRateLimitExceeded = 'api.rate_limit_exceeded';
     case ApiUnauthorizedAccess = 'api.unauthorized_access';

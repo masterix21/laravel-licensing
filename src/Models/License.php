@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Enums\OverLimitPolicy;
 use LucaLongo\Licensing\Enums\TokenFormat;
+use LucaLongo\Licensing\Enums\TransferStatus;
 use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
 use LucaLongo\Licensing\Events\LicenseRenewed;
@@ -68,6 +69,16 @@ class License extends Model
     public function trials(): HasMany
     {
         return $this->hasMany(LicenseTrial::class);
+    }
+
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(LicenseTransfer::class);
+    }
+
+    public function transferHistory(): HasMany
+    {
+        return $this->hasMany(LicenseTransferHistory::class);
     }
 
     public function template(): BelongsTo
@@ -343,5 +354,39 @@ class License extends Model
         }
 
         return static::create(array_merge($defaultAttributes, $attributes));
+    }
+
+    public function hasPendingTransfers(): bool
+    {
+        return $this->transfers()
+            ->where('status', TransferStatus::Pending)
+            ->exists();
+    }
+
+    public function getLatestTransfer(): ?LicenseTransfer
+    {
+        return $this->transfers()->latest()->first();
+    }
+
+    public function isTransferable(): bool
+    {
+        if (!$this->isUsable()) {
+            return false;
+        }
+
+        if ($this->hasPendingTransfers()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function initiateTransfer(array $data): LicenseTransfer
+    {
+        if (!$this->isTransferable()) {
+            throw new \RuntimeException('License is not transferable in its current state');
+        }
+
+        return $this->transfers()->create($data);
     }
 }

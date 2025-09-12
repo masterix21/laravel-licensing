@@ -44,6 +44,9 @@ class LicensingServiceProvider extends PackageServiceProvider
                 'create_license_renewals_table',
                 'create_license_trials_table',
                 'create_license_templates_table',
+                'create_license_transfers_table',
+                'create_license_transfer_histories_table',
+                'create_license_transfer_approvals_table',
                 'create_licensing_keys_table',
                 'create_licensing_audit_logs_table',
             ])

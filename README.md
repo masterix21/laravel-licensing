@@ -54,6 +54,15 @@
 - **Upgrade/downgrade paths** with tier validation and constraint enforcement
 - **Centralized licensing strategy** for complex product portfolios
 
+### 🔄 **License Transfer & Migration**
+- **Secure license transfers** between users and organizations with multi-level approval workflow
+- **Transfer types** - User-to-User, User-to-Organization, Organization-to-Organization, Recovery, Migration
+- **Immutable transfer history** with cryptographic integrity verification
+- **Fraud detection** - Ping-pong patterns, frequent transfers, high-value monitoring
+- **Configurable cooling periods** between transfers to prevent abuse
+- **Approval workflow** with source, target, and admin authorization levels
+- **Usage preservation options** during transfer with automatic revocation handling
+
 ### 🛠️ **Developer-Friendly**
 - **Comprehensive CLI tools** for key management and token generation
 - **RESTful API endpoints** with built-in rate limiting
@@ -257,6 +266,28 @@ $templateService = app(TemplateService::class);
 $templateService->upgradeLicense($license, 'saas-app-enterprise');
 ```
 
+### 8. License Transfer & Migration
+
+```php
+use LucaLongo\Licensing\Services\LicenseTransferService;
+use LucaLongo\Licensing\Enums\TransferType;
+
+// Initiate a secure license transfer
+$transferService = app(LicenseTransferService::class);
+$transfer = $transferService->initiateTransfer(
+    $license,
+    $targetUser,
+    TransferType::UserToUser,
+    $currentUser,
+    ['reason' => 'Sale to another user']
+);
+
+// Multi-level approval workflow
+// Transfer executes automatically when all approvals are received
+
+// For complete transfer documentation, see the docs
+```
+
 ## Advanced Configuration
 
 ### Policies Configuration
@@ -377,6 +408,9 @@ The package emits the following events for integration:
 - `TrialConverted` - When trial converts to full license
 - `TrialExpired` - When trial period expires
 - `TrialExtended` - When trial is extended
+- `LicenseTransferInitiated` - When a license transfer is requested
+- `LicenseTransferCompleted` - When transfer is successfully executed
+- `LicenseTransferRejected` - When transfer is rejected by an approver
 
 ## Security Best Practices
 
