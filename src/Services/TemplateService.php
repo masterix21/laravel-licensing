@@ -124,8 +124,8 @@ class TemplateService
     {
         if (is_string($newTemplate)) {
             $newTemplate = LicenseTemplate::findBySlug($newTemplate);
-            
-            if (!$newTemplate) {
+
+            if (! $newTemplate) {
                 throw new \InvalidArgumentException("Template not found: {$newTemplate}");
             }
         }
@@ -150,7 +150,7 @@ class TemplateService
 
     public function getAvailableUpgrades(License $license): Collection
     {
-        if (!$license->template) {
+        if (! $license->template) {
             return LicenseTemplate::query()->active()->get();
         }
 

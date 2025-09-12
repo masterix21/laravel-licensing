@@ -112,7 +112,7 @@ class LicenseTransferApproval extends Model
         return $this->token_expires_at->isPast();
     }
 
-    public function approve(Model $approver, string $reason = null, array $conditions = null): void
+    public function approve(Model $approver, ?string $reason = null, ?array $conditions = null): void
     {
         if (! $this->isPending()) {
             throw new \RuntimeException('Cannot approve a non-pending approval');
@@ -132,7 +132,7 @@ class LicenseTransferApproval extends Model
         $this->updateTransferApprovalTimestamp();
     }
 
-    public function reject(Model $rejector, string $reason = null): void
+    public function reject(Model $rejector, ?string $reason = null): void
     {
         if (! $this->isPending()) {
             throw new \RuntimeException('Cannot reject a non-pending approval');

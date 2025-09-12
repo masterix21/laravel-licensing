@@ -291,7 +291,7 @@ class LicenseTransfer extends Model
         ]);
     }
 
-    public function markAsRejected(Model $rejector, string $reason = null): void
+    public function markAsRejected(Model $rejector, ?string $reason = null): void
     {
         $this->update([
             'status' => TransferStatus::Rejected,
@@ -319,7 +319,7 @@ class LicenseTransfer extends Model
         ]);
     }
 
-    public function markAsRolledBack(Model $executor, string $reason = null): void
+    public function markAsRolledBack(Model $executor, ?string $reason = null): void
     {
         $this->update([
             'status' => TransferStatus::RolledBack,

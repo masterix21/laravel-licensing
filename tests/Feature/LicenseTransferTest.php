@@ -5,11 +5,10 @@ use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Enums\TransferStatus;
 use LucaLongo\Licensing\Enums\TransferType;
 use LucaLongo\Licensing\Enums\UsageStatus;
-use LucaLongo\Licensing\Events\LicenseTransferInitiated;
 use LucaLongo\Licensing\Events\LicenseTransferCompleted;
 use LucaLongo\Licensing\Events\LicenseTransferRejected;
-use LucaLongo\Licensing\Exceptions\TransferValidationException;
 use LucaLongo\Licensing\Exceptions\TransferNotAllowedException;
+use LucaLongo\Licensing\Exceptions\TransferValidationException;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseTransfer;
 use LucaLongo\Licensing\Models\LicenseTransferHistory;
@@ -64,7 +63,7 @@ it('can initiate a license transfer', function () {
 it('validates transfer eligibility', function () {
     $this->license->update(['status' => 'expired']);
 
-    expect(fn() => $this->transferService->initiateTransfer(
+    expect(fn () => $this->transferService->initiateTransfer(
         $this->license,
         $this->targetUser,
         TransferType::UserToUser,
@@ -239,7 +238,7 @@ it('creates immutable transfer history', function () {
     expect($history->integrity_hash)->toBeString()->toHaveLength(64);
 
     // Test immutability
-    expect(fn() => $history->update(['new_licensable_id' => 999]))
+    expect(fn () => $history->update(['new_licensable_id' => 999]))
         ->toThrow(\RuntimeException::class, 'Transfer history records are immutable');
 });
 
@@ -263,7 +262,7 @@ it('enforces cooling period between transfers', function () {
     $this->license->refresh();
 
     // Try to transfer again immediately
-    expect(fn() => $this->transferService->initiateTransfer(
+    expect(fn () => $this->transferService->initiateTransfer(
         $this->license,
         $this->sourceUser,
         TransferType::UserToUser,
@@ -289,7 +288,7 @@ it('detects ping-pong transfer pattern', function () {
     ]);
 
     // Try to transfer back to original owner
-    expect(fn() => $this->transferService->initiateTransfer(
+    expect(fn () => $this->transferService->initiateTransfer(
         $this->license,
         $this->sourceUser,
         TransferType::UserToUser,
@@ -317,7 +316,7 @@ it('detects frequent transfer pattern', function () {
     }
 
     // Try another transfer - should be blocked for suspicious patterns (>3 transfers in 90 days)
-    expect(fn() => $this->transferService->initiateTransfer(
+    expect(fn () => $this->transferService->initiateTransfer(
         $this->license,
         $this->targetUser,
         TransferType::UserToUser,
@@ -332,7 +331,7 @@ it('allows admin to override transfer approval', function () {
     ]);
 
     // Mock admin permission
-    $adminUser->hasPermission = fn($permission) => $permission === 'approve-license-transfers';
+    $adminUser->hasPermission = fn ($permission) => $permission === 'approve-license-transfers';
 
     $transfer = $this->transferService->initiateTransfer(
         $this->license,
@@ -459,7 +458,7 @@ it('updates expiration when not preserved', function () {
         $this->sourceUser,
         [
             'preserve_expiration' => false,
-            'conditions' => ['new_expiration' => $newExpiration]
+            'conditions' => ['new_expiration' => $newExpiration],
         ]
     );
 
@@ -490,7 +489,7 @@ it('prevents unauthorized approval', function () {
 
     $sourceApproval = $transfer->approvals()->where('approval_type', 'source')->first();
 
-    expect(fn() => $this->transferService->approveTransfer($sourceApproval, $unauthorizedUser))
+    expect(fn () => $this->transferService->approveTransfer($sourceApproval, $unauthorizedUser))
         ->toThrow(TransferNotAllowedException::class);
 });
 

@@ -98,7 +98,7 @@ class TransferApprovalService
 
     protected function canApproveAsAdmin(Model $approver): bool
     {
-        if (!method_exists($approver, 'hasPermission')) {
+        if (! method_exists($approver, 'hasPermission')) {
             return false;
         }
 

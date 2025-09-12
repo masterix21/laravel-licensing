@@ -47,7 +47,7 @@ class LicenseTransferHistory extends Model
 
         static::creating(function (self $history) {
             $history->integrity_hash = $history->calculateIntegrityHash();
-            
+
             if (! $history->executed_at) {
                 $history->executed_at = now();
             }
@@ -120,10 +120,10 @@ class LicenseTransferHistory extends Model
 
     public function verifyIntegrity(): bool
     {
-        if (!$this->integrity_hash) {
+        if (! $this->integrity_hash) {
             return false;
         }
-        
+
         return hash_equals($this->integrity_hash, $this->calculateIntegrityHash());
     }
 
