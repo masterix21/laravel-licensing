@@ -4,7 +4,7 @@
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/masterix21/laravel-licensing/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/masterix21/laravel-licensing/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/masterix21/laravel-licensing.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing)
 
-Enterprise-grade license management for Laravel applications with offline verification, seat-based licensing, and cryptographic security.
+Enterprise-grade license management for Laravel applications with offline verification, seat-based licensing, cryptographic security, and multi-product support through License Scopes.
 
 ## Installation
 
@@ -37,6 +37,17 @@ Issue your first signing key:
 ```bash
 php artisan licensing:keys:issue-signing --kid signing-key-1
 ```
+
+## Key Features
+
+- **🔐 Offline Verification**: PASETO v4 tokens with Ed25519 signatures
+- **🪑 Seat-Based Licensing**: Control device/user limits per license
+- **🔄 License Lifecycles**: Activation, renewal, grace periods, and expiration
+- **🏢 Multi-Product Support**: License Scopes for product/software isolation
+- **🔑 Two-Level Key Hierarchy**: Root CA → Signing Keys for secure rotation
+- **📊 Comprehensive Audit Trail**: Track all license and usage events
+- **🎯 Flexible Assignment**: Polymorphic relationships for any model
+- **⚡ High Performance**: Optimized for enterprise workloads
 
 ## Quick Start
 
@@ -86,6 +97,80 @@ if ($license->isUsable()) {
     $availableSeats = $license->getAvailableSeats();
 }
 ```
+
+## Multi-Product Licensing with Scopes
+
+License Scopes enable you to manage multiple products/software with isolated signing keys, preventing key compromise in one product from affecting others.
+
+### Create product scopes
+
+```php
+use LucaLongo\Licensing\Models\LicenseScope;
+
+// Create scope for your ERP system
+$erpScope = LicenseScope::create([
+    'name' => 'ERP System',
+    'slug' => 'erp-system',
+    'identifier' => 'com.company.erp',
+    'key_rotation_days' => 90,
+    'default_max_usages' => 100,
+]);
+
+// Create scope for your mobile app
+$mobileScope = LicenseScope::create([
+    'name' => 'Mobile App',
+    'slug' => 'mobile-app',
+    'identifier' => 'com.company.mobile',
+    'key_rotation_days' => 30,  // More frequent rotation
+    'default_max_usages' => 3,
+]);
+```
+
+### Issue scoped signing keys
+
+```bash
+# Issue signing key for ERP system
+php artisan licensing:keys:issue-signing --scope erp-system --kid erp-key-2024
+
+# Issue signing key for mobile app
+php artisan licensing:keys:issue-signing --scope mobile-app --kid mobile-key-2024
+```
+
+### Create scoped licenses
+
+```php
+// Create license for ERP system
+$erpLicense = License::create([
+    'key_hash' => License::hashKey($erpActivationKey),
+    'license_scope_id' => $erpScope->id,  // Scoped to ERP
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+    'max_usages' => 100,
+    'expires_at' => now()->addYear(),
+]);
+
+// Create license for mobile app
+$mobileLicense = License::create([
+    'key_hash' => License::hashKey($mobileActivationKey),
+    'license_scope_id' => $mobileScope->id,  // Scoped to mobile
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'max_usages' => 3,
+    'expires_at' => now()->addMonths(6),
+]);
+
+// Tokens are automatically signed with the correct scope-specific key
+$erpToken = Licensing::issueToken($erpLicense, $erpUsage);
+$mobileToken = Licensing::issueToken($mobileLicense, $mobileUsage);
+```
+
+### Benefits of License Scopes
+
+- **Key Isolation**: Each product has its own signing keys
+- **Independent Rotation**: Different rotation schedules per product
+- **Blast Radius Limitation**: Key compromise affects only one product
+- **Product-Specific Defaults**: Configure max usages, trial days per scope
+- **Flexible Management**: Programmatic or CLI-based key management
 
 
 ## Testing
