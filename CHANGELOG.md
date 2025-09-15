@@ -2,7 +2,7 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
-## v1.0.1 - License Scopes for Multi-Product Support - 2025-09-15
+## v1.0.1 - 2025-09-15
 
 ### What's New in 1.0.1
 
