@@ -55,13 +55,22 @@ php artisan licensing:keys:issue-signing --kid signing-key-1
 
 ```php
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
 
 $activationKey = Str::random(32);
+
+// Optional: Create a scope for product isolation
+$scope = LicenseScope::create([
+    'name' => 'My Product',
+    'slug' => 'my-product',
+    'identifier' => 'com.company.product',
+]);
 
 $license = License::create([
     'key_hash' => License::hashKey($activationKey),
     'licensable_type' => User::class,
     'licensable_id' => $user->id,
+    'license_scope_id' => $scope->id ?? null,  // Optional scope
     'max_usages' => 5,
     'expires_at' => now()->addYear(),
 ]);
