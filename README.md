@@ -216,7 +216,7 @@ This package includes comprehensive guidelines for AI coding assistants. See [AI
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.3+
 - Laravel 12.0+
 - OpenSSL extension
 - Sodium extension (for PASETO tokens and Ed25519 signatures)
