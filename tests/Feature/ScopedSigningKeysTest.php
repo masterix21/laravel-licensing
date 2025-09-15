@@ -1,13 +1,13 @@
 <?php
 
+use LucaLongo\Licensing\Enums\KeyStatus;
+use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicensingKey;
-use LucaLongo\Licensing\Models\LicenseScope;
-use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
-use LucaLongo\Licensing\Enums\KeyType;
-use LucaLongo\Licensing\Enums\KeyStatus;
+use LucaLongo\Licensing\Services\PasetoTokenService;
 
 test('can create signing key with scope', function () {
     // Create root key

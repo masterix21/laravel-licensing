@@ -3,8 +3,8 @@
 namespace LucaLongo\Licensing\Services;
 
 use LucaLongo\Licensing\Contracts\CertificateAuthority;
-use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Models\LicenseScope;
+use LucaLongo\Licensing\Models\LicensingKey;
 
 class CertificateAuthorityService implements CertificateAuthority
 {
