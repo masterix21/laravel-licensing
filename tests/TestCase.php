@@ -69,6 +69,21 @@ class TestCase extends Orchestra
             }
         }
 
+        // Run new migrations for LicenseScope
+        $newMigrations = [
+            '2024_01_16_000000_create_license_scopes_table.php',
+            '2024_01_16_000001_update_licenses_for_scopes.php',
+            '2024_01_16_000002_update_licensing_keys_for_scopes.php',
+        ];
+
+        foreach ($newMigrations as $migrationFile) {
+            $path = __DIR__.'/../database/migrations/'.$migrationFile;
+            if (file_exists($path)) {
+                $migration = include $path;
+                $migration->up();
+            }
+        }
+
         // Create users table for testing
         $usersTablePath = __DIR__.'/database/migrations/create_users_table.php';
         if (file_exists($usersTablePath)) {

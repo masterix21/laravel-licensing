@@ -1,0 +1,46 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('license_scopes', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->string('identifier')->unique()
+                ->comment('Unique identifier like com.company.product');
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+
+            // Key rotation settings
+            $table->integer('key_rotation_days')->default(90)
+                ->comment('Days between automatic key rotations');
+            $table->timestamp('last_key_rotation_at')->nullable();
+            $table->timestamp('next_key_rotation_at')->nullable();
+
+            // Default license settings for this scope
+            $table->integer('default_max_usages')->default(1);
+            $table->integer('default_duration_days')->nullable();
+            $table->integer('default_grace_days')->default(14);
+
+            // Metadata
+            $table->json('meta')->nullable()
+                ->comment('Additional scope configuration');
+
+            $table->timestamps();
+
+            $table->index('is_active');
+            $table->index('next_key_rotation_at');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('license_scopes');
+    }
+};

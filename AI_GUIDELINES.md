@@ -17,6 +17,7 @@ Laravel Licensing is an enterprise-grade licensing system for Laravel applicatio
 - **Offline verification** using PASETO v4 tokens
 - **Two-level key hierarchy** (Root CA → Signing Keys)
 - **Seat-based licensing** with usage fingerprints
+- **License Scopes** for multi-product/software key isolation
 - **Trial management** with conversion tracking
 - **Template-based licensing** with inheritance
 - **Comprehensive audit logging** with tamper detection
@@ -24,6 +25,7 @@ Laravel Licensing is an enterprise-grade licensing system for Laravel applicatio
 ### Package Namespace
 ```php
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Facades\Licensing;
 use LucaLongo\Licensing\Services\*;
 ```
@@ -49,6 +51,7 @@ Key facts:
 - Implements offline verification with public key bundles
 - Has polymorphic licensable relationships
 - Supports seat-based licensing via LicenseUsage
+- Uses LicenseScope for multi-product key isolation
 ```
 
 ### Claude Code Specific Patterns
@@ -121,11 +124,38 @@ $token = $tokenService->issue($license, $usage, [
 // Token contains no secrets - safe for client storage
 ```
 
-#### 4. Key Management CLI Commands
+#### 4. License Scopes for Multi-Product Support
+```php
+use LucaLongo\Licensing\Models\LicenseScope;
+
+// Create scope for different products
+$erpScope = LicenseScope::create([
+    'name' => 'ERP System',
+    'slug' => 'erp-system',
+    'identifier' => 'com.company.erp',
+    'key_rotation_days' => 90,
+    'default_max_usages' => 10,
+]);
+
+// Create license with scope
+$license = License::create([
+    'key_hash' => License::hashKey($activationKey),
+    'license_scope_id' => $erpScope->id,  // Assigns to specific product
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+    // Inherits defaults from scope
+]);
+
+// Signing keys are automatically selected based on scope
+$token = $tokenService->issue($license, $usage); // Uses ERP scope key
+```
+
+#### 5. Key Management CLI Commands
 ```bash
 # Claude Code should suggest CLI commands for key management
 php artisan licensing:keys:make-root
 php artisan licensing:keys:issue-signing --kid signing-2024-q1
+php artisan licensing:keys:issue-signing --scope erp-system  # Scoped key
 php artisan licensing:keys:rotate --reason routine
 php artisan licensing:keys:export --format json --include-chain
 ```
@@ -223,7 +253,61 @@ if ($trial->isInTrial()) {
 }
 ```
 
-#### 3. Error Handling Patterns
+#### 3. License Scopes for Product Isolation
+```php
+// ChatGPT - Multi-product licensing setup
+use LucaLongo\Licensing\Models\LicenseScope;
+use LucaLongo\Licensing\Models\LicensingKey;
+
+// Create scopes for different products
+$crmScope = LicenseScope::create([
+    'name' => 'CRM Platform',
+    'slug' => 'crm-platform',
+    'identifier' => 'com.company.crm',
+    'description' => 'Customer Relationship Management System',
+    'key_rotation_days' => 60,
+    'default_max_usages' => 5,
+    'default_trial_days' => 30,
+    'meta' => [
+        'product_version' => '2.0',
+        'support_email' => 'crm-support@company.com'
+    ]
+]);
+
+$analyticsScope = LicenseScope::create([
+    'name' => 'Analytics Dashboard',
+    'slug' => 'analytics-dashboard',
+    'identifier' => 'com.company.analytics',
+    'key_rotation_days' => 90,
+    'default_max_usages' => 20,
+]);
+
+// Issue scoped signing keys
+Artisan::call('licensing:keys:issue-signing', [
+    '--scope' => 'crm-platform',
+    '--kid' => 'crm-key-2024'
+]);
+
+Artisan::call('licensing:keys:issue-signing', [
+    '--scope' => 'analytics-dashboard',
+    '--kid' => 'analytics-key-2024'
+]);
+
+// Create licenses with automatic scope-based key selection
+$crmLicense = License::create([
+    'key_hash' => License::hashKey($crmKey),
+    'license_scope_id' => $crmScope->id,  // CRM scope
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+    'max_usages' => $crmScope->default_max_usages,  // Inherits from scope
+]);
+
+// Token will be signed with CRM-specific key
+$tokenService = app(PasetoTokenService::class);
+$crmToken = $tokenService->issue($crmLicense, $usage);
+```
+
+#### 4. Error Handling Patterns
 ```php
 // ChatGPT appreciates comprehensive error handling
 use LucaLongo\Licensing\Exceptions\{
@@ -344,29 +428,74 @@ class LicenseController extends Controller
 }
 ```
 
-#### 3. Testing Patterns
+#### 3. License Scopes with Copilot
+```php
+// Type: "create scope for mobile app" → Copilot suggests:
+$mobileScope = LicenseScope::create([
+    'name' => 'Mobile Application',
+    'slug' => 'mobile-app',
+    'identifier' => 'com.company.mobile',
+    'description' => 'iOS and Android mobile application',
+    'key_rotation_days' => 30,  // More frequent rotation for mobile
+    'default_max_usages' => 3,   // Typical mobile device limit
+    'meta' => [
+        'platforms' => ['ios', 'android'],
+        'min_version' => '2.0.0'
+    ]
+]);
+
+// Type: "generate signing key for scope" → Copilot suggests:
+$signingKey = LicensingKey::generateSigningKey(
+    kid: 'mobile-key-' . now()->format('Y-m'),
+    scope: $mobileScope
+);
+$signingKey->save();
+
+// Type: "check if scope needs rotation" → Copilot suggests:
+if ($mobileScope->needsKeyRotation()) {
+    $mobileScope->rotateKeys('scheduled');
+}
+```
+
+#### 4. Testing Patterns
 ```php
 class LicenseTest extends TestCase
 {
-    // Type: "test license activation" → Copilot suggests:
-    public function test_license_activation()
+    // Type: "test scoped license" → Copilot suggests:
+    public function test_scoped_license_uses_correct_signing_key()
     {
-        $activationKey = Str::random(32);
+        // Create root key
+        $rootKey = LicensingKey::generateRootKey('test-root');
+        $rootKey->save();
 
+        // Create scope
+        $scope = LicenseScope::create([
+            'name' => 'Test Product',
+            'slug' => 'test-product',
+            'identifier' => 'com.test.product'
+        ]);
+
+        // Create scoped signing key
+        $scopedKey = LicensingKey::generateSigningKey('test-key', $scope);
+        $scopedKey->save();
+
+        // Create license with scope
         $license = License::create([
-            'key_hash' => License::hashKey($activationKey),
+            'key_hash' => License::hashKey('test-activation-key'),
+            'license_scope_id' => $scope->id,
             'licensable_type' => User::class,
             'licensable_id' => User::factory()->create()->id,
             'max_usages' => 5,
             'expires_at' => now()->addYear()
         ]);
 
-        $this->assertFalse($license->isActive());
+        // Verify scope relationship
+        $this->assertEquals($scope->id, $license->license_scope_id);
+        $this->assertEquals('test-product', $license->scope->slug);
 
-        $license->activate();
-
-        $this->assertTrue($license->isActive());
-        $this->assertEquals(LicenseStatus::Active, $license->status);
+        // Verify correct signing key is found
+        $foundKey = LicensingKey::findActiveSigning($scope);
+        $this->assertEquals('test-key', $foundKey->kid);
     }
 }
 ```
@@ -497,56 +626,169 @@ Route::post('/api/licenses/activate', function (Request $request) {
 });
 ```
 
-#### 2. Monitoring & Maintenance
+#### 2. Multi-Product Architecture with Scopes
 ```php
-// Junie includes monitoring setup
-// Request: "Setup license monitoring dashboard"
+// Junie - Enterprise multi-product setup
+// Request: "Setup licensing for our product suite"
 
-class LicenseMetrics
+class ProductSuiteSetup
 {
-    public function getMetrics(): array
+    public function setupLicensingScopes(): array
     {
-        return [
-            'total_licenses' => License::count(),
-            'active_licenses' => License::active()->count(),
-            'expiring_soon' => License::expiringSoon(days: 30)->count(),
-            'trial_conversions' => License::convertedFromTrial()->count(),
-            'usage_rate' => $this->calculateUsageRate(),
-            'revenue_metrics' => $this->getRevenueMetrics()
+        $scopes = [];
+
+        // Define product suite
+        $products = [
+            [
+                'name' => 'Enterprise ERP',
+                'slug' => 'enterprise-erp',
+                'identifier' => 'com.company.erp',
+                'key_rotation_days' => 90,
+                'default_max_usages' => 100,
+                'features' => ['inventory', 'accounting', 'hr']
+            ],
+            [
+                'name' => 'Cloud CRM',
+                'slug' => 'cloud-crm',
+                'identifier' => 'com.company.crm',
+                'key_rotation_days' => 60,
+                'default_max_usages' => 50,
+                'features' => ['contacts', 'deals', 'automation']
+            ],
+            [
+                'name' => 'Analytics Platform',
+                'slug' => 'analytics-platform',
+                'identifier' => 'com.company.analytics',
+                'key_rotation_days' => 120,
+                'default_max_usages' => 200,
+                'features' => ['dashboards', 'reports', 'ml']
+            ]
         ];
+
+        foreach ($products as $product) {
+            // Create scope
+            $scope = LicenseScope::create([
+                'name' => $product['name'],
+                'slug' => $product['slug'],
+                'identifier' => $product['identifier'],
+                'key_rotation_days' => $product['key_rotation_days'],
+                'default_max_usages' => $product['default_max_usages'],
+                'meta' => [
+                    'features' => $product['features'],
+                    'version' => '1.0.0',
+                    'api_endpoint' => "https://api.company.com/{$product['slug']}"
+                ]
+            ]);
+
+            // Generate signing key for this product
+            $signingKey = LicensingKey::generateSigningKey(
+                kid: "{$product['slug']}-key-" . now()->format('Y-m'),
+                scope: $scope
+            );
+            $signingKey->save();
+
+            // Issue certificate
+            $ca = app(CertificateAuthorityService::class);
+            $certificate = $ca->issueSigningCertificate(
+                $signingKey->getPublicKey(),
+                $signingKey->kid,
+                now(),
+                now()->addDays($product['key_rotation_days']),
+                $scope
+            );
+            $signingKey->update(['certificate' => $certificate]);
+
+            $scopes[$product['slug']] = $scope;
+        }
+
+        return $scopes;
     }
 
-    private function calculateUsageRate(): float
+    public function createProductLicense(string $productSlug, $customer): License
     {
-        $totalSeats = License::active()->sum('max_usages');
-        $usedSeats = LicenseUsage::active()->count();
+        $scope = LicenseScope::where('slug', $productSlug)->firstOrFail();
+
+        $activationKey = Str::random(32);
+
+        return License::create([
+            'key_hash' => License::hashKey($activationKey),
+            'license_scope_id' => $scope->id,
+            'licensable_type' => get_class($customer),
+            'licensable_id' => $customer->id,
+            'max_usages' => $scope->default_max_usages,
+            'expires_at' => now()->addYear(),
+            'meta' => [
+                'product' => $scope->name,
+                'features' => $scope->meta['features'] ?? [],
+                'activation_key_encrypted' => encrypt($activationKey)
+            ]
+        ]);
+    }
+}
+```
+
+#### 3. Monitoring & Maintenance
+```php
+// Junie includes monitoring setup with scope awareness
+// Request: "Setup license monitoring dashboard"
+
+class ScopedLicenseMetrics
+{
+    public function getMetricsByScope(): array
+    {
+        $metrics = [];
+
+        foreach (LicenseScope::active()->get() as $scope) {
+            $metrics[$scope->slug] = [
+                'scope_name' => $scope->name,
+                'total_licenses' => $scope->licenses()->count(),
+                'active_licenses' => $scope->licenses()->active()->count(),
+                'expiring_soon' => $scope->licenses()->expiringSoon(days: 30)->count(),
+                'usage_rate' => $this->calculateScopeUsageRate($scope),
+                'key_rotation_needed' => $scope->needsKeyRotation(),
+                'active_signing_key' => $scope->activeSigningKey()?->kid
+            ];
+        }
+
+        return $metrics;
+    }
+
+    private function calculateScopeUsageRate(LicenseScope $scope): float
+    {
+        $totalSeats = $scope->licenses()->active()->sum('max_usages');
+        $usedSeats = LicenseUsage::whereHas('license', function ($q) use ($scope) {
+            $q->where('license_scope_id', $scope->id);
+        })->active()->count();
 
         return $totalSeats > 0 ? ($usedSeats / $totalSeats) * 100 : 0;
     }
 }
 
-// Scheduled job for maintenance
-class LicenseMaintenanceJob extends Job
+// Scheduled job for scope-aware maintenance
+class ScopedMaintenanceJob extends Job
 {
     public function handle()
     {
+        // Rotate keys per scope schedule
+        LicenseScope::active()->each(function ($scope) {
+            if ($scope->needsKeyRotation()) {
+                $scope->rotateKeys('scheduled');
+                Log::info("Rotated keys for scope: {$scope->slug}");
+            }
+        });
+
         // Process expirations
         License::expired()->each(function ($license) {
             $license->update(['status' => LicenseStatus::Expired]);
             event(new LicenseExpired($license));
         });
 
-        // Clean inactive usages
-        if ($days = config('licensing.policies.usage_inactivity_auto_revoke_days')) {
-            LicenseUsage::inactive($days)->each(function ($usage) {
-                $usage->revoke('Inactive for ' . $days . ' days');
+        // Send scope-specific notifications
+        LicenseScope::active()->each(function ($scope) {
+            $scope->licenses()->expiringSoon(days: 7)->each(function ($license) {
+                Mail::to($license->licensable->email)
+                    ->send(new ScopedLicenseExpiringMail($license, $scope));
             });
-        }
-
-        // Send expiration warnings
-        License::expiringSoon(days: 7)->each(function ($license) {
-            Mail::to($license->licensable->email)
-                ->send(new LicenseExpiringMail($license));
         });
     }
 }
@@ -563,7 +805,72 @@ class LicenseMaintenanceJob extends Job
 
 ## Common Patterns
 
-### 1. License Validation Pattern
+### 1. License Scope Management Pattern
+```php
+// Pattern for managing multi-product licensing
+class LicenseScopeManager
+{
+    public function setupProductScope(array $config): LicenseScope
+    {
+        // Create or update scope
+        $scope = LicenseScope::updateOrCreate(
+            ['slug' => $config['slug']],
+            [
+                'name' => $config['name'],
+                'identifier' => $config['identifier'],
+                'description' => $config['description'] ?? null,
+                'key_rotation_days' => $config['key_rotation_days'] ?? 90,
+                'default_max_usages' => $config['default_max_usages'] ?? 5,
+                'default_trial_days' => $config['default_trial_days'] ?? 14,
+                'meta' => $config['meta'] ?? []
+            ]
+        );
+
+        // Ensure signing key exists for scope
+        if (!$scope->activeSigningKey()) {
+            $this->createScopedSigningKey($scope);
+        }
+
+        // Check if rotation needed
+        if ($scope->needsKeyRotation()) {
+            $scope->rotateKeys('scheduled');
+        }
+
+        return $scope;
+    }
+
+    private function createScopedSigningKey(LicenseScope $scope): LicensingKey
+    {
+        $key = LicensingKey::generateSigningKey(
+            kid: $scope->slug . '-key-' . now()->format('Y-m'),
+            scope: $scope
+        );
+        $key->save();
+
+        // Issue certificate
+        $ca = app(CertificateAuthorityService::class);
+        $certificate = $ca->issueSigningCertificate(
+            $key->getPublicKey(),
+            $key->kid,
+            now(),
+            now()->addDays($scope->key_rotation_days ?? 90),
+            $scope
+        );
+        $key->update(['certificate' => $certificate]);
+
+        return $key;
+    }
+
+    public function findScopeForProduct(string $identifier): ?LicenseScope
+    {
+        return LicenseScope::where('identifier', $identifier)
+            ->orWhere('slug', $identifier)
+            ->first();
+    }
+}
+```
+
+### 2. License Validation Pattern
 ```php
 // Universal validation pattern for all AI tools
 public function validateLicense(string $key, string $fingerprint): array
@@ -660,10 +967,11 @@ public function renewLicense(License $license, int $months = 12): LicenseRenewal
 ### Essential Commands
 ```bash
 # Key Management
-php artisan licensing:keys:make-root              # Create root CA
-php artisan licensing:keys:issue-signing          # Issue signing key
-php artisan licensing:keys:rotate                 # Rotate keys
-php artisan licensing:keys:export --format json   # Export public keys
+php artisan licensing:keys:make-root                      # Create root CA
+php artisan licensing:keys:issue-signing                  # Issue global signing key
+php artisan licensing:keys:issue-signing --scope <slug>   # Issue scoped signing key
+php artisan licensing:keys:rotate                         # Rotate keys
+php artisan licensing:keys:export --format json           # Export public keys
 
 # Token Operations
 php artisan licensing:offline:issue --license <id> --fingerprint <fp>
@@ -677,6 +985,7 @@ php artisan licensing:notify:expiring             # Send expiration notices
 ```php
 // Models
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;       // Product/software scopes
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicenseRenewal;
 use LucaLongo\Licensing\Models\LicenseTemplate;

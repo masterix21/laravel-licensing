@@ -33,6 +33,7 @@
 ### Advanced Topics
 - [**🔒 Security**](advanced/security.md) - Security architecture and best practices
 - [**🔑 Key Management**](advanced/key-management.md) - Cryptographic key lifecycle
+- [**🎯 Multi-Software Keys**](advanced/multi-software-keys.md) - Scoped signing keys for multiple products
 - [**⚡ Performance**](advanced/performance.md) - Optimization and scaling
 - [**🔧 Customization**](advanced/customization.md) - Extending the package
 

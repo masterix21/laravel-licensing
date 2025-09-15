@@ -27,6 +27,7 @@ class License extends Model
         'licensable_type',
         'licensable_id',
         'template_id',
+        'license_scope_id',
         'activated_at',
         'expires_at',
         'max_usages',
@@ -84,6 +85,11 @@ class License extends Model
     public function template(): BelongsTo
     {
         return $this->belongsTo(LicenseTemplate::class, 'template_id');
+    }
+
+    public function scope(): BelongsTo
+    {
+        return $this->belongsTo(LicenseScope::class, 'license_scope_id');
     }
 
     public function activeUsages(): HasMany

@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Services;
 
 use LucaLongo\Licensing\Contracts\CertificateAuthority;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Models\LicenseScope;
 
 class CertificateAuthorityService implements CertificateAuthority
 {
@@ -11,7 +12,8 @@ class CertificateAuthorityService implements CertificateAuthority
         string $signingPublicKey,
         string $kid,
         \DateTimeInterface $validFrom,
-        \DateTimeInterface $validUntil
+        \DateTimeInterface $validUntil,
+        ?LicenseScope $scope = null
     ): string {
         $rootKey = LicensingKey::findActiveRoot();
 
@@ -27,6 +29,11 @@ class CertificateAuthorityService implements CertificateAuthority
             'issued_at' => now()->format('c'),
             'issuer_kid' => $rootKey->kid,
         ];
+
+        if ($scope) {
+            $certificate['scope'] = $scope->slug;
+            $certificate['scope_identifier'] = $scope->identifier;
+        }
 
         $certificateJson = json_encode($certificate);
         $privateKeyBase64 = $rootKey->getPrivateKey();

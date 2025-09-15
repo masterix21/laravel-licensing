@@ -21,10 +21,19 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
 {
     public function issue(License $license, LicenseUsage $usage, array $options = []): string
     {
-        $signingKey = LicensingKey::findActiveSigning();
+        // Use license's scope if available
+        $scope = $license->scope;
+        $signingKey = LicensingKey::findActiveSigning($scope);
+
+        // Fallback to global key if no scoped key found
+        if (! $signingKey && $scope !== null) {
+            $signingKey = LicensingKey::findActiveSigning();
+        }
 
         if (! $signingKey) {
-            throw new \RuntimeException('No active signing key found');
+            throw new \RuntimeException($scope
+                ? "No active signing key found for scope: {$scope->name}"
+                : 'No active signing key found');
         }
 
         // Get Ed25519 private key for PASETO v4

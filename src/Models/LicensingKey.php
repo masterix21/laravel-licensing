@@ -20,6 +20,7 @@ class LicensingKey extends Model implements KeyStore
         'kid',
         'type',
         'status',
+        'license_scope_id',
         'public_key',
         'private_key_encrypted',
         'certificate',
@@ -88,6 +89,21 @@ class LicensingKey extends Model implements KeyStore
         $query->where('type', $type);
     }
 
+    public function scope(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(LicenseScope::class, 'license_scope_id');
+    }
+
+    #[Scope]
+    protected function forScope(Builder $query, ?LicenseScope $scope): void
+    {
+        if ($scope === null) {
+            $query->whereNull('license_scope_id');
+        } else {
+            $query->where('license_scope_id', $scope->id);
+        }
+    }
+
     public function revoke(string $reason, ?\DateTimeInterface $revokedAt = null): KeyStore
     {
         $this->update([
@@ -111,17 +127,18 @@ class LicensingKey extends Model implements KeyStore
             ->first();
     }
 
-    public static function findActiveSigning(): ?self
+    public static function findActiveSigning(?LicenseScope $scope = null): ?self
     {
         return self::where('type', KeyType::Signing)
             ->where('status', KeyStatus::Active)
+            ->forScope($scope)
             ->orderBy('created_at', 'desc')
             ->first();
     }
 
-    public static function activeSigning(): Builder
+    public static function activeSigning(?LicenseScope $scope = null): Builder
     {
-        return self::where('type', KeyType::Signing)
+        $query = self::where('type', KeyType::Signing)
             ->where('status', KeyStatus::Active)
             ->where(function ($query) {
                 $query->whereNull('valid_from')
@@ -131,6 +148,12 @@ class LicensingKey extends Model implements KeyStore
                 $query->whereNull('valid_until')
                     ->orWhere('valid_until', '>', now());
             });
+
+        if ($scope !== null) {
+            $query->forScope($scope);
+        }
+
+        return $query;
     }
 
     public static function generateRootKey(?string $kid = null): self
@@ -143,10 +166,14 @@ class LicensingKey extends Model implements KeyStore
         ]);
     }
 
-    public static function generateSigningKey(?string $kid = null): self
+    public static function generateSigningKey(?string $kid = null, ?LicenseScope $scope = null): self
     {
         $key = new self;
         $key->kid = $kid ?? 'signing_'.Str::random(32);
+
+        if ($scope) {
+            $key->license_scope_id = $scope->id;
+        }
 
         // Don't save yet - certificate needs to be added
         $key->generate([
