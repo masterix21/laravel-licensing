@@ -53,7 +53,7 @@ class LicenseScope extends Model
             }
 
             if (! $scope->identifier) {
-                $scope->identifier = 'com.example.' . $scope->slug;
+                $scope->identifier = 'com.example.'.$scope->slug;
             }
 
             // Set next rotation date if rotation is enabled
@@ -131,7 +131,7 @@ class LicenseScope extends Model
 
         // Create new signing key
         $newKey = LicensingKey::generateSigningKey(
-            kid: $this->slug . '-' . now()->format('Y-m-d'),
+            kid: $this->slug.'-'.now()->format('Y-m-d'),
             scope: $this
         );
         $newKey->save();

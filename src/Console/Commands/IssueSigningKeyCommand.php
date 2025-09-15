@@ -6,8 +6,8 @@ use DateTimeImmutable;
 use Illuminate\Console\Command;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Enums\KeyType;
-use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Models\LicenseScope;
+use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\AuditLoggerService;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
 
@@ -40,12 +40,13 @@ class IssueSigningKeyCommand extends Command
         if ($scopeOption = $this->option('scope')) {
             $licenseScope = LicenseScope::findBySlugOrIdentifier($scopeOption);
 
-            if (!$licenseScope) {
+            if (! $licenseScope) {
                 $this->error("Scope not found: {$scopeOption}");
                 $this->info('Available scopes:');
                 LicenseScope::active()->each(function ($scope) {
                     $this->line("  - {$scope->slug} ({$scope->name})");
                 });
+
                 return 2;
             }
         }
