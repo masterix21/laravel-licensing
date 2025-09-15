@@ -41,6 +41,7 @@
 - [**🏗️ Integration Examples**](examples/integrations.md) - Third-party integrations
 - [**💡 Best Practices**](examples/best-practices.md) - Recommended patterns
 - [**💻 Practical Examples**](examples/practical-examples.md) - Real-world implementation examples
+- [**🤖 AI Assistant Guidelines**](../AI_GUIDELINES.md) - Guidelines for AI coding assistants (Claude, ChatGPT, Copilot, Junie)
 
 ### Client Libraries
 - [**📱 Client Library Architecture**](client-libraries/architecture.md) - Design principles for client libraries

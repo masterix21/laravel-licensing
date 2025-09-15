@@ -112,6 +112,14 @@ composer analyse
 
 For comprehensive documentation visit the [documentation](docs/README.md).
 
+### AI Assistant Support
+
+This package includes comprehensive guidelines for AI coding assistants. See [AI_GUIDELINES.md](AI_GUIDELINES.md) for:
+- Claude Code integration patterns
+- ChatGPT/Codex usage examples
+- GitHub Copilot autocomplete triggers
+- Junie configuration and patterns
+
 ## Requirements
 
 - PHP 8.2+
