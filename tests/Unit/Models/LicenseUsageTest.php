@@ -5,6 +5,7 @@ use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageRevoked;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+
 use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);
