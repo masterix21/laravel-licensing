@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
@@ -106,7 +107,7 @@ test('tokens with future nbf are rejected', function () {
     $usage = $this->createUsage($license);
 
     // Freeze time at current moment
-    testTime()->freeze('2024-01-01 12:00:00');
+    testTime()->freeze();
     $originalTime = now()->copy();
 
     // Jump 2 hours into the future to issue token
@@ -242,28 +243,20 @@ test('token force online enforcement', function () {
         ->toThrow(\RuntimeException::class, 'Token requires online verification');
 });
 
-test('concurrent usage registration is thread-safe', function () {
+test('rejects additional usage registrations when limit already reached', function () {
     $license = $this->createLicense(['max_usages' => 1]);
     $registrar = app(\LucaLongo\Licensing\Services\UsageRegistrarService::class);
 
-    $results = [];
-    $exceptions = [];
+    $first = DB::transaction(fn () => $registrar->register($license, 'concurrent-fp-0'));
 
-    // Simulate concurrent requests with database transactions
-    for ($i = 0; $i < 5; $i++) {
-        try {
-            \DB::transaction(function () use ($registrar, $license, &$results, $i) {
-                $usage = $registrar->register($license, "concurrent-fp-{$i}");
-                $results[] = $usage->id;
-            });
-        } catch (\Exception $e) {
-            $exceptions[] = $e->getMessage();
-        }
+    expect($first->isActive())->toBeTrue();
+
+    foreach (range(1, 4) as $index) {
+        expect(fn () => DB::transaction(fn () => $registrar->register($license, "concurrent-fp-{$index}")))
+            ->toThrow(\RuntimeException::class, 'License usage limit reached');
     }
 
-    expect(count($results))->toBe(1)
-        ->and(count($exceptions))->toBe(4)
-        ->and($license->activeUsages()->count())->toBe(1);
+    expect($license->activeUsages()->count())->toBe(1);
 });
 
 test('audit logs are tamper-evident', function () {

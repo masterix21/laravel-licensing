@@ -2,7 +2,6 @@
 
 namespace LucaLongo\Licensing\Services;
 
-use DateInterval;
 use DateTimeImmutable;
 use LucaLongo\Licensing\Contracts\TokenIssuer;
 use LucaLongo\Licensing\Contracts\TokenVerifier;
@@ -52,21 +51,17 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
         $issuer = $options['issuer']
             ?? config('licensing.offline_token.issuer', 'laravel-licensing');
 
-        $now = new DateTimeImmutable;
+        $now = now()->toImmutable();
 
         // Handle negative TTL (for testing expired tokens)
-        if ($ttlDays < 0) {
-            $expiration = $now->sub(new DateInterval('P'.abs($ttlDays).'D'));
-        } else {
-            $expiration = $now->add(new DateInterval("P{$ttlDays}D"));
-        }
+        $expiration = $ttlDays < 0
+            ? $now->subDays(abs($ttlDays))
+            : $now->addDays($ttlDays);
 
         $forceOnlineDays = $license->getForceOnlineAfterDays();
-        if ($forceOnlineDays < 0) {
-            $forceOnlineAfter = $now->sub(new DateInterval('P'.abs($forceOnlineDays).'D'));
-        } else {
-            $forceOnlineAfter = $now->add(new DateInterval("P{$forceOnlineDays}D"));
-        }
+        $forceOnlineAfter = $forceOnlineDays < 0
+            ? $now->subDays(abs($forceOnlineDays))
+            : $now->addDays($forceOnlineDays);
 
         $claims = [
             'kid' => $signingKey->kid,

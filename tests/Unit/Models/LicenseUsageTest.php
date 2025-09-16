@@ -5,6 +5,7 @@ use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageRevoked;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);
 
@@ -23,10 +24,11 @@ test('can create usage with auto timestamps', function () {
 });
 
 test('can update heartbeat', function () {
+    testTime()->freeze();
     $usage = $this->createUsage($this->license);
     $originalTime = $usage->last_seen_at;
 
-    sleep(1);
+    testTime()->addSeconds(5);
     $usage->heartbeat();
 
     expect($usage->last_seen_at)->toBeGreaterThan($originalTime);

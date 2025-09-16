@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Event;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);
 
@@ -26,15 +27,16 @@ test('enforces over limit reject policy', function () {
 });
 
 test('enforces auto replace oldest policy', function () {
+    testTime()->freeze();
     $license = $this->createLicense([
         'max_usages' => 2,
         'meta' => ['policies' => ['over_limit' => 'auto_replace_oldest']],
     ]);
 
     $usage1 = $this->registrar->register($license, 'fingerprint1');
-    sleep(1);
+    testTime()->addSeconds(5);
     $usage2 = $this->registrar->register($license, 'fingerprint2');
-    sleep(1);
+    testTime()->addSeconds(5);
     $usage3 = $this->registrar->register($license, 'fingerprint3');
 
     $usage1->refresh();
@@ -207,25 +209,18 @@ test('license status transitions follow business rules', function () {
         ->toThrow(\RuntimeException::class, 'License cannot be activated in current status: expired');
 });
 
-test('concurrent usage limit enforcement', function () {
+test('enforces usage limit once maximum seats are taken', function () {
     $license = $this->createLicense(['max_usages' => 5]);
 
-    $results = collect();
-    $exceptions = collect();
-
-    // Simulate 10 concurrent registration attempts
-    for ($i = 1; $i <= 10; $i++) {
-        try {
-            $usage = $this->registrar->register($license, "fingerprint-{$i}");
-            $results->push($usage);
-        } catch (\Exception $e) {
-            $exceptions->push($e);
-        }
+    foreach (range(1, 5) as $index) {
+        $usage = $this->registrar->register($license, "fingerprint-{$index}");
+        expect($usage->isActive())->toBeTrue();
     }
 
-    expect($results)->toHaveCount(5)
-        ->and($exceptions)->toHaveCount(5)
-        ->and($license->activeUsages()->count())->toBe(5);
+    expect(fn () => $this->registrar->register($license, 'fingerprint-6'))
+        ->toThrow(\RuntimeException::class, 'License usage limit reached');
+
+    expect($license->activeUsages()->count())->toBe(5);
 });
 
 test('grace period notification timing', function () {

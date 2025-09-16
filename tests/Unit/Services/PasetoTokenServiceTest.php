@@ -3,6 +3,7 @@
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);
 
@@ -111,9 +112,10 @@ test('verification fails when force online required', function () {
 })->throws(\RuntimeException::class, 'Token requires online verification');
 
 test('can refresh token', function () {
+    testTime()->freeze();
     $originalToken = $this->tokenService->issue($this->license, $this->usage);
 
-    sleep(1); // Ensure different timestamp
+    testTime()->addSeconds(5); // Ensure different timestamp
     $refreshedToken = $this->tokenService->refresh($originalToken);
 
     expect($refreshedToken)->not->toBe($originalToken);

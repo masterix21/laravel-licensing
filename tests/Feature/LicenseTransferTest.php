@@ -233,9 +233,8 @@ it('creates immutable transfer history', function () {
         ->new_licensable_id->toBe($this->targetUser->id)
         ->integrity_hash->toBeString();
 
-    // Verify integrity - temporarily skip this check
-    // expect($history->verifyIntegrity())->toBeTrue();
-    expect($history->integrity_hash)->toBeString()->toHaveLength(64);
+    expect($history->verifyIntegrity())->toBeTrue();
+    expect($history->integrity_hash)->toHaveLength(64);
 
     // Test immutability
     expect(fn () => $history->update(['new_licensable_id' => 999]))

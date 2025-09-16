@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 
 class LicenseTransferHistory extends Model
 {
@@ -46,11 +47,17 @@ class LicenseTransferHistory extends Model
         parent::boot();
 
         static::creating(function (self $history) {
-            $history->integrity_hash = $history->calculateIntegrityHash();
-
             if (! $history->executed_at) {
                 $history->executed_at = now();
             }
+
+            if ($history->executed_at instanceof Carbon) {
+                $history->executed_at = $history->executed_at->copy()->setMicro(0);
+            } else {
+                $history->executed_at = Carbon::parse($history->executed_at)->setMicro(0);
+            }
+
+            $history->integrity_hash = $history->calculateIntegrityHash();
         });
 
         static::updating(function () {
@@ -129,14 +136,34 @@ class LicenseTransferHistory extends Model
 
     protected function calculateIntegrityHash(): string
     {
+        $executedAt = $this->executed_at;
+
+        if ($rawExecutedAt = $this->getRawOriginal('executed_at')) {
+            $executedAt = Carbon::parse($rawExecutedAt);
+        }
+
+        $previousSnapshot = $this->getRawOriginal('previous_snapshot');
+        if ($previousSnapshot === null) {
+            $previousSnapshot = $this->previous_snapshot;
+        } elseif (! is_string($previousSnapshot)) {
+            $previousSnapshot = json_encode($previousSnapshot);
+        }
+
+        $newSnapshot = $this->getRawOriginal('new_snapshot');
+        if ($newSnapshot === null) {
+            $newSnapshot = $this->new_snapshot;
+        } elseif (! is_string($newSnapshot)) {
+            $newSnapshot = json_encode($newSnapshot);
+        }
+
         // Don't include the ID in the hash calculation since it doesn't exist during creation
         $data = [
             'license_id' => $this->license_id,
             'transfer_id' => $this->transfer_id,
             'previous_licensable' => $this->previous_licensable_type.':'.$this->previous_licensable_id,
             'new_licensable' => $this->new_licensable_type.':'.$this->new_licensable_id,
-            'previous_snapshot' => json_encode($this->previous_snapshot),
-            'new_snapshot' => json_encode($this->new_snapshot),
+            'previous_snapshot' => is_string($previousSnapshot) ? $previousSnapshot : json_encode($previousSnapshot),
+            'new_snapshot' => is_string($newSnapshot) ? $newSnapshot : json_encode($newSnapshot),
             'transfer_type' => $this->transfer_type,
             'executed_by' => $this->executed_by_type.':'.$this->executed_by_id,
             'usages_preserved' => (bool) $this->usages_preserved,
@@ -144,7 +171,7 @@ class LicenseTransferHistory extends Model
             'activation_reset' => (bool) $this->activation_reset,
             'usages_transferred_count' => (int) $this->usages_transferred_count,
             'usages_revoked_count' => (int) $this->usages_revoked_count,
-            'executed_at' => $this->executed_at?->toISOString(),
+            'executed_at' => $executedAt?->toISOString(),
         ];
 
         return hash('sha256', json_encode($data));

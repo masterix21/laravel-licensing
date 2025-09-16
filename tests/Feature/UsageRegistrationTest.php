@@ -6,6 +6,7 @@ use LucaLongo\Licensing\Events\UsageLimitReached;
 use LucaLongo\Licensing\Events\UsageRegistered;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);
 
@@ -43,11 +44,12 @@ test('returns existing usage for same fingerprint', function () {
 });
 
 test('updates heartbeat for existing usage', function () {
+    testTime()->freeze();
     $fingerprint = $this->generateFingerprint();
     $usage = $this->registrar->register($this->license, $fingerprint);
 
     $originalTime = $usage->last_seen_at;
-    sleep(1);
+    testTime()->addSeconds(5);
 
     $this->registrar->register($this->license, $fingerprint);
     $usage->refresh();
@@ -68,15 +70,17 @@ test('enforces max usage limit with reject policy', function () {
 })->throws(\RuntimeException::class, 'License usage limit reached');
 
 test('auto replaces oldest usage when limit reached', function () {
+    testTime()->freeze();
     $this->license->update([
         'max_usages' => 2,
         'meta' => ['policies' => ['over_limit' => 'auto_replace_oldest']],
     ]);
 
     $usage1 = $this->registrar->register($this->license, 'fingerprint1');
-    sleep(1);
+    testTime()->addSeconds(5);
     $usage2 = $this->registrar->register($this->license, 'fingerprint2');
 
+    testTime()->addSeconds(5);
     $usage3 = $this->registrar->register($this->license, 'fingerprint3');
 
     $usage1->refresh();
@@ -116,31 +120,17 @@ test('can check if registration is allowed', function () {
         ->and($this->registrar->canRegister($this->license, 'fingerprint1'))->toBeTrue(); // Existing
 });
 
-test('handles concurrent registration attempts', function () {
+test('prevents double registration once seat limit is hit', function () {
     $this->license->update(['max_usages' => 1]);
-    $fingerprint1 = 'fingerprint1';
-    $fingerprint2 = 'fingerprint2';
 
-    $results = [];
-    $exceptions = [];
+    $first = DB::transaction(fn () => $this->registrar->register($this->license, 'fingerprint1'));
 
-    // Simulate concurrent requests
-    $threads = [];
-    for ($i = 0; $i < 2; $i++) {
-        $fp = $i === 0 ? $fingerprint1 : $fingerprint2;
-        try {
-            $usage = DB::transaction(function () use ($fp) {
-                return $this->registrar->register($this->license, $fp);
-            });
-            $results[] = $usage;
-        } catch (\Exception $e) {
-            $exceptions[] = $e;
-        }
-    }
+    expect($first->isActive())->toBeTrue();
 
-    expect(count($results))->toBe(1)
-        ->and(count($exceptions))->toBe(1)
-        ->and($this->license->activeUsages()->count())->toBe(1);
+    expect(fn () => DB::transaction(fn () => $this->registrar->register($this->license, 'fingerprint2')))
+        ->toThrow(\RuntimeException::class, 'License usage limit reached');
+
+    expect($this->license->activeUsages()->count())->toBe(1);
 });
 
 test('respects global fingerprint uniqueness', function () {
@@ -193,10 +183,11 @@ test('can revoke usage', function () {
 });
 
 test('can update heartbeat', function () {
+    testTime()->freeze();
     $usage = $this->registrar->register($this->license, 'fingerprint');
     $original = $usage->last_seen_at;
 
-    sleep(1);
+    testTime()->addSeconds(5);
     $this->registrar->heartbeat($usage);
     $usage->refresh();
 
