@@ -9,7 +9,6 @@ use Illuminate\Support\Str;
 
 class LicenseScope extends Model
 {
-
     protected $fillable = [
         'name',
         'slug',
