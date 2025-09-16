@@ -52,6 +52,7 @@ class TestCase extends Orchestra
     protected function defineDatabaseMigrations()
     {
         $migrationStubs = [
+            'create_license_scopes_table.php.stub',
             'create_licenses_table.php.stub',
             'create_license_usages_table.php.stub',
             'create_license_renewals_table.php.stub',
@@ -66,21 +67,6 @@ class TestCase extends Orchestra
 
         foreach ($migrationStubs as $stub) {
             $path = __DIR__.'/../database/migrations/'.$stub;
-            if (file_exists($path)) {
-                $migration = include $path;
-                $migration->up();
-            }
-        }
-
-        // Run new migrations for LicenseScope
-        $newMigrations = [
-            '2024_01_16_000000_create_license_scopes_table.php',
-            '2024_01_16_000001_update_licenses_for_scopes.php',
-            '2024_01_16_000002_update_licensing_keys_for_scopes.php',
-        ];
-
-        foreach ($newMigrations as $migrationFile) {
-            $path = __DIR__.'/../database/migrations/'.$migrationFile;
             if (file_exists($path)) {
                 $migration = include $path;
                 $migration->up();

@@ -16,6 +16,9 @@ return new class extends Migration
             $table->string('status', 20)->default(LicenseStatus::Pending->value)->index();
             $table->nullableMorphs('licensable');
             $table->foreignId('template_id')->nullable()->constrained('license_templates')->nullOnDelete();
+            $table->foreignId('license_scope_id')->nullable()
+                ->constrained('license_scopes')
+                ->nullOnDelete();
             $table->timestamp('activated_at')->nullable()->index();
             $table->timestamp('expires_at')->nullable()->index();
             $table->unsignedInteger('max_usages')->default(1);
@@ -24,6 +27,7 @@ return new class extends Migration
 
             $table->index(['status', 'expires_at']);
             $table->index('template_id');
+            $table->index('license_scope_id');
         });
     }
 

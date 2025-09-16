@@ -5,6 +5,7 @@ This document provides comprehensive API reference for all models in the Laravel
 ## Table of Contents
 
 - [License](#license)
+- [LicenseScope](#licensescope)
 - [LicenseUsage](#licenseusage)
 - [LicenseRenewal](#licenserenewal)
 - [LicenseTemplate](#licensetemplate)
@@ -34,6 +35,7 @@ class License extends Model
     public ?string $licensable_type;      // Polymorphic type
     public ?string $licensable_id;        // Polymorphic ID
     public ?string $template_id;          // Associated template
+    public ?int $license_scope_id;        // Associated scope for multi-product licensing
     public ?\DateTime $activated_at;      // Activation timestamp
     public ?\DateTime $expires_at;        // Expiration timestamp
     public int $max_usages;              // Maximum concurrent seats
@@ -67,6 +69,9 @@ public function transferHistory(): HasMany
 
 // Template
 public function template(): BelongsTo
+
+// Scope for multi-product licensing
+public function scope(): BelongsTo
 ```
 
 ### Core Methods
@@ -189,6 +194,105 @@ License::forLicensable($user)->get();
 - `LicenseRenewed` - When license is renewed
 - `LicenseExpired` - When license expires
 - `LicenseExpiringSoon` - When license is expiring soon
+
+## LicenseScope
+
+Manages multi-product licensing with isolated signing keys.
+
+### Properties
+
+```php
+class LicenseScope extends Model
+{
+    public int $id;                          // Primary key
+    public string $name;                     // Human-readable name
+    public string $slug;                     // URL-friendly identifier
+    public string $identifier;               // Unique identifier (e.g., com.company.product)
+    public ?string $description;             // Scope description
+    public bool $is_active;                  // Active status
+
+    // Key rotation settings
+    public int $key_rotation_days;           // Days between rotations
+    public ?\DateTime $last_key_rotation_at; // Last rotation timestamp
+    public ?\DateTime $next_key_rotation_at; // Next scheduled rotation
+
+    // Default license settings
+    public int $default_max_usages;          // Default seat limit
+    public ?int $default_duration_days;      // Default validity period
+    public int $default_grace_days;          // Default grace period
+
+    public ?array $meta;                     // Additional configuration
+    public \DateTime $created_at;
+    public \DateTime $updated_at;
+}
+```
+
+### Relationships
+
+```php
+// Associated licenses
+public function licenses(): HasMany
+
+// Signing keys for this scope
+public function signingKeys(): HasMany
+
+// Get active signing key
+public function activeSigningKey(): ?LicensingKey
+```
+
+### Methods
+
+```php
+// Key rotation
+public function needsKeyRotation(): bool
+public function rotateKeys(string $reason = 'Scheduled rotation'): LicensingKey
+
+// Default attributes for licenses
+public function getDefaultLicenseAttributes(): array
+
+// Lookup methods
+public static function findBySlugOrIdentifier(string $value): ?self
+public static function global(): self  // Get or create global scope
+```
+
+### Scopes
+
+```php
+// Active scopes
+LicenseScope::active()->get();
+
+// Scopes needing key rotation
+LicenseScope::needingRotation()->get();
+```
+
+### Usage Examples
+
+```php
+// Create a scope for a product
+$scope = LicenseScope::create([
+    'name' => 'Enterprise ERP',
+    'slug' => 'enterprise-erp',
+    'identifier' => 'com.company.erp',
+    'description' => 'Enterprise Resource Planning System',
+    'key_rotation_days' => 90,
+    'default_max_usages' => 10,
+    'default_duration_days' => 365,
+]);
+
+// Create license with scope
+$license = License::create([
+    'key_hash' => License::hashKey($key),
+    'license_scope_id' => $scope->id,
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+    // Inherits defaults from scope
+]);
+
+// Rotate keys for security
+if ($scope->needsKeyRotation()) {
+    $newKey = $scope->rotateKeys('Scheduled rotation');
+}
+```
 
 ## LicenseUsage
 
@@ -532,6 +636,7 @@ class LicensingKey extends Model
     public string $id;                    // ULID primary key
     public string $kid;                   // Key identifier
     public KeyType $type;                 // root, signing
+    public ?int $license_scope_id;        // Associated scope (null = global)
     public KeyStatus $status;             // active, revoked
     public ?string $public_key;           // Public key (PEM format)
     public ?string $private_key;          // Encrypted private key

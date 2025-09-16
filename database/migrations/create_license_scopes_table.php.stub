@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('license_scopes', function (Blueprint $table) {
-            $table->ulid('id')->primary();
+            $table->id();
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('identifier')->unique()

@@ -1,6 +1,6 @@
-# Multi-Software Signing Keys
+# Multi-Software Signing Keys with License Scopes
 
-Laravel Licensing supports **scoped signing keys**, allowing you to use different cryptographic keys for different software products or applications. This provides better security isolation and key management for multi-product environments.
+Laravel Licensing uses **License Scopes** to manage multi-product licensing with isolated signing keys. Each scope represents a different software product or application, providing better security isolation and key management for multi-product environments.
 
 ## Overview
 
@@ -34,100 +34,130 @@ Track key usage per product for better compliance reporting.
 ### 4. **Multi-Tenant Support**
 Perfect for SaaS platforms managing licenses for multiple clients or products.
 
+## Creating License Scopes
+
+### Via Code
+
+```php
+use LucaLongo\Licensing\Models\LicenseScope;
+
+// Create scope for ERP system
+$erpScope = LicenseScope::create([
+    'name' => 'Enterprise ERP',
+    'slug' => 'erp-system',
+    'identifier' => 'com.company.erp',
+    'description' => 'Enterprise Resource Planning System',
+    'key_rotation_days' => 90,
+    'default_max_usages' => 10,
+    'default_duration_days' => 365,
+]);
+
+// Create scope for CRM platform
+$crmScope = LicenseScope::create([
+    'name' => 'CRM Platform',
+    'slug' => 'crm-platform',
+    'identifier' => 'com.company.crm',
+    'description' => 'Customer Relationship Management',
+    'key_rotation_days' => 90,
+    'default_max_usages' => 5,
+    'default_duration_days' => 365,
+]);
+
+// Global scope is automatically created when needed
+$globalScope = LicenseScope::global();
+```
+
 ## Creating Scoped Signing Keys
 
 ### Via CLI
 
-Create a signing key for a specific software:
-
 ```bash
-# Create signing key for ERP system
-php artisan licensing:keys:issue-signing \
-  --scope="erp-system" \
-  --scope-identifier="com.company.erp" \
-  --kid="erp-signing-2024-q1"
+# Issue signing key for a specific scope
+php artisan licensing:keys:issue-signing --kid="erp-signing-2024-q1"
 
-# Create signing key for CRM platform
-php artisan licensing:keys:issue-signing \
-  --scope="crm-platform" \
-  --scope-identifier="com.company.crm" \
-  --kid="crm-signing-2024-q1"
-
-# Create global fallback key (no scope)
-php artisan licensing:keys:issue-signing \
-  --kid="global-signing-2024-q1"
-```
+# The key will be associated with the scope when used
 
 ### Via Code
 
 ```php
 use LucaLongo\Licensing\Models\LicensingKey;
-use LucaLongo\Licensing\Services\CertificateAuthorityService;
+use LucaLongo\Licensing\Models\LicenseScope;
 
-// Create scoped signing key
+// Get or create scope
+$mobileScope = LicenseScope::firstOrCreate(
+    ['slug' => 'mobile-app'],
+    [
+        'name' => 'Mobile Application',
+        'identifier' => 'com.company.mobile',
+        'key_rotation_days' => 90,
+        'default_max_usages' => 1,
+    ]
+);
+
+// Create signing key for the scope
 $signingKey = LicensingKey::generateSigningKey(
     kid: 'mobile-app-key-2024',
-    scope: 'mobile-app',
-    scopeIdentifier: 'com.company.mobile'
+    scope: $mobileScope  // Pass the LicenseScope model
 );
 $signingKey->save();
-
-// Issue certificate from root CA
-$ca = app(CertificateAuthorityService::class);
-$certificate = $ca->issueSigningCertificate(
-    $signingKey->getPublicKey(),
-    $signingKey->kid,
-    now(),
-    now()->addDays(90),
-    'mobile-app',                    // scope
-    'com.company.mobile'              // scope identifier
-);
-
-$signingKey->update(['certificate' => $certificate]);
 ```
 
 ## Assigning Scopes to Licenses
 
 ### Method 1: Direct Assignment
 
-Specify the signing scope when creating a license:
+Associate a license with a scope:
 
 ```php
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
+
+$erpScope = LicenseScope::findBySlugOrIdentifier('erp-system');
 
 $license = License::create([
     'key_hash' => License::hashKey($activationKey),
     'licensable_type' => Company::class,
     'licensable_id' => $company->id,
-    'signing_scope' => 'erp-system',  // Use ERP signing keys
+    'license_scope_id' => $erpScope->id,  // Associate with scope
     'max_usages' => 10,
     'expires_at' => now()->addYear(),
 ]);
-```
 
-### Method 2: Template-Based Assignment
-
-Configure signing scope in license templates:
-
-```php
-use LucaLongo\Licensing\Models\LicenseTemplate;
-
-$template = LicenseTemplate::create([
-    'name' => 'ERP Professional',
-    'slug' => 'erp-professional',
-    'max_usages' => 10,
-    'duration_days' => 365,
-    'meta' => [
-        'signing_scope' => 'erp-system',
-        'features' => ['advanced_reporting', 'api_access']
-    ]
-]);
-
-// Licenses created from this template inherit the signing scope
-$license = License::createFromTemplate($template, [
+// License will inherit defaults from scope if not specified
+$license = License::create([
+    'key_hash' => License::hashKey($activationKey),
     'licensable_type' => Company::class,
     'licensable_id' => $company->id,
+    'license_scope_id' => $erpScope->id,
+    // max_usages and expires_at will use scope defaults
 ]);
+```
+
+### Method 2: Using Scope Defaults
+
+Leverage scope's default settings:
+
+```php
+use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
+
+$scope = LicenseScope::findBySlugOrIdentifier('erp-system');
+
+// Get default attributes from scope
+$defaults = $scope->getDefaultLicenseAttributes();
+// Returns: [
+//     'max_usages' => 10,
+//     'expires_at' => Carbon instance,
+//     'meta' => ['scope' => 'erp-system', ...]
+// ]
+
+// Create license with scope defaults
+$license = License::create(array_merge($defaults, [
+    'key_hash' => License::hashKey($activationKey),
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+    'license_scope_id' => $scope->id,
+]));
 ```
 
 ### Method 3: Dynamic Assignment
@@ -135,23 +165,25 @@ $license = License::createFromTemplate($template, [
 Assign scope based on business logic:
 
 ```php
+use LucaLongo\Licensing\Models\LicenseScope;
+
 class LicenseService
 {
     public function createLicense(Product $product, User $user): License
     {
         // Determine scope based on product
-        $signingScope = match($product->category) {
-            'enterprise' => 'erp-system',
-            'smb' => 'crm-platform',
-            'startup' => 'analytics-tool',
-            default => null  // Use global key
+        $scope = match($product->category) {
+            'enterprise' => LicenseScope::findBySlugOrIdentifier('erp-system'),
+            'smb' => LicenseScope::findBySlugOrIdentifier('crm-platform'),
+            'startup' => LicenseScope::findBySlugOrIdentifier('analytics-tool'),
+            default => LicenseScope::global()  // Use global scope
         };
 
         return License::create([
             'key_hash' => License::hashKey($this->generateKey()),
             'licensable_type' => User::class,
             'licensable_id' => $user->id,
-            'signing_scope' => $signingScope,
+            'license_scope_id' => $scope->id,
             'max_usages' => $product->device_limit,
             'expires_at' => now()->addDays($product->duration_days),
         ]);
@@ -179,8 +211,8 @@ $token = $tokenService->issue($license, $usage);
 
 The token service follows this priority:
 
-1. **Scoped Key**: Use the signing key matching `license->signing_scope`
-2. **Global Key**: If no scoped key exists, use the global signing key
+1. **Scoped Key**: Use the signing key for `license->scope`
+2. **Global Key**: If no scoped key exists or license has no scope, use the global signing key
 3. **Error**: If no keys available, throw exception
 
 ## Managing Multiple Scopes
@@ -188,43 +220,50 @@ The token service follows this priority:
 ### List Keys by Scope
 
 ```php
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicensingKey;
 
-// Get all active signing keys for a scope
-$erpKeys = LicensingKey::activeSigning('erp-system')->get();
+// Get scope with its signing keys
+$scope = LicenseScope::findBySlugOrIdentifier('erp-system');
+$activeKey = $scope->activeSigningKey();
+$allKeys = $scope->signingKeys()->get();
 
-// Get all scopes with active keys
-$scopes = LicensingKey::where('type', KeyType::Signing)
-    ->where('status', KeyStatus::Active)
-    ->whereNotNull('scope')
-    ->distinct('scope')
-    ->pluck('scope');
+// Get all active scopes
+$activeScopes = LicenseScope::active()->get();
+
+// Get scopes needing key rotation
+$scopesNeedingRotation = LicenseScope::needingRotation()->get();
 ```
 
 ### Rotate Keys for Specific Scope
 
 ```php
+use LucaLongo\Licensing\Models\LicenseScope;
+
 class ScopedKeyRotationService
 {
-    public function rotateScope(string $scope): void
+    public function rotateScope(string $scopeSlug): void
     {
-        // Revoke current keys for scope
-        LicensingKey::activeSigning($scope)
-            ->update([
-                'status' => KeyStatus::Revoked,
-                'revoked_at' => now(),
-                'revocation_reason' => 'Scheduled rotation'
+        $scope = LicenseScope::findBySlugOrIdentifier($scopeSlug);
+
+        if ($scope->needsKeyRotation()) {
+            // This handles everything: revokes old keys, creates new one, updates timestamps
+            $newKey = $scope->rotateKeys('Scheduled rotation');
+
+            // Log the rotation
+            Log::info('Rotated keys for scope', [
+                'scope' => $scope->slug,
+                'new_kid' => $newKey->kid,
+                'next_rotation' => $scope->next_key_rotation_at,
             ]);
+        }
+    }
 
-        // Issue new signing key for scope
-        $newKey = LicensingKey::generateSigningKey(
-            kid: "signing-{$scope}-" . now()->format('Y-m'),
-            scope: $scope,
-            scopeIdentifier: $this->getScopeIdentifier($scope)
-        );
-        $newKey->save();
-
-        // Issue certificate...
+    public function rotateAllScopes(): void
+    {
+        LicenseScope::needingRotation()->each(function ($scope) {
+            $scope->rotateKeys('Scheduled rotation');
+        });
     }
 }
 ```

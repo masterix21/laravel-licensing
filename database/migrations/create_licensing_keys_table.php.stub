@@ -11,8 +11,12 @@ return new class extends Migration
     {
         Schema::create('licensing_keys', function (Blueprint $table) {
             $table->id();
-            $table->string('kid')->unique();
+            $table->string('kid');
             $table->string('type', 20);
+            $table->foreignId('license_scope_id')->nullable()
+                ->constrained('license_scopes')
+                ->nullOnDelete()
+                ->comment('Null means global key');
             $table->string('status', 20)->default(KeyStatus::Active->value)->index();
             $table->string('algorithm', 20)->default('Ed25519');
             $table->text('public_key');
@@ -24,9 +28,11 @@ return new class extends Migration
             $table->string('revocation_reason')->nullable();
             $table->json('meta')->nullable();
             $table->timestamps();
-            
+
             $table->index(['type', 'status']);
             $table->index(['valid_from', 'valid_until']);
+            $table->index(['license_scope_id', 'status']);
+            $table->unique(['kid', 'license_scope_id']);
         });
     }
 

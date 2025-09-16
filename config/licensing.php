@@ -2,6 +2,7 @@
 
 return [
     'models' => [
+        'license_scope' => \LucaLongo\Licensing\Models\LicenseScope::class,
         'license' => \LucaLongo\Licensing\Models\License::class,
         'license_usage' => \LucaLongo\Licensing\Models\LicenseUsage::class,
         'license_renewal' => \LucaLongo\Licensing\Models\LicenseRenewal::class,

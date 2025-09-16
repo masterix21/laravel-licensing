@@ -42,6 +42,7 @@ class LicensingServiceProvider extends PackageServiceProvider
             ->name('laravel-licensing')
             ->hasConfigFile('licensing')
             ->hasMigrations([
+                'create_license_scopes_table',
                 'create_licenses_table',
                 'create_license_usages_table',
                 'create_license_renewals_table',
