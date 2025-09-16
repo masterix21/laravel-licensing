@@ -11,7 +11,7 @@ class EncryptedLicenseKeyGenerator implements LicenseKeyGeneratorContract
     /**
      * Generate a new license key.
      *
-     * @param License|null $license Optional license instance for context
+     * @param  License|null  $license  Optional license instance for context
      * @return string The generated license key
      */
     public function generate(?License $license = null): string
@@ -25,6 +25,6 @@ class EncryptedLicenseKeyGenerator implements LicenseKeyGeneratorContract
             $segments[] = strtoupper(Str::random(4));
         }
 
-        return $prefix . $separator . implode($separator, $segments);
+        return $prefix.$separator.implode($separator, $segments);
     }
 }

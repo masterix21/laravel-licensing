@@ -2,8 +2,6 @@
 
 use Illuminate\Support\Facades\Crypt;
 use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
-use LucaLongo\Licensing\Contracts\LicenseKeyRegeneratorContract;
-use LucaLongo\Licensing\Contracts\LicenseKeyRetrieverContract;
 use LucaLongo\Licensing\Models\License;
 
 it('can generate a license key', function () {
