@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Event;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+
 use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);

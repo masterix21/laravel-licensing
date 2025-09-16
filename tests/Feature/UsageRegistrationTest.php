@@ -6,6 +6,7 @@ use LucaLongo\Licensing\Events\UsageLimitReached;
 use LucaLongo\Licensing\Events\UsageRegistered;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+
 use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);

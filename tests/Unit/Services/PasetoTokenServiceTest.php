@@ -3,6 +3,7 @@
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+
 use function Spatie\PestPluginTestTime\testTime;
 
 uses(LicenseTestHelper::class);
