@@ -10,6 +10,19 @@ return [
         'audit_log' => \LucaLongo\Licensing\Models\LicensingAuditLog::class,
     ],
 
+    'services' => [
+        'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
+        'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
+        'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+    ],
+
+    'key_management' => [
+        'retrieval_enabled' => true, // Allow retrieving original keys
+        'regeneration_enabled' => true, // Allow regenerating keys
+        'key_prefix' => 'LIC', // Prefix for generated keys
+        'key_separator' => '-', // Separator for key segments
+    ],
+
     'policies' => [
         'over_limit' => 'reject', // reject | auto_replace_oldest
         'grace_days' => 14,

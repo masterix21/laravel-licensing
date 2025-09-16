@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\Crypt;
+use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
+use LucaLongo\Licensing\Contracts\LicenseKeyRegeneratorContract;
+use LucaLongo\Licensing\Contracts\LicenseKeyRetrieverContract;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Enums\OverLimitPolicy;
 use LucaLongo\Licensing\Enums\TokenFormat;
@@ -33,6 +37,14 @@ class License extends Model
         'max_usages',
         'meta',
     ];
+
+    protected $appends = [];
+
+    /**
+     * Temporary attribute to hold the license key after creation
+     * This is not persisted to the database
+     */
+    protected ?string $temporaryLicenseKey = null;
 
     protected $casts = [
         'status' => LicenseStatus::class,
@@ -394,5 +406,104 @@ class License extends Model
         }
 
         return $this->transfers()->create($data);
+    }
+
+    /**
+     * Generate a new license key using the configured generator service.
+     *
+     * @return string
+     */
+    public static function generateKey(): string
+    {
+        return app(LicenseKeyGeneratorContract::class)->generate();
+    }
+
+    /**
+     * Retrieve the license key if available.
+     *
+     * @return string|null
+     */
+    public function retrieveKey(): ?string
+    {
+        $retriever = app(LicenseKeyRetrieverContract::class);
+
+        if (! $retriever->isAvailable()) {
+            return null;
+        }
+
+        return $retriever->retrieve($this);
+    }
+
+    /**
+     * Regenerate the license key.
+     *
+     * @return string The new license key
+     */
+    public function regenerateKey(): string
+    {
+        $regenerator = app(LicenseKeyRegeneratorContract::class);
+
+        if (! $regenerator->isAvailable()) {
+            throw new \RuntimeException('License key regeneration is not available');
+        }
+
+        return $regenerator->regenerate($this);
+    }
+
+    /**
+     * Create a new license with an encrypted key stored.
+     *
+     * @param array $attributes
+     * @return static
+     */
+    public static function createWithKey(array $attributes = [], ?string $providedKey = null): self
+    {
+        $key = $providedKey ?? static::generateKey();
+
+        // Add encrypted key to meta
+        $meta = $attributes['meta'] ?? [];
+        if (config('licensing.key_management.retrieval_enabled', true)) {
+            $meta['encrypted_key'] = Crypt::encryptString($key);
+        }
+
+        $attributes['key_hash'] = static::hashKey($key);
+        $attributes['meta'] = $meta;
+
+        $license = static::create($attributes);
+
+        // Store the key temporarily (not persisted to database)
+        $license->temporaryLicenseKey = $key;
+
+        return $license;
+    }
+
+    /**
+     * Get the temporary license key (only available after creation).
+     *
+     * @return string|null
+     */
+    public function getLicenseKeyAttribute(): ?string
+    {
+        return $this->temporaryLicenseKey;
+    }
+
+    /**
+     * Check if key retrieval is available.
+     *
+     * @return bool
+     */
+    public function canRetrieveKey(): bool
+    {
+        return app(LicenseKeyRetrieverContract::class)->isAvailable();
+    }
+
+    /**
+     * Check if key regeneration is available.
+     *
+     * @return bool
+     */
+    public function canRegenerateKey(): bool
+    {
+        return app(LicenseKeyRegeneratorContract::class)->isAvailable();
     }
 }

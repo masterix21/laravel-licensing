@@ -12,6 +12,9 @@ use LucaLongo\Licensing\Commands\RotateKeysCommand;
 use LucaLongo\Licensing\Contracts\AuditLogger;
 use LucaLongo\Licensing\Contracts\CertificateAuthority;
 use LucaLongo\Licensing\Contracts\FingerprintResolver;
+use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
+use LucaLongo\Licensing\Contracts\LicenseKeyRegeneratorContract;
+use LucaLongo\Licensing\Contracts\LicenseKeyRetrieverContract;
 use LucaLongo\Licensing\Contracts\TokenIssuer;
 use LucaLongo\Licensing\Contracts\TokenVerifier;
 use LucaLongo\Licensing\Contracts\UsageRegistrar;
@@ -68,6 +71,7 @@ class LicensingServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->registerServices();
+        $this->registerLicenseKeyServices();
         $this->registerTokenService();
         $this->registerLicensing();
         $this->registerObservers();
@@ -80,6 +84,31 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->app->singleton(FingerprintResolver::class, FingerprintResolverService::class);
         $this->app->singleton(AuditLogger::class, AuditLoggerService::class);
         $this->app->singleton(TemplateService::class);
+    }
+
+    protected function registerLicenseKeyServices(): void
+    {
+        // Register key generator
+        $this->app->singleton(LicenseKeyGeneratorContract::class, function ($app) {
+            $class = config('licensing.services.key_generator');
+
+            return new $class();
+        });
+
+        // Register key retriever
+        $this->app->singleton(LicenseKeyRetrieverContract::class, function ($app) {
+            $class = config('licensing.services.key_retriever');
+
+            return new $class();
+        });
+
+        // Register key regenerator
+        $this->app->singleton(LicenseKeyRegeneratorContract::class, function ($app) {
+            $class = config('licensing.services.key_regenerator');
+            $generator = $app->make(LicenseKeyGeneratorContract::class);
+
+            return new $class($generator);
+        });
     }
 
     protected function registerTokenService(): void
