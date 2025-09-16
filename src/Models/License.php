@@ -410,8 +410,6 @@ class License extends Model
 
     /**
      * Generate a new license key using the configured generator service.
-     *
-     * @return string
      */
     public static function generateKey(): string
     {
@@ -420,8 +418,6 @@ class License extends Model
 
     /**
      * Retrieve the license key if available.
-     *
-     * @return string|null
      */
     public function retrieveKey(): ?string
     {
@@ -453,7 +449,6 @@ class License extends Model
     /**
      * Create a new license with an encrypted key stored.
      *
-     * @param array $attributes
      * @return static
      */
     public static function createWithKey(array $attributes = [], ?string $providedKey = null): self
@@ -479,8 +474,6 @@ class License extends Model
 
     /**
      * Get the temporary license key (only available after creation).
-     *
-     * @return string|null
      */
     public function getLicenseKeyAttribute(): ?string
     {
@@ -489,8 +482,6 @@ class License extends Model
 
     /**
      * Check if key retrieval is available.
-     *
-     * @return bool
      */
     public function canRetrieveKey(): bool
     {
@@ -499,8 +490,6 @@ class License extends Model
 
     /**
      * Check if key regeneration is available.
-     *
-     * @return bool
      */
     public function canRegenerateKey(): bool
     {

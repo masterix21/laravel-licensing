@@ -92,14 +92,14 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->app->singleton(LicenseKeyGeneratorContract::class, function ($app) {
             $class = config('licensing.services.key_generator');
 
-            return new $class();
+            return new $class;
         });
 
         // Register key retriever
         $this->app->singleton(LicenseKeyRetrieverContract::class, function ($app) {
             $class = config('licensing.services.key_retriever');
 
-            return new $class();
+            return new $class;
         });
 
         // Register key regenerator

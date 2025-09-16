@@ -11,7 +11,6 @@ class EncryptedLicenseKeyRetriever implements LicenseKeyRetrieverContract
     /**
      * Retrieve the license key for a given license.
      *
-     * @param License $license
      * @return string|null The license key or null if not retrievable
      */
     public function retrieve(License $license): ?string
@@ -37,8 +36,6 @@ class EncryptedLicenseKeyRetriever implements LicenseKeyRetrieverContract
 
     /**
      * Check if the service supports key retrieval.
-     *
-     * @return bool
      */
     public function isAvailable(): bool
     {
