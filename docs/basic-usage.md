@@ -15,19 +15,13 @@ Learn the fundamental operations of Laravel Licensing with practical examples.
 
 ## Creating Licenses
 
-### Simple License Creation
+### Method 1: Auto-Generated License Keys (Recommended)
 
 ```php
 use LucaLongo\Licensing\Models\License;
-use Illuminate\Support\Str;
 
-// Generate a unique activation key
-$activationKey = strtoupper(Str::random(20));
-$formattedKey = implode('-', str_split($activationKey, 4)); // XXXX-XXXX-XXXX-XXXX-XXXX
-
-// Create the license
-$license = License::create([
-    'key_hash' => License::hashKey($activationKey),
+// Create license with auto-generated key
+$license = License::createWithKey([
     'licensable_type' => User::class,
     'licensable_id' => $user->id,
     'status' => LicenseStatus::Pending,
@@ -39,7 +33,53 @@ $license = License::create([
     ],
 ]);
 
-// Store the activation key securely for the customer
+// Get the generated key immediately
+$activationKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+
+// Give the activation key to your customer
+echo "Activation Key: {$activationKey}";
+```
+
+### Method 2: Custom License Keys
+
+```php
+// Provide your own license key format
+$customKey = 'PRO-2024-ENTERPRISE-001';
+
+$license = License::createWithKey([
+    'licensable_type' => Organization::class,
+    'licensable_id' => $organization->id,
+    'status' => LicenseStatus::Pending,
+    'max_usages' => 100,
+    'expires_at' => now()->addYear(),
+    'meta' => [
+        'product' => 'Enterprise Edition',
+        'version' => '3.0',
+    ],
+], $customKey);
+
+echo "Enterprise Key: {$customKey}";
+```
+
+### Method 3: Hash-Only (Maximum Security)
+
+```php
+use Illuminate\Support\Str;
+
+// Traditional hash-only approach for maximum security
+$activationKey = strtoupper(Str::random(20));
+$formattedKey = implode('-', str_split($activationKey, 4)); // XXXX-XXXX-XXXX-XXXX-XXXX
+
+$license = License::create([
+    'key_hash' => License::hashKey($activationKey),
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'status' => LicenseStatus::Pending,
+    'max_usages' => 5,
+    'expires_at' => now()->addYear(),
+]);
+
+// Store the activation key securely (cannot be retrieved later)
 echo "Activation Key: {$formattedKey}";
 ```
 
@@ -272,6 +312,130 @@ if (!$license->hasAvailableSeats()) {
 
 // Now register new device
 $newUsage = $registrar->register($license, $newFingerprint, $metadata);
+```
+
+## License Key Management
+
+### Key Operations
+
+```php
+// Retrieve the original license key (if enabled in configuration)
+if ($license->canRetrieveKey()) {
+    $originalKey = $license->retrieveKey();
+    echo "Your license key: {$originalKey}";
+} else {
+    echo "Key retrieval is disabled for security.";
+}
+
+// Regenerate a license key (useful for security incidents)
+if ($license->canRegenerateKey()) {
+    $oldKey = $license->retrieveKey(); // Get old key if possible
+    $newKey = $license->regenerateKey();
+
+    echo "New license key: {$newKey}";
+    echo "Old key is no longer valid.";
+
+    // Previous key hashes are stored for audit
+    $auditTrail = $license->meta['previous_key_hashes'];
+}
+
+// Verify a provided key
+$userInputKey = 'LIC-A3F2-B9K1-C4D8-E5H7';
+if ($license->verifyKey($userInputKey)) {
+    echo "Valid license key!";
+} else {
+    echo "Invalid license key.";
+}
+
+// Find license by key (constant-time lookup)
+$license = License::findByKey($userInputKey);
+
+// Find by UID (alternative identifier)
+$license = License::findByUid($uid);
+```
+
+### Key Recovery Scenarios
+
+```php
+class LicenseKeyRecoveryService
+{
+    public function recoverKey(User $user, string $email): ?string
+    {
+        // Find user's active license
+        $license = $user->licenses()
+            ->whereIn('status', ['active', 'grace'])
+            ->first();
+
+        if (!$license) {
+            return null;
+        }
+
+        // Check if retrieval is enabled
+        if (!$license->canRetrieveKey()) {
+            // Generate new key instead
+            if ($license->canRegenerateKey()) {
+                $newKey = $license->regenerateKey();
+
+                // Send via email
+                Mail::to($email)->send(
+                    new LicenseKeyRegeneratedMail($license, $newKey)
+                );
+
+                return $newKey;
+            }
+
+            return null;
+        }
+
+        // Retrieve original key
+        $key = $license->retrieveKey();
+
+        // Send via email
+        Mail::to($email)->send(
+            new LicenseKeyRecoveryMail($license, $key)
+        );
+
+        return $key;
+    }
+}
+```
+
+### Security Incident Response
+
+```php
+class SecurityIncidentService
+{
+    public function handleKeyCompromise(License $license, string $reason): string
+    {
+        if (!$license->canRegenerateKey()) {
+            throw new \RuntimeException('Key regeneration not available');
+        }
+
+        // Log the incident
+        Log::warning('License key compromised', [
+            'license_id' => $license->id,
+            'reason' => $reason,
+            'old_key_hash' => $license->key_hash,
+        ]);
+
+        // Regenerate key
+        $newKey = $license->regenerateKey();
+
+        // Revoke all active usages (force re-registration)
+        $license->usages()
+            ->where('status', 'active')
+            ->update([
+                'status' => 'revoked',
+                'revoked_at' => now(),
+                'meta->revocation_reason' => 'Key compromise: ' . $reason,
+            ]);
+
+        // Notify license holder
+        event(new LicenseKeyCompromised($license, $newKey, $reason));
+
+        return $newKey;
+    }
+}
 ```
 
 ## Checking License Status

@@ -25,6 +25,106 @@ Override default models with your own implementations:
     'licensing_key' => \App\Models\LicensingKey::class,
     'audit_log' => \App\Models\LicensingAuditLog::class,
 ],
+
+'services' => [
+    'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
+    'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
+    'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+],
+```
+
+### Service Configuration
+
+Configure license key management services:
+
+```php
+'services' => [
+    'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
+    'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
+    'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+],
+
+'key_management' => [
+    // Enable/disable key retrieval
+    'retrieval_enabled' => true,
+
+    // Enable/disable key regeneration
+    'regeneration_enabled' => true,
+
+    // Key format settings
+    'key_prefix' => 'LIC',        // Prefix for generated keys
+    'key_separator' => '-',       // Separator for key segments
+],
+```
+
+### Custom Key Services
+
+Implement your own key generation logic:
+
+```php
+namespace App\Services;
+
+use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
+use LucaLongo\Licensing\Models\License;
+
+class CustomLicenseKeyGenerator implements LicenseKeyGeneratorContract
+{
+    public function generate(?License $license = null): string
+    {
+        // Custom logic based on license context
+        $prefix = 'CUSTOM';
+        $year = date('Y');
+        $random = strtoupper(bin2hex(random_bytes(4)));
+
+        // Include license tier in key
+        if ($license?->template) {
+            $prefix = match($license->template->tier_level) {
+                1 => 'BASIC',
+                2 => 'PRO',
+                3 => 'ENTERPRISE',
+                default => 'CUSTOM'
+            };
+        }
+
+        return "{$prefix}-{$year}-{$random}";
+    }
+}
+```
+
+Register your custom services in a service provider:
+
+```php
+// In AppServiceProvider or custom provider
+public function register()
+{
+    $this->app->bind(
+        \LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract::class,
+        \App\Services\CustomLicenseKeyGenerator::class
+    );
+}
+```
+
+### Security Configuration
+
+Configure key security settings:
+
+```php
+'key_management' => [
+    // Disable key retrieval for maximum security
+    'retrieval_enabled' => false,
+
+    // Allow regeneration for support scenarios
+    'regeneration_enabled' => true,
+
+    // Custom key validation
+    'validation_pattern' => '/^[A-Z]{3}-\d{4}-[A-Z0-9]{8}$/',
+
+    // Audit previous keys
+    'audit_regeneration' => true,
+
+    // Maximum regenerations per license
+    'max_regenerations' => 5,
+],
 ```
 
 ### Creating Custom Models

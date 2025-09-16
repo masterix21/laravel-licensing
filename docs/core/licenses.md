@@ -84,103 +84,207 @@ $license->transitionToExpired();
 // When grace period expires
 ```
 
-## Key Management
+## License Key Management
 
-### Activation Key Generation
+The package provides flexible license key management through a service-based architecture that allows for auto-generation, custom keys, and optional retrieval.
+
+### Key Management Architecture
+
+The system uses three configurable contracts:
+
+- **`LicenseKeyGeneratorContract`**: Generates new license keys
+- **`LicenseKeyRetrieverContract`**: Retrieves stored license keys
+- **`LicenseKeyRegeneratorContract`**: Regenerates existing keys
+
+### Creating Licenses with Keys
+
+#### Method 1: Auto-Generated Keys
 
 ```php
-use Illuminate\Support\Str;
+// Generate license with auto-generated key
+$license = License::createWithKey([
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'max_usages' => 5,
+    'expires_at' => now()->addYear(),
+]);
 
-class ActivationKeyService
+// The key is available immediately after creation
+$licenseKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+
+// Key is automatically:
+// - Generated with configurable format
+// - Stored as salted hash for verification
+// - Encrypted and stored (if retrieval enabled)
+```
+
+#### Method 2: Custom-Provided Keys
+
+```php
+// Provide your own license key
+$customKey = 'ENTERPRISE-2024-SPECIAL-LICENSE';
+
+$license = License::createWithKey([
+    'licensable_type' => Organization::class,
+    'licensable_id' => $organization->id,
+    'max_usages' => 100,
+    'expires_at' => now()->addYear(),
+], $customKey);
+
+// Custom key is processed the same way
+$verifyCustom = $license->verifyKey($customKey); // true
+```
+
+#### Method 3: Traditional Hash-Only Approach
+
+```php
+// For maximum security (no key retrieval)
+$activationKey = Str::random(32);
+
+$license = License::create([
+    'key_hash' => License::hashKey($activationKey),
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'max_usages' => 3,
+    'expires_at' => now()->addYear(),
+]);
+
+// Key is only stored as hash - cannot be retrieved
+```
+
+### Key Operations
+
+#### Verification
+
+```php
+// Verify a provided key against a license
+$isValid = $license->verifyKey($providedKey);
+
+// Find license by key
+$license = License::findByKey($providedKey);
+
+// Find by UID (alternative identifier)
+$license = License::findByUid($uid);
+```
+
+#### Retrieval (if enabled)
+
+```php
+// Check if retrieval is available
+if ($license->canRetrieveKey()) {
+    $originalKey = $license->retrieveKey();
+} else {
+    // Retrieval disabled in configuration
+    $originalKey = null;
+}
+```
+
+#### Regeneration
+
+```php
+// Check if regeneration is available
+if ($license->canRegenerateKey()) {
+    $newKey = $license->regenerateKey();
+
+    // Old key no longer works
+    $oldKeyValid = $license->verifyKey($oldKey); // false
+    $newKeyValid = $license->verifyKey($newKey); // true
+
+    // Previous hashes are stored for audit
+    $previousHashes = $license->meta['previous_key_hashes'];
+}
+```
+
+### Configuration
+
+Configure key management behavior in `config/licensing.php`:
+
+```php
+'services' => [
+    'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
+    'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
+    'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+],
+
+'key_management' => [
+    'retrieval_enabled' => true,     // Allow retrieving original keys
+    'regeneration_enabled' => true,  // Allow regenerating keys
+    'key_prefix' => 'LIC',          // Prefix for generated keys
+    'key_separator' => '-',         // Separator for key segments
+],
+```
+
+### Custom Key Services
+
+Implement your own key generation logic:
+
+```php
+use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
+
+class CustomKeyGenerator implements LicenseKeyGeneratorContract
 {
-    /**
-     * Generate a secure activation key
-     */
-    public function generate(): string
+    public function generate(?License $license = null): string
     {
-        // Option 1: Simple random string
-        $key = strtoupper(Str::random(20));
-        
-        // Option 2: Formatted segments
-        $segments = [];
-        for ($i = 0; $i < 5; $i++) {
-            $segments[] = strtoupper(Str::random(4));
-        }
-        return implode('-', $segments); // XXXX-XXXX-XXXX-XXXX-XXXX
-        
-        // Option 3: Custom format with checksum
-        return $this->generateWithChecksum();
-    }
-    
-    /**
-     * Generate key with checksum for validation
-     */
-    private function generateWithChecksum(): string
-    {
-        $payload = strtoupper(Str::random(16));
-        $checksum = substr(hash('crc32', $payload), 0, 4);
-        
-        return sprintf(
-            '%s-%s-%s-%s-%s',
-            substr($payload, 0, 4),
-            substr($payload, 4, 4),
-            substr($payload, 8, 4),
-            substr($payload, 12, 4),
-            strtoupper($checksum)
-        );
-    }
-    
-    /**
-     * Validate key format
-     */
-    public function validate(string $key): bool
-    {
-        // Remove formatting
-        $clean = str_replace('-', '', $key);
-        
-        if (strlen($clean) !== 20) {
-            return false;
-        }
-        
-        // Extract checksum
-        $payload = substr($clean, 0, 16);
-        $checksum = substr($clean, 16, 4);
-        
-        // Verify checksum
-        $expected = substr(hash('crc32', $payload), 0, 4);
-        
-        return strcasecmp($checksum, $expected) === 0;
+        // Custom logic - e.g., include product info
+        $prefix = 'PROD';
+        $year = date('Y');
+        $random = strtoupper(bin2hex(random_bytes(4)));
+
+        return "{$prefix}-{$year}-{$random}";
     }
 }
 ```
 
-### Key Storage and Verification
+Register your custom service:
 
 ```php
-// Storing activation keys
-$activationKey = $keyService->generate();
+// In a service provider
+$this->app->singleton(
+    LicenseKeyGeneratorContract::class,
+    CustomKeyGenerator::class
+);
+```
 
-$license = License::create([
-    'key_hash' => License::hashKey($activationKey),
-    // ... other fields
-]);
+### Security Considerations
 
-// Store the plain key securely for the customer
-// Options:
-// 1. Email it immediately
-// 2. Show once and never store
-// 3. Encrypt and store temporarily
+- **Hash Storage**: Keys are always stored as salted SHA-256 hashes using `APP_KEY`
+- **Encrypted Retrieval**: Original keys stored encrypted with Laravel's Crypt facade
+- **Constant-Time Verification**: Uses `hash_equals()` to prevent timing attacks
+- **Audit Trail**: Previous key hashes stored when regenerating
+- **Configurable Security**: Disable retrieval/regeneration for maximum security
 
-// Verification process
-$providedKey = 'XXXX-XXXX-XXXX-XXXX-XXXX';
+### Key Format Examples
 
-// Find license by key hash
-$license = License::findByKey($providedKey);
+Default format: `LIC-XXXX-XXXX-XXXX-XXXX`
 
-if ($license && $license->verifyKey($providedKey)) {
-    // Key is valid
-    $license->activate();
-}
+```php
+// Examples of generated keys
+LIC-A3F2-B9K1-C4D8-E5H7
+LIC-9D2E-K8F3-L6A9-M1B4
+LIC-7H5J-N2C8-P9G1-R4E6
+```
+
+Custom formats:
+
+```php
+// Different prefixes and separators
+TEST_1234_5678_ABCD_EFGH  // prefix: 'TEST', separator: '_'
+PRO-2024-ENTERPRISE-001   // Custom business format
+DEMO.TEMP.2024.001        // Trial license format
+```
+
+### Migration from Hash-Only
+
+If migrating from hash-only storage:
+
+```php
+// Existing licenses work unchanged
+$existingLicense = License::find($id);
+$isValid = $existingLicense->verifyKey($someKey); // Works
+
+// New licenses can use enhanced features
+$newLicense = License::createWithKey($attributes);
+$retrievedKey = $newLicense->retrieveKey(); // Available
 ```
 
 ## Polymorphic Licensing

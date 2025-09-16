@@ -46,24 +46,57 @@ php artisan licensing:keys:issue-signing --days=30
 
 ## Your First License
 
-### Create a Basic License
+### Method 1: Auto-Generated License Key
 
 ```php
 use LucaLongo\Licensing\Models\License;
 
-// Generate a unique activation key
-$activationKey = Str::random(32);
-
-// Create the license
-$license = License::create([
-    'key_hash' => License::hashKey($activationKey),
+// Create license with auto-generated key
+$license = License::createWithKey([
     'licensable_type' => User::class,
     'licensable_id' => $user->id,
     'max_usages' => 3, // Allow 3 devices
     'expires_at' => now()->addYear(),
 ]);
 
+// Get the generated key immediately
+$activationKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+
 // Give the activation key to your customer
+echo "Your activation key: {$activationKey}";
+```
+
+### Method 2: Custom License Key
+
+```php
+// Provide your own license key format
+$customKey = 'ENTERPRISE-2024-ANNUAL-001';
+
+$license = License::createWithKey([
+    'licensable_type' => Organization::class,
+    'licensable_id' => $organization->id,
+    'max_usages' => 50, // Enterprise license
+    'expires_at' => now()->addYear(),
+], $customKey);
+
+echo "Your enterprise key: {$customKey}";
+```
+
+### Method 3: Hash-Only (Maximum Security)
+
+```php
+// Traditional hash-only approach (no key retrieval)
+$activationKey = Str::random(32);
+
+$license = License::create([
+    'key_hash' => License::hashKey($activationKey),
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'max_usages' => 3,
+    'expires_at' => now()->addYear(),
+]);
+
+// Store key securely (cannot be retrieved later)
 echo "Your activation key: {$activationKey}";
 ```
 
@@ -71,7 +104,7 @@ echo "Your activation key: {$activationKey}";
 
 ```php
 // Customer provides their activation key
-$providedKey = 'XXXX-XXXX-XXXX-XXXX';
+$providedKey = 'LIC-A3F2-B9K1-C4D8-E5H7';
 
 // Find and activate the license
 $license = License::findByKey($providedKey);
@@ -79,6 +112,8 @@ $license = License::findByKey($providedKey);
 if ($license && $license->verifyKey($providedKey)) {
     $license->activate();
     echo "License activated successfully!";
+} else {
+    echo "Invalid license key!";
 }
 ```
 
@@ -109,13 +144,37 @@ $usage = $registrar->register(
 // Check if license is valid
 if ($license->isUsable()) {
     // License is active or in grace period
-    
+
     // Check remaining days
     $daysLeft = $license->daysUntilExpiration();
-    
+
     // Check available seats
     $availableSeats = $license->getAvailableSeats();
 }
+```
+
+### Key Management Operations
+
+```php
+// Retrieve the original license key (if enabled in configuration)
+if ($license->canRetrieveKey()) {
+    $originalKey = $license->retrieveKey();
+    echo "Original key: {$originalKey}";
+}
+
+// Regenerate license key (useful for security incidents)
+if ($license->canRegenerateKey()) {
+    $newKey = $license->regenerateKey();
+    echo "New key: {$newKey}";
+    // Old key no longer works
+}
+
+// Verify any provided key
+$userProvidedKey = 'LIC-A3F2-B9K1-C4D8-E5H7';
+$isValid = $license->verifyKey($userProvidedKey);
+
+// Find license by UID (alternative to key-based lookup)
+$license = License::findByUid($uid);
 ```
 
 ## Using Templates
