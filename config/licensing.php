@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'key_salt' => env('LICENSING_KEY_SALT', env('APP_KEY')),
+
     'models' => [
         'license_scope' => \LucaLongo\Licensing\Models\LicenseScope::class,
         'license' => \LucaLongo\Licensing\Models\License::class,
@@ -87,6 +89,14 @@ return [
         'store' => 'database', // database | file
         'retention_days' => 90,
         'hash_chain' => true, // Enable hash chaining for tamper-evidence
+    ],
+
+    'transfer' => [
+        'cooling_period_days' => 30,
+        'suspicious_pattern_requires_review' => true,
+        'frequent_transfer_window_days' => 90,
+        'frequent_transfer_threshold' => 3,
+        'high_value_threshold' => 10000,
     ],
 
     'api' => [

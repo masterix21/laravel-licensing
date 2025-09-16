@@ -127,6 +127,16 @@ Configure key security settings:
 ],
 ```
 
+### License Key Salt
+
+```php
+'key_salt' => env('LICENSING_KEY_SALT', env('APP_KEY')),
+```
+
+- Define `LICENSING_KEY_SALT` in production to decouple license hashes from Laravel's `APP_KEY`
+- Rotating the salt forces re-issuance of license keys; plan migrations carefully
+- The package falls back to `APP_KEY` for legacy installs, but a dedicated salt is strongly recommended for new deployments
+
 ### Creating Custom Models
 
 Your custom models must extend the package models:
@@ -357,9 +367,10 @@ Configure how cryptographic keys are stored:
         // File storage path (if using files driver)
         'path' => storage_path('app/licensing/keys'),
         
-        // Environment variable for passphrase
+        // Provide passphrase directly or via environment and it will be cached at runtime
+        'passphrase' => env('LICENSING_KEYSTORE_PASSPHRASE'),
         'passphrase_env' => 'LICENSING_KEY_PASSPHRASE',
-        
+
         // Key rotation settings
         'auto_rotate' => true,
         'rotation_days' => 30,
@@ -496,6 +507,31 @@ class LicenseRateLimiter
     }
 }
 ```
+
+## Transfer Configuration
+
+Fine-tune how transfers behave and when they require manual review:
+
+```php
+'transfer' => [
+    // Cooling-off period between completed transfers (days)
+    'cooling_period_days' => 30,
+
+    // Require manual review if suspicious patterns are detected
+    'suspicious_pattern_requires_review' => true,
+
+    // Time window (days) for counting recent transfers
+    'frequent_transfer_window_days' => 90,
+
+    // Number of transfers in the window that triggers review
+    'frequent_transfer_threshold' => 3,
+
+    // Monetary threshold (from template metadata) that flags high-value moves
+    'high_value_threshold' => 10_000,
+],
+```
+
+Lower the thresholds for sensitive SKUs or raise them for internal sandbox environments. All values can be driven by environment variables when different deployments need different guardrails.
 
 ## Notification Configuration
 

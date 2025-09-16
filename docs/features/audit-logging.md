@@ -45,14 +45,19 @@ Each audit entry contains:
 ```php
 [
     'event_type' => 'license_activated',
-    'entity_type' => 'License',
-    'entity_id' => '01HZQM5...',
-    'actor_type' => 'User',
+    'auditable_type' => 'LucaLongo\\Licensing\\Models\\License',
+    'auditable_id' => '01HZQM5...',
+    'actor' => 'App\\Models\\User:123',
+    'actor_type' => 'App\\Models\\User',
     'actor_id' => '123',
-    'data' => ['activation_method' => 'api'],
-    'ip_address' => '192.168.1.1',
-    'user_agent' => 'MyApp/1.0',
-    'hash_chain' => 'sha256-hash-of-previous-entry',
+    'ip' => '203.0.113.42',
+    'user_agent' => 'MyApp/1.0.0 (macOS)',
+    'meta' => [
+        'activation_method' => 'api',
+        'plan' => 'enterprise',
+    ],
+    'previous_hash' => 'sha256-of-previous-entry',
+    'occurred_at' => '2024-01-15T10:00:00Z',
     'created_at' => '2024-01-15T10:00:00Z'
 ]
 ```
@@ -66,15 +71,12 @@ class AuditLogVerifier
 {
     public function verifyIntegrity(): bool
     {
-        $logs = LicensingAuditLog::orderBy('created_at')->get();
-        
+        $logs = LicensingAuditLog::orderBy('id')->get();
+
         foreach ($logs as $index => $log) {
-            if ($index === 0) continue;
-            
-            $previousHash = $logs[$index - 1]->hash_chain;
-            $expectedHash = hash('sha256', $previousHash . $log->getHashableData());
-            
-            if ($log->hash_chain !== $expectedHash) {
+            $previous = $index === 0 ? null : $logs[$index - 1];
+
+            if (! $log->verifyChain($previous)) {
                 return false; // Tampering detected
             }
         }
@@ -110,7 +112,7 @@ $activations = app(AuditLogger::class)
     ->getLogsByType(AuditEventType::LicenseActivated);
 
 // Complex queries
-$suspiciousActivity = LicensingAuditLog::where('ip_address', $suspiciousIp)
+$suspiciousActivity = LicensingAuditLog::where('ip', $suspiciousIp)
     ->whereIn('event_type', ['license_created', 'usage_registered'])
     ->where('created_at', '>', now()->subHour())
     ->get();

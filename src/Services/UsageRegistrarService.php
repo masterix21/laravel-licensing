@@ -2,10 +2,13 @@
 
 namespace LucaLongo\Licensing\Services;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use LucaLongo\Licensing\Contracts\UsageRegistrar;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Enums\OverLimitPolicy;
+use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageLimitReached;
 use LucaLongo\Licensing\Events\UsageRegistered;
 use LucaLongo\Licensing\Models\License;
@@ -24,30 +27,36 @@ class UsageRegistrarService implements UsageRegistrar
 
         try {
             return DB::transaction(function () use ($license, $fingerprint, $metadata, &$shouldLogLimitReached, &$auditData) {
-                $license->lockForUpdate();
+                $lockedLicense = $license->newQuery()
+                    ->lockForUpdate()
+                    ->find($license->getKey());
 
-                $existingUsage = $this->findByFingerprint($license, $fingerprint);
+                if (! $lockedLicense) {
+                    throw new \RuntimeException('License not found for registration');
+                }
+
+                $existingUsage = $this->findByFingerprint($lockedLicense, $fingerprint);
 
                 if ($existingUsage && $existingUsage->isActive()) {
                     // Check if it's the same license
-                    if ($existingUsage->license_id === $license->id) {
+                    if ($existingUsage->license_id === $lockedLicense->id) {
                         $existingUsage->heartbeat();
 
                         return $existingUsage;
                     }
 
                     // If global scope and different license, throw error
-                    if ($license->getUniqueUsageScope() === 'global') {
+                    if ($lockedLicense->getUniqueUsageScope() === 'global') {
                         throw new \RuntimeException('Fingerprint already in use globally');
                     }
                 }
 
-                if (! $this->canRegister($license, $fingerprint)) {
+                if (! $this->canRegister($lockedLicense, $fingerprint)) {
                     // Check if it's a global scope conflict
-                    if ($license->getUniqueUsageScope() === 'global') {
+                    if ($lockedLicense->getUniqueUsageScope() === 'global') {
                         $existingGlobal = LicenseUsage::forFingerprint($fingerprint)
                             ->active()
-                            ->where('license_id', '!=', $license->id)
+                            ->where('license_id', '!=', $lockedLicense->id)
                             ->first();
 
                         if ($existingGlobal) {
@@ -55,16 +64,16 @@ class UsageRegistrarService implements UsageRegistrar
                         }
                     }
 
-                    $policy = $license->getOverLimitPolicy();
+                    $policy = $lockedLicense->getOverLimitPolicy();
 
                     if ($policy === OverLimitPolicy::Reject) {
-                        event(new UsageLimitReached($license, $fingerprint, $metadata));
+                        event(new UsageLimitReached($lockedLicense, $fingerprint, $metadata));
 
                         // Store details for audit log (will be created after transaction rollback)
                         $shouldLogLimitReached = true;
                         $auditData = [
-                            'license_id' => $license->id,
-                            'license_class' => get_class($license),
+                            'license_id' => $lockedLicense->id,
+                            'license_class' => get_class($lockedLicense),
                             'fingerprint' => $fingerprint,
                         ];
 
@@ -72,19 +81,19 @@ class UsageRegistrarService implements UsageRegistrar
                     }
 
                     if ($policy === OverLimitPolicy::AutoReplaceOldest) {
-                        $this->revokeOldestUsage($license);
+                        $this->revokeOldestUsage($lockedLicense);
                     }
                 }
 
-                $usage = $license->usages()->create([
+                $usage = $lockedLicense->usages()->create([
                     'usage_fingerprint' => $fingerprint,
-                    'status' => 'active',
+                    'status' => \LucaLongo\Licensing\Enums\UsageStatus::Active->value,
                     'registered_at' => now(),
                     'last_seen_at' => now(),
                     'client_type' => $metadata['client_type'] ?? null,
                     'name' => $metadata['name'] ?? null,
-                    'ip' => $metadata['ip'] ?? request()->ip(),
-                    'user_agent' => $metadata['user_agent'] ?? request()->userAgent(),
+                    'ip' => $this->contextValue('ip', $metadata),
+                    'user_agent' => $this->contextValue('user_agent', $metadata),
                     'meta' => $metadata['meta'] ?? null,
                 ]);
 
@@ -166,5 +175,35 @@ class UsageRegistrarService implements UsageRegistrar
         if ($oldestUsage) {
             $oldestUsage->revoke('auto_replaced');
         }
+    }
+
+    protected function contextValue(string $key, array $metadata): mixed
+    {
+        if (array_key_exists($key, $metadata)) {
+            return $metadata[$key];
+        }
+
+        $request = $this->currentRequest();
+
+        if (! $request) {
+            return null;
+        }
+
+        return match ($key) {
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            default => null,
+        };
+    }
+
+    protected function currentRequest(): ?Request
+    {
+        if (! App::bound('request')) {
+            return null;
+        }
+
+        $request = App::make('request');
+
+        return $request instanceof Request ? $request : null;
     }
 }

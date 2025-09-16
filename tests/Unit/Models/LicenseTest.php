@@ -6,6 +6,7 @@ use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
 use LucaLongo\Licensing\Events\LicenseRenewed;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
 
 uses(LicenseTestHelper::class);
@@ -208,4 +209,22 @@ test('grace period respects configuration', function () {
     ]);
 
     expect($license2->gracePeriodExpired())->toBeFalse();
+});
+
+test('license scope relation is accessible', function () {
+    $scope = LicenseScope::create([
+        'name' => 'Pro Suite',
+        'slug' => 'pro-suite',
+        'identifier' => 'com.example.pro-suite',
+    ]);
+
+    $license = $this->createLicense([
+        'license_scope_id' => $scope->id,
+    ]);
+
+    expect($license->scope)->not->toBeNull()
+        ->and($license->scope->id)->toBe($scope->id);
+
+    $license->load('scope');
+    expect($license->getRelation('scope')->name)->toBe('Pro Suite');
 });

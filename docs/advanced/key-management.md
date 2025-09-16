@@ -112,6 +112,8 @@ class RotateSigningKeysJob implements ShouldQueue
 }
 ```
 
+> Tip: Configure the passphrase once in `config/licensing.php` (`licensing.crypto.keystore.passphrase` or `passphrase_env`). The framework caches the resolved value for the request lifecycle so repeated encrypt/decrypt operations avoid additional environment lookups.
+
 ### Emergency Rotation
 
 ```bash

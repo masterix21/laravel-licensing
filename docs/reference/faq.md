@@ -272,10 +272,16 @@ Key optimizations:
 Yes, using pessimistic locking:
 ```php
 DB::transaction(function () use ($license) {
-    $license->lockForUpdate();
-    
-    if ($license->canRegisterUsage()) {
-        // Safe to register
+    $locked = $license->newQuery()
+        ->lockForUpdate()
+        ->find($license->getKey());
+
+    if (! $locked) {
+        throw new \RuntimeException('License missing during registration');
+    }
+
+    if ($locked->hasAvailableSeats()) {
+        // Safe to register with fresh state
     }
 });
 ```

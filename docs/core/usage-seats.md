@@ -246,19 +246,30 @@ class UsageManager
         
         // Register with pessimistic locking
         return DB::transaction(function () use ($license, $fingerprint, $metadata) {
-            // Lock license for update
-            $license = License::lockForUpdate()->find($license->id);
-            
-            // Check seat availability
-            $activeCount = $license->activeUsages()->count();
-            
-            if ($activeCount >= $license->max_usages) {
-                // Handle over-limit
-                return $this->handleOverLimit($license, $fingerprint, $metadata);
+            // Reload + lock the row to avoid "dirty" model state
+            $locked = $license->newQuery()
+                ->lockForUpdate()
+                ->find($license->getKey());
+
+            if (! $locked) {
+                throw new \RuntimeException('License not found during registration');
             }
-            
-            // Register new usage
-            return $this->registrar->register($license, $fingerprint, $metadata);
+
+            // Check seat availability using the locked instance
+            $activeCount = $locked->activeUsages()->count();
+
+            if ($activeCount >= $locked->max_usages) {
+                // Handle over-limit
+                return $this->handleOverLimit($locked, $fingerprint, $metadata);
+            }
+
+            // Pass explicit metadata (useful for CLI/jobs without HTTP request)
+            $metadataWithContext = array_merge([
+                'ip' => $metadata['ip'] ?? null,
+                'user_agent' => $metadata['user_agent'] ?? null,
+            ], $metadata);
+
+            return $this->registrar->register($locked, $fingerprint, $metadataWithContext);
         });
     }
     

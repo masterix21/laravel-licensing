@@ -246,11 +246,16 @@ class StableFingerprint implements FingerprintGenerator
 use Illuminate\Support\Facades\DB;
 
 DB::transaction(function () use ($license, $fingerprint) {
-    // Lock license row
-    $license = License::lockForUpdate()->find($license->id);
-    
+    $locked = $license->newQuery()
+        ->lockForUpdate()
+        ->find($license->getKey());
+
+    if (! $locked) {
+        throw new \RuntimeException('License disappeared mid-transaction');
+    }
+
     // Re-check usage count
-    $currentUsages = $license->usages()
+    $currentUsages = $locked->usages()
         ->where('status', 'active')
         ->count();
     
@@ -259,7 +264,7 @@ DB::transaction(function () use ($license, $fingerprint) {
     }
     
     // Safe to register
-    return $license->registerUsage($fingerprint);
+    return $this->registrar->register($locked, $fingerprint);
 }, 5); // Retry up to 5 times
 ```
 

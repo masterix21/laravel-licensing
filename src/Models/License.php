@@ -101,7 +101,9 @@ class License extends Model
 
     public function scope(): BelongsTo
     {
-        return $this->belongsTo(LicenseScope::class, 'license_scope_id');
+        $model = config('licensing.models.license_scope', LicenseScope::class);
+
+        return $this->belongsTo($model, 'license_scope_id');
     }
 
     public function activeUsages(): HasMany
@@ -121,12 +123,27 @@ class License extends Model
 
     public static function hashKey(string $key): string
     {
-        return hash('sha256', config('app.key').$key);
+        return hash_hmac('sha256', $key, static::keySalt());
     }
 
     public function verifyKey(string $key): bool
     {
         return hash_equals($this->key_hash, static::hashKey($key));
+    }
+
+    protected static function keySalt(): string
+    {
+        $salt = config('licensing.key_salt');
+
+        if (! $salt) {
+            $salt = config('app.key');
+        }
+
+        if (! $salt) {
+            throw new \RuntimeException('Licensing key salt is not configured');
+        }
+
+        return $salt;
     }
 
     public function activate(): self

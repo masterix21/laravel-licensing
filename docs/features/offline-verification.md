@@ -78,6 +78,8 @@ class OfflineTokenController
 }
 ```
 
+> ℹ️ The service automatically selects the correct signing key by reading the token footer `kid`, so scoped keys work out of the box. Clock-skew tolerance can be tuned per license via `meta['offline_token']['clock_skew_seconds']`; when omitted the package falls back to `licensing.offline_token.clock_skew_seconds`.
+
 ### Token Structure
 
 ```php
@@ -218,7 +220,7 @@ use ParagonIE\Paseto\Protocol\Version4;
 class OfflineVerifier
 {
     private array $publicKeys;
-    private int $clockSkew = 60; // seconds
+    private int $clockSkew = 60; // seconds (override with server-provided value)
     
     public function __construct(array $publicKeyBundle)
     {

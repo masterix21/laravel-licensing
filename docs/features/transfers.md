@@ -91,3 +91,20 @@ class TransferApprovalService
 ```
 
 This transfer system ensures secure and auditable license ownership changes with proper validation and approval workflows.
+
+## Transfer Validation
+
+`TransferValidationService` applies layered safeguards before a transfer is even created:
+
+- **Cooling period** – prevents rapid ownership flips by enforcing the configurable `cooling_period_days`
+- **Transfer type matching** – verifies the requested `TransferType` matches the source/target entity pairing (user → org, org → user, etc.)
+- **Capability checks** – calls into `CanReceiveLicenseTransfers` to ensure the recipient is eligible and within its own limits
+- **Suspicious pattern detection** – flags frequent transfers, ping-pong swaps, or high-value moves based on template metadata
+
+All thresholds are driven by `config('licensing.transfer')`, making it easy to adjust behaviour per deployment or environment.
+
+## Security Considerations
+
+- Track configuration changes alongside release notes—altering cooling periods or thresholds can impact downstream workflows
+- Surface flagged transfers to operations teams when `suspicious_pattern_requires_review` is enabled
+- Combine audit logs with transfer history to provide a full trail whenever ownership changes hands

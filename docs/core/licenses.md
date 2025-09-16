@@ -247,7 +247,7 @@ $this->app->singleton(
 
 ### Security Considerations
 
-- **Hash Storage**: Keys are always stored as salted SHA-256 hashes using `APP_KEY`
+- **Hash Storage**: Keys are always stored as salted SHA-256 hashes using `LICENSING_KEY_SALT` (fallback to `APP_KEY` if unset)
 - **Encrypted Retrieval**: Original keys stored encrypted with Laravel's Crypt facade
 - **Constant-Time Verification**: Uses `hash_equals()` to prevent timing attacks
 - **Audit Trail**: Previous key hashes stored when regenerating

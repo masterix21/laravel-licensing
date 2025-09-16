@@ -156,6 +156,11 @@ class LicensingKey extends Model implements KeyStore
         return $query;
     }
 
+    public static function findByKid(string $kid): ?self
+    {
+        return self::where('kid', $kid)->first();
+    }
+
     public static function generateRootKey(?string $kid = null): self
     {
         $key = new self;

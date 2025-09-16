@@ -10,6 +10,8 @@ use ParagonIE\Paseto\Protocol\Version4;
 
 trait HasKeyStore
 {
+    protected static ?string $cachedPassphrase = null;
+
     public function generate(array $options = []): self
     {
         $type = $options['type'] ?? KeyType::Signing;
@@ -86,42 +88,10 @@ trait HasKeyStore
         return $this;
     }
 
-    public static function findActiveRoot(): ?self
-    {
-        return static::where('type', KeyType::Root)
-            ->where('status', KeyStatus::Active)
-            ->where(function ($query) {
-                $query->whereNull('valid_until')
-                    ->orWhere('valid_until', '>', now());
-            })
-            ->where('valid_from', '<=', now())
-            ->first();
-    }
-
-    public static function findActiveSigning(): ?self
-    {
-        return static::where('type', KeyType::Signing)
-            ->where('status', KeyStatus::Active)
-            ->where('valid_until', '>', now())
-            ->where('valid_from', '<=', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
-    }
-
-    public static function findByKid(string $kid): ?self
-    {
-        return static::where('kid', $kid)->first();
-    }
-
     protected function encryptPrivateKey(string $privateKey): string
     {
-        $passphrase = env(config('licensing.crypto.keystore.passphrase_env'));
+        $passphrase = $this->resolvePassphrase();
 
-        if (! $passphrase) {
-            throw new \RuntimeException('Key passphrase not configured');
-        }
-
-        // Simple encryption for Ed25519 keys
         $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $key = hash('sha256', $passphrase, true);
         $encrypted = sodium_crypto_secretbox($privateKey, $nonce, $key);
@@ -131,11 +101,7 @@ trait HasKeyStore
 
     protected function decryptPrivateKey(string $encryptedKey): string
     {
-        $passphrase = env(config('licensing.crypto.keystore.passphrase_env'));
-
-        if (! $passphrase) {
-            throw new \RuntimeException('Key passphrase not configured');
-        }
+        $passphrase = $this->resolvePassphrase();
 
         $decoded = base64_decode($encryptedKey);
         $nonce = substr($decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
@@ -149,5 +115,28 @@ trait HasKeyStore
         }
 
         return $decrypted;
+    }
+
+    protected function resolvePassphrase(): string
+    {
+        if (static::$cachedPassphrase !== null) {
+            return static::$cachedPassphrase;
+        }
+
+        $config = config('licensing.crypto.keystore');
+
+        $passphrase = $config['passphrase'] ?? null;
+
+        if (! $passphrase && isset($config['passphrase_env'])) {
+            $passphrase = env($config['passphrase_env']);
+        }
+
+        if (! $passphrase) {
+            throw new \RuntimeException('Key passphrase not configured');
+        }
+
+        static::$cachedPassphrase = $passphrase;
+
+        return static::$cachedPassphrase;
     }
 }

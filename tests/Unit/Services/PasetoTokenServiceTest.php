@@ -102,7 +102,10 @@ test('verification fails for expired token', function () {
 
 test('verification fails when force online required', function () {
     $license = $this->createLicense([
-        'meta' => ['offline_token' => ['force_online_after_days' => 0]],
+        'meta' => ['offline_token' => [
+            'force_online_after_days' => 0,
+            'clock_skew_seconds' => 0,
+        ]],
     ]);
     $usage = $this->createUsage($license);
 
@@ -110,6 +113,26 @@ test('verification fails when force online required', function () {
 
     $this->tokenService->verify($token);
 })->throws(\RuntimeException::class, 'Token requires online verification');
+
+test('respects per-license clock skew when verifying', function () {
+    testTime()->freeze();
+
+    $license = $this->createLicense([
+        'meta' => ['offline_token' => [
+            'ttl_days' => 0,
+            'clock_skew_seconds' => 120,
+        ]],
+    ]);
+
+    $usage = $this->createUsage($license);
+    $token = $this->tokenService->issue($license, $usage);
+
+    testTime()->addSeconds(60);
+
+    $verified = $this->tokenService->verify($token);
+
+    expect($verified['license_id'])->toBe($license->id);
+});
 
 test('can refresh token', function () {
     testTime()->freeze();

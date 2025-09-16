@@ -32,7 +32,7 @@ class TransferValidationService
 
     protected function validateCoolingPeriod(License $license): void
     {
-        $coolingDays = config('licensing.transfer.cooling_period_days', 30);
+        $coolingDays = (int) config('licensing.transfer.cooling_period_days', 30);
 
         if ($coolingDays <= 0) {
             return;
@@ -112,7 +112,7 @@ class TransferValidationService
         }
 
         if (! empty($patterns)) {
-            $requiresReview = config('licensing.transfer.suspicious_pattern_requires_review', true);
+            $requiresReview = (bool) config('licensing.transfer.suspicious_pattern_requires_review', true);
 
             if ($requiresReview) {
                 throw new TransferValidationException(
@@ -124,11 +124,18 @@ class TransferValidationService
 
     protected function detectFrequentTransfers(License $license): bool
     {
+        $windowDays = (int) config('licensing.transfer.frequent_transfer_window_days', 90);
+        $threshold = (int) config('licensing.transfer.frequent_transfer_threshold', 3);
+
+        if ($windowDays <= 0 || $threshold <= 0) {
+            return false;
+        }
+
         $recentTransfers = $license->transfers()
-            ->where('created_at', '>', now()->subDays(90))
+            ->where('created_at', '>', now()->subDays($windowDays))
             ->count();
 
-        return $recentTransfers > 3;
+        return $recentTransfers > $threshold;
     }
 
     protected function detectPingPongPattern(License $license, Model $targetEntity): bool
@@ -158,7 +165,7 @@ class TransferValidationService
             return false;
         }
 
-        $highValueThreshold = config('licensing.transfer.high_value_threshold', 10000);
+        $highValueThreshold = (int) config('licensing.transfer.high_value_threshold', 10000);
 
         return $value > $highValueThreshold;
     }

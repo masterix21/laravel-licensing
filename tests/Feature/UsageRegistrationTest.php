@@ -200,3 +200,18 @@ test('cannot heartbeat revoked usage', function () {
 
     $this->registrar->heartbeat($usage);
 })->throws(\RuntimeException::class, 'Cannot heartbeat revoked usage');
+
+test('registers usage without request binding when metadata provided', function () {
+    app()->forgetInstance('request');
+    app()->offsetUnset('request');
+
+    $fingerprint = $this->generateFingerprint('cli');
+
+    $usage = $this->registrar->register($this->license, $fingerprint, [
+        'ip' => '127.0.0.1',
+        'user_agent' => 'artisan-cli',
+    ]);
+
+    expect($usage->ip)->toBe('127.0.0.1')
+        ->and($usage->user_agent)->toBe('artisan-cli');
+});

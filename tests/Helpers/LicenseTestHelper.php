@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Tests\Helpers;
 
 use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Enums\LicenseStatus;
+use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicensingKey;
@@ -28,7 +29,7 @@ trait LicenseTestHelper
     {
         return $license->usages()->create(array_merge([
             'usage_fingerprint' => hash('sha256', 'test-device-'.rand()),
-            'status' => 'active',
+            'status' => UsageStatus::Active->value,
             'registered_at' => now(),
             'last_seen_at' => now(),
             'client_type' => 'test',

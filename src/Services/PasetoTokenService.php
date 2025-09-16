@@ -13,6 +13,7 @@ use ParagonIE\Paseto\Keys\AsymmetricPublicKey;
 use ParagonIE\Paseto\Keys\AsymmetricSecretKey;
 use ParagonIE\Paseto\Parser;
 use ParagonIE\Paseto\Protocol\Version4;
+use ParagonIE\Paseto\Rules\IssuedBy;
 use ParagonIE\Paseto\Rules\NotExpired;
 use ParagonIE\Paseto\Rules\Subject;
 
@@ -125,100 +126,65 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
     public function verify(string $token, array $options = []): array
     {
         try {
-            // Extract kid from token to find the correct signing key
-            $parts = explode('.', $token);
-            if (count($parts) >= 4) {
-                $footer = json_decode(base64_decode(strtr($parts[3], '-_', '+/')), true);
-                if (isset($footer['kid'])) {
-                    // Always get fresh from database to check current status
-                    $signingKey = LicensingKey::where('kid', $footer['kid'])->first();
-                    if (! $signingKey) {
-                        throw new \RuntimeException('Signing key not found');
-                    }
-                    // Check if key has been revoked
-                    if ($signingKey->status === \LucaLongo\Licensing\Enums\KeyStatus::Revoked) {
-                        throw new \RuntimeException('Signing key has been revoked');
-                    }
-                }
+            $signingKey = $this->resolveSigningKeyFromToken($token);
+
+            if (! $signingKey) {
+                throw new \RuntimeException('Signing key not found');
             }
 
-            if (! isset($signingKey)) {
-                $signingKey = LicensingKey::findActiveSigning();
-                if (! $signingKey) {
-                    throw new \RuntimeException('No active signing key found');
-                }
+            if ($signingKey->status === \LucaLongo\Licensing\Enums\KeyStatus::Revoked) {
+                throw new \RuntimeException('Signing key has been revoked');
             }
 
-            $publicKeyBase64 = $signingKey->getPublicKey();
-            $publicKey = new AsymmetricPublicKey(base64_decode($publicKeyBase64), new Version4);
+            $publicKey = new AsymmetricPublicKey(base64_decode($signingKey->getPublicKey()), new Version4);
 
             $issuer = $options['issuer']
                 ?? config('licensing.offline_token.issuer', 'laravel-licensing');
 
-            $clockSkew = config('licensing.offline_token.clock_skew_seconds', 60);
+            $parser = Parser::getPublic($publicKey)
+                ->setNonExpiring(true)
+                ->addRule(new IssuedBy($issuer));
 
-            // Parse token with minimal rules first
-            $parser = Parser::getPublic($publicKey);
-
-            try {
-                $parsed = $parser->parse($token);
-            } catch (\ParagonIE\Paseto\Exception\PasetoException $e) {
-                throw new \RuntimeException('Token verification failed: '.$e->getMessage());
+            if (isset($options['subject'])) {
+                $parser->addRule(new Subject((string) $options['subject']));
             }
+
+            $parsed = $parser->parse($token);
 
             $claims = $parsed->getClaims();
-            $footer = json_decode($parsed->getFooter(), true);
+            $footer = json_decode($parsed->getFooter(), true) ?? [];
 
-            // Now do our custom validation with clock skew tolerance
-            $now = now()->timestamp; // Use Laravel's now() which respects time travel
+            $license = isset($claims['license_id'])
+                ? License::find($claims['license_id'])
+                : null;
 
-            // Check issuer
-            if (! isset($claims['iss']) || $claims['iss'] !== $issuer) {
-                throw new \RuntimeException('Token verification failed: Invalid issuer');
-            }
+            $clockSkew = $this->resolveClockSkew($license);
+            $now = now()->timestamp;
 
-            // Check subject if provided
-            if (isset($options['subject']) && (! isset($claims['sub']) || $claims['sub'] !== $options['subject'])) {
-                throw new \RuntimeException('Token verification failed: Invalid subject');
-            }
-
-            // Check expiration
             if (isset($claims['exp'])) {
                 $exp = new DateTimeImmutable($claims['exp']);
-                if ($exp->getTimestamp() < $now) {
+                if ($exp->getTimestamp() < ($now - $clockSkew)) {
                     throw new \RuntimeException('Token verification failed: Token has expired');
                 }
             }
 
-            // Check nbf (not before) with clock skew tolerance
             if (isset($claims['nbf'])) {
                 $nbf = new DateTimeImmutable($claims['nbf']);
-                $nbfTime = $nbf->getTimestamp();
-
-                // Calculate difference from now
-                $diff = $nbfTime - $now;
-
-                // Debug: uncomment to see timing
-                // error_log("NBF check: nbf=$nbfTime, now=$now, diff=$diff, clockSkew=$clockSkew");
-
-                // If nbf is in the future beyond clock skew, reject
-                if ($diff > $clockSkew) {
+                if ($nbf->getTimestamp() > ($now + $clockSkew)) {
                     throw new \RuntimeException('Token not valid yet');
                 }
             }
 
-            // Check iat (issued at) with clock skew tolerance
             if (isset($claims['iat'])) {
                 $iat = new DateTimeImmutable($claims['iat']);
-                if ($iat->getTimestamp() > $now + $clockSkew) {
+                if ($iat->getTimestamp() > ($now + $clockSkew)) {
                     throw new \RuntimeException('Token issued too far in the future');
                 }
             }
 
-            // Check force online requirement
             if (isset($claims['force_online_after'])) {
                 $forceOnlineAfter = new DateTimeImmutable($claims['force_online_after']);
-                if ($forceOnlineAfter->getTimestamp() <= now()->timestamp) {
+                if ($forceOnlineAfter->getTimestamp() <= ($now - $clockSkew)) {
                     throw new \RuntimeException('Token requires online verification');
                 }
             }
@@ -232,6 +198,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             if ($e instanceof \RuntimeException) {
                 throw $e;
             }
+
             throw new \RuntimeException('Token verification failed: '.$e->getMessage());
         }
     }
@@ -244,13 +211,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             throw new \RuntimeException('Invalid public key bundle');
         }
 
-        // Extract footer to get certificate chain
-        $parts = explode('.', $token);
-        if (count($parts) !== 4) {
-            throw new \RuntimeException('Invalid PASETO token format');
-        }
-
-        $footer = json_decode(base64_decode(strtr($parts[3], '-_', '+/')), true);
+        $footer = $this->decodeFooter($token);
 
         if (! isset($footer['chain'])) {
             throw new \RuntimeException('Token missing certificate chain');
@@ -291,24 +252,13 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
     public function extractClaims(string $token): array
     {
         try {
-            // For extraction without verification, we need to decode the token
-            // PASETO v4 uses a different encoding, we need to parse it properly
-            $parts = explode('.', $token);
-            if (count($parts) < 3 || $parts[0] !== 'v4' || $parts[1] !== 'public') {
-                throw new \RuntimeException('Invalid PASETO v4 public token');
-            }
+            $signingKey = $this->resolveSigningKeyFromToken($token) ?? LicensingKey::findActiveSigning();
 
-            // The payload in v4 is not simply base64 encoded
-            // We need to use a different approach - parse without verification
-            $signingKey = LicensingKey::findActiveSigning();
             if (! $signingKey) {
                 throw new \RuntimeException('No active signing key found');
             }
 
-            $publicKeyBase64 = $signingKey->getPublicKey();
-            $publicKey = new AsymmetricPublicKey(base64_decode($publicKeyBase64), new Version4);
-
-            // Parse without strict verification to extract claims
+            $publicKey = new AsymmetricPublicKey(base64_decode($signingKey->getPublicKey()), new Version4);
             $parser = Parser::getPublic($publicKey);
             $parsed = $parser->parse($token);
 
@@ -316,5 +266,42 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
         } catch (\Exception $e) {
             throw new \RuntimeException('Failed to extract token claims: '.$e->getMessage());
         }
+    }
+
+    protected function resolveSigningKeyFromToken(string $token): ?LicensingKey
+    {
+        $footer = $this->decodeFooter($token);
+
+        if (isset($footer['kid'])) {
+            return LicensingKey::where('kid', $footer['kid'])->first();
+        }
+
+        return LicensingKey::findActiveSigning();
+    }
+
+    protected function decodeFooter(string $token): array
+    {
+        try {
+            $footer = Parser::extractFooter($token);
+
+            if ($footer === '') {
+                return [];
+            }
+
+            $decoded = json_decode($footer, true);
+
+            return is_array($decoded) ? $decoded : [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    protected function resolveClockSkew(?License $license): int
+    {
+        if ($license) {
+            return max(0, (int) $license->getClockSkewSeconds());
+        }
+
+        return (int) config('licensing.offline_token.clock_skew_seconds', 60);
     }
 }
