@@ -47,6 +47,8 @@ php artisan licensing:keys:issue-signing --kid signing-key-1
 - **🔑 Two-Level Key Hierarchy**: Root CA → Signing Keys for secure rotation
 - **📊 Comprehensive Audit Trail**: Track all license and usage events
 - **🎯 Flexible Assignment**: Polymorphic relationships for any model
+- **💾 Flexible Key Management**: Auto-generation, custom keys, optional retrieval
+- **🔒 Secure Storage**: Encrypted key storage with configurable retrieval
 - **⚡ High Performance**: Optimized for enterprise workloads
 
 ## Quick Start
@@ -57,15 +59,28 @@ php artisan licensing:keys:issue-signing --kid signing-key-1
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseScope;
 
-$activationKey = Str::random(32);
-
-// Optional: Create a scope for product isolation
-$scope = LicenseScope::create([
-    'name' => 'My Product',
-    'slug' => 'my-product',
-    'identifier' => 'com.company.product',
+// Method 1: Auto-generate license key
+$license = License::createWithKey([
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'max_usages' => 5,
+    'expires_at' => now()->addYear(),
 ]);
 
+// The generated key is available immediately after creation
+$licenseKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+
+// Method 2: Provide your own license key
+$customKey = 'CUSTOM-KEY-12345';
+$license = License::createWithKey([
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'max_usages' => 5,
+    'expires_at' => now()->addYear(),
+], $customKey);
+
+// Method 3: Traditional approach with hash only
+$activationKey = Str::random(32);
 $license = License::create([
     'key_hash' => License::hashKey($activationKey),
     'licensable_type' => User::class,
@@ -106,6 +121,85 @@ if ($license->isUsable()) {
     $availableSeats = $license->getAvailableSeats();
 }
 ```
+
+### 5. Retrieve and manage license keys
+
+```php
+// Retrieve the original license key (if stored encrypted)
+$originalKey = $license->retrieveKey();
+
+// Check if retrieval is available
+if ($license->canRetrieveKey()) {
+    $key = $license->retrieveKey();
+}
+
+// Regenerate a license key
+if ($license->canRegenerateKey()) {
+    $newKey = $license->regenerateKey();
+    // Old key no longer works, new key is returned
+}
+
+// Verify a license key
+$isValid = $license->verifyKey($providedKey);
+
+// Find license by key
+$license = License::findByKey($licenseKey);
+```
+
+## License Key Management
+
+The package provides flexible license key management with three configurable services:
+
+### Configuration
+
+```php
+// config/licensing.php
+
+'services' => [
+    'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
+    'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
+    'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+],
+
+'key_management' => [
+    'retrieval_enabled' => true,     // Allow retrieving original keys
+    'regeneration_enabled' => true,  // Allow regenerating keys
+    'key_prefix' => 'LIC',          // Prefix for generated keys
+    'key_separator' => '-',         // Separator for key segments
+],
+```
+
+### Custom Key Services
+
+You can implement your own key management services:
+
+```php
+use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
+
+class CustomKeyGenerator implements LicenseKeyGeneratorContract
+{
+    public function generate(?License $license = null): string
+    {
+        // Your custom key generation logic
+        return 'CUSTOM-' . strtoupper(bin2hex(random_bytes(8)));
+    }
+}
+```
+
+Then register it in the config:
+
+```php
+'services' => [
+    'key_generator' => \App\Services\CustomKeyGenerator::class,
+],
+```
+
+### Security Considerations
+
+- **Hashed Storage**: Keys are always stored as salted SHA-256 hashes
+- **Encrypted Retrieval**: Original keys can be stored encrypted (optional)
+- **Regeneration History**: Previous key hashes are maintained for audit
+- **Configurable**: Disable retrieval/regeneration for maximum security
 
 ## Multi-Product Licensing with Scopes
 
