@@ -32,6 +32,8 @@ Generate your root certificate authority key:
 php artisan licensing:keys:make-root
 ```
 
+> **Passphrase required**: The command encrypts keys using a passphrase stored in the `LICENSING_KEY_PASSPHRASE` environment variable (configurable via `licensing.crypto.keystore.passphrase_env`). If the variable is missing, the command will now prompt you to create one unless you run it with `--silent`/`--no-interaction`. Set it ahead of time (for example `export LICENSING_KEY_PASSPHRASE="your-strong-passphrase"`) to enable non-interactive automation.
+
 Issue your first signing key:
 
 ```bash
@@ -331,4 +333,3 @@ The MIT License (MIT). Please see [License File](LICENSE.md) for more informatio
 
 - [Luca Longo](https://github.com/masterix21)
 - [All Contributors](../../contributors)
-

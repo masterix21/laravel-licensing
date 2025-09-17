@@ -139,4 +139,14 @@ trait HasKeyStore
 
         return static::$cachedPassphrase;
     }
+
+    public static function cachePassphrase(string $passphrase): void
+    {
+        static::$cachedPassphrase = $passphrase;
+    }
+
+    public static function forgetCachedPassphrase(): void
+    {
+        static::$cachedPassphrase = null;
+    }
 }

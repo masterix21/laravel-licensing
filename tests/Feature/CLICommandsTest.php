@@ -15,6 +15,8 @@ beforeEach(function () {
     if (File::exists($keyPath)) {
         File::deleteDirectory($keyPath);
     }
+
+    LicensingKey::forgetCachedPassphrase();
 });
 
 test('can make root key via CLI', function () {
@@ -29,6 +31,78 @@ test('can make root key via CLI', function () {
 
     expect($rootKey)->not->toBeNull()
         ->and($rootKey->status)->toBe(KeyStatus::Active);
+});
+
+test('prompts to create passphrase when environment variable is missing', function () {
+    $originalEnvKey = config('licensing.crypto.keystore.passphrase_env');
+    $originalPassphrase = $_ENV[$originalEnvKey] ?? null;
+    $temporaryEnvKey = 'LICENSING_KEY_PASSPHRASE_PROMPT_TEST';
+
+    config()->set('licensing.crypto.keystore.passphrase', null);
+    config()->set('licensing.crypto.keystore.passphrase_env', $temporaryEnvKey);
+    unset($_ENV[$temporaryEnvKey]);
+    putenv($temporaryEnvKey);
+    LicensingKey::forgetCachedPassphrase();
+
+    try {
+        $this->artisan('licensing:keys:make-root')
+            ->expectsOutput("Passphrase environment variable {$temporaryEnvKey} not set.")
+            ->expectsOutput('A passphrase is required to encrypt generated keys.')
+            ->expectsQuestion('Create a new passphrase', 'new-passphrase-123')
+            ->expectsQuestion('Confirm passphrase', 'new-passphrase-123')
+            ->expectsOutputToContain('Passphrase set for this run.')
+            ->expectsOutput('Generating root key pair...')
+            ->assertSuccessful();
+    } finally {
+        config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
+        config()->set('licensing.crypto.keystore.passphrase', null);
+        LicensingKey::forgetCachedPassphrase();
+
+        if ($originalPassphrase !== null) {
+            $_ENV[$originalEnvKey] = $originalPassphrase;
+            putenv($originalEnvKey.'='.$originalPassphrase);
+        } else {
+            unset($_ENV[$originalEnvKey]);
+            putenv($originalEnvKey);
+        }
+
+        unset($_ENV[$temporaryEnvKey]);
+        putenv($temporaryEnvKey);
+    }
+});
+
+test('returns error silently when missing passphrase and silent flag used', function () {
+    $originalEnvKey = config('licensing.crypto.keystore.passphrase_env');
+    $originalPassphrase = $_ENV[$originalEnvKey] ?? null;
+    $temporaryEnvKey = 'LICENSING_KEY_PASSPHRASE_SILENT_TEST';
+
+    config()->set('licensing.crypto.keystore.passphrase', null);
+    config()->set('licensing.crypto.keystore.passphrase_env', $temporaryEnvKey);
+    unset($_ENV[$temporaryEnvKey]);
+    putenv($temporaryEnvKey);
+    LicensingKey::forgetCachedPassphrase();
+
+    try {
+        $this->artisan('licensing:keys:make-root', ['--silent' => true])
+            ->assertFailed();
+
+        expect(LicensingKey::findActiveRoot())->toBeNull();
+    } finally {
+        config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
+        config()->set('licensing.crypto.keystore.passphrase', null);
+        LicensingKey::forgetCachedPassphrase();
+
+        if ($originalPassphrase !== null) {
+            $_ENV[$originalEnvKey] = $originalPassphrase;
+            putenv($originalEnvKey.'='.$originalPassphrase);
+        } else {
+            unset($_ENV[$originalEnvKey]);
+            putenv($originalEnvKey);
+        }
+
+        unset($_ENV[$temporaryEnvKey]);
+        putenv($temporaryEnvKey);
+    }
 });
 
 test('cannot create duplicate root key', function () {
