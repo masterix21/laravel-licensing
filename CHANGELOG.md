@@ -2,6 +2,10 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 1.0.2 - 2025-09-17
+
+1.0.2
+
 ## v1.0.1 - 2025-09-15
 
 ### What's New in 1.0.1
@@ -53,6 +57,7 @@ $license = License::create([
     'license_scope_id' => $scope->id,
     // ... other fields
 ]);
+
 
 ```
 #### 🔄 Backward Compatibility
@@ -119,6 +124,7 @@ This release is fully backward compatible. License Scopes are optional - existin
 composer require masterix21/laravel-licensing
 
 
+
 ```
 #### 🚀 Quick Start
 
@@ -127,6 +133,7 @@ php artisan vendor:publish --provider="LucaLongo\Licensing\LicensingServiceProvi
 php artisan migrate
 php artisan licensing:keys:make-root
 php artisan licensing:keys:issue-signing
+
 
 
 ```
