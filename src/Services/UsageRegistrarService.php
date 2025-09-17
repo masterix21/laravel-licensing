@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\DB;
 use LucaLongo\Licensing\Contracts\UsageRegistrar;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Enums\OverLimitPolicy;
-use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageLimitReached;
 use LucaLongo\Licensing\Events\UsageRegistered;
 use LucaLongo\Licensing\Models\License;
