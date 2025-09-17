@@ -14,5 +14,6 @@ class TrialConverted
     public function __construct(
         public LicenseTrial $trial,
         public License $license
-    ) {}
+    ) {
+    }
 }

@@ -12,5 +12,6 @@ class TrialStarted
 
     public function __construct(
         public LicenseTrial $trial
-    ) {}
+    ) {
+    }
 }

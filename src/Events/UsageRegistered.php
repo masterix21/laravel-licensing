@@ -12,5 +12,6 @@ class UsageRegistered
 
     public function __construct(
         public LicenseUsage $usage
-    ) {}
+    ) {
+    }
 }

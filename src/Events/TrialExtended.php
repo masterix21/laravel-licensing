@@ -14,5 +14,6 @@ class TrialExtended
         public LicenseTrial $trial,
         public int $days,
         public ?string $reason
-    ) {}
+    ) {
+    }
 }

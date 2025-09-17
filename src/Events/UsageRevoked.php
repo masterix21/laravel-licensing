@@ -13,5 +13,6 @@ class UsageRevoked
     public function __construct(
         public LicenseUsage $usage,
         public ?string $reason = null
-    ) {}
+    ) {
+    }
 }

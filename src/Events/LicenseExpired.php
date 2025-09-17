@@ -12,5 +12,6 @@ class LicenseExpired
 
     public function __construct(
         public License $license
-    ) {}
+    ) {
+    }
 }

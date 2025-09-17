@@ -13,5 +13,6 @@ class LicenseTransferInitiated
 
     public function __construct(
         public LicenseTransfer $transfer
-    ) {}
+    ) {
+    }
 }

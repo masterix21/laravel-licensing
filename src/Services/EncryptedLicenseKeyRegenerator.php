@@ -11,7 +11,8 @@ class EncryptedLicenseKeyRegenerator implements LicenseKeyRegeneratorContract
 {
     public function __construct(
         protected LicenseKeyGeneratorContract $generator
-    ) {}
+    ) {
+    }
 
     /**
      * Regenerate the license key for a given license.

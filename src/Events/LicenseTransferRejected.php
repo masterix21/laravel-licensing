@@ -13,5 +13,6 @@ class LicenseTransferRejected
 
     public function __construct(
         public LicenseTransfer $transfer
-    ) {}
+    ) {
+    }
 }
