@@ -1,6 +1,7 @@
 <?php
 
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicenseTemplate;
 use LucaLongo\Licensing\Services\TemplateService;
 
@@ -9,8 +10,12 @@ beforeEach(function () {
 });
 
 it('creates a license template with auto-generated slug', function () {
+    $scope = LicenseScope::create([
+        'name' => 'SaaS App',
+    ]);
+
     $template = LicenseTemplate::create([
-        'group' => 'saas-app',
+        'license_scope_id' => $scope->id,
         'name' => 'Professional Plan',
         'tier_level' => 2,
         'base_configuration' => [
@@ -26,14 +31,18 @@ it('creates a license template with auto-generated slug', function () {
         ],
     ]);
 
-    expect($template->slug)->toBe('saas-app-professional-plan');
-    expect($template->group)->toBe('saas-app');
+    expect($template->slug)->toBe('scope-'.$scope->id.'-professional-plan');
+    expect($template->license_scope_id)->toBe($scope->id);
     expect($template->tier_level)->toBe(2);
 });
 
 it('supports template inheritance', function () {
+    $scope = LicenseScope::create([
+        'name' => 'App',
+    ]);
+
     $basic = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Basic',
         'tier_level' => 1,
         'features' => [
@@ -46,7 +55,7 @@ it('supports template inheritance', function () {
     ]);
 
     $pro = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Pro',
         'tier_level' => 2,
         'parent_template_id' => $basic->id,
@@ -74,8 +83,12 @@ it('supports template inheritance', function () {
 });
 
 it('creates a license from template', function () {
+    $scope = LicenseScope::create([
+        'name' => 'App',
+    ]);
+
     $template = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Pro',
         'tier_level' => 2,
         'base_configuration' => [
@@ -96,14 +109,19 @@ it('creates a license from template', function () {
     ]);
 
     expect($license->template_id)->toBe($template->id);
+    expect($license->license_scope_id)->toBe($scope->id);
     expect($license->max_usages)->toBe(10);
     expect($license->expires_at->format('Y-m-d'))->toBe(now()->addDays(30)->format('Y-m-d'));
     expect($license->meta['grace_days'])->toBe(7);
 });
 
 it('creates a license from template slug', function () {
+    $scope = LicenseScope::create([
+        'name' => 'App',
+    ]);
+
     $template = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Enterprise',
         'tier_level' => 3,
         'base_configuration' => [
@@ -111,17 +129,17 @@ it('creates a license from template slug', function () {
         ],
     ]);
 
-    $license = License::createFromTemplate('app-enterprise', [
+    $license = License::createFromTemplate('scope-'.$scope->id.'-enterprise', [
         'key_hash' => hash('sha256', 'test-key'),
     ]);
 
     expect($license->template_id)->toBe($template->id);
+    expect($license->license_scope_id)->toBe($scope->id);
     expect($license->max_usages)->toBe(100);
 });
 
 it('checks features on license through template', function () {
     $template = LicenseTemplate::create([
-        'group' => 'app',
         'name' => 'Pro',
         'features' => [
             'api_access' => true,
@@ -142,7 +160,6 @@ it('checks features on license through template', function () {
 
 it('gets entitlements from license through template', function () {
     $template = LicenseTemplate::create([
-        'group' => 'app',
         'name' => 'Pro',
         'entitlements' => [
             'max_api_calls' => 5000,
@@ -174,15 +191,19 @@ it('returns empty features and entitlements for license without template', funct
 });
 
 it('upgrades a license to higher tier', function () {
+    $scope = LicenseScope::create([
+        'name' => 'App',
+    ]);
+
     $basic = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Basic',
         'tier_level' => 1,
         'base_configuration' => ['max_usages' => 1],
     ]);
 
     $pro = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Pro',
         'tier_level' => 2,
         'base_configuration' => ['max_usages' => 5],
@@ -200,14 +221,18 @@ it('upgrades a license to higher tier', function () {
 });
 
 it('prevents downgrade to lower tier', function () {
+    $scope = LicenseScope::create([
+        'name' => 'App',
+    ]);
+
     $pro = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Pro',
         'tier_level' => 2,
     ]);
 
     $basic = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Basic',
         'tier_level' => 1,
     ]);
@@ -223,20 +248,24 @@ it('prevents downgrade to lower tier', function () {
 });
 
 it('gets available upgrades for a license', function () {
+    $scope = LicenseScope::create([
+        'name' => 'App',
+    ]);
+
     $basic = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Basic',
         'tier_level' => 1,
     ]);
 
     $pro = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Pro',
         'tier_level' => 2,
     ]);
 
     $enterprise = LicenseTemplate::create([
-        'group' => 'app',
+        'license_scope_id' => $scope->id,
         'name' => 'Enterprise',
         'tier_level' => 3,
     ]);
@@ -252,13 +281,16 @@ it('gets available upgrades for a license', function () {
     expect($availableUpgrades->pluck('name')->toArray())->toBe(['Pro', 'Enterprise']);
 });
 
-it('retrieves templates by group', function () {
-    LicenseTemplate::create(['group' => 'saas', 'name' => 'Basic', 'tier_level' => 1]);
-    LicenseTemplate::create(['group' => 'saas', 'name' => 'Pro', 'tier_level' => 2]);
-    LicenseTemplate::create(['group' => 'mobile', 'name' => 'Free', 'tier_level' => 1]);
+it('retrieves templates by scope', function () {
+    $saasScope = LicenseScope::create(['name' => 'SaaS']);
+    $mobileScope = LicenseScope::create(['name' => 'Mobile']);
 
-    $saasTemplates = LicenseTemplate::getForGroup('saas');
-    $mobileTemplates = LicenseTemplate::getForGroup('mobile');
+    LicenseTemplate::create(['license_scope_id' => $saasScope->id, 'name' => 'Basic', 'tier_level' => 1]);
+    LicenseTemplate::create(['license_scope_id' => $saasScope->id, 'name' => 'Pro', 'tier_level' => 2]);
+    LicenseTemplate::create(['license_scope_id' => $mobileScope->id, 'name' => 'Free', 'tier_level' => 1]);
+
+    $saasTemplates = LicenseTemplate::getForScope($saasScope);
+    $mobileTemplates = LicenseTemplate::getForScope($mobileScope);
 
     expect($saasTemplates)->toHaveCount(2);
     expect($saasTemplates->pluck('name')->toArray())->toBe(['Basic', 'Pro']);
@@ -267,9 +299,11 @@ it('retrieves templates by group', function () {
 });
 
 it('compares template tiers', function () {
-    $basic = LicenseTemplate::create(['group' => 'app', 'name' => 'Basic', 'tier_level' => 1]);
-    $pro = LicenseTemplate::create(['group' => 'app', 'name' => 'Pro', 'tier_level' => 2]);
-    $enterprise = LicenseTemplate::create(['group' => 'app', 'name' => 'Enterprise', 'tier_level' => 3]);
+    $scope = LicenseScope::create(['name' => 'App']);
+
+    $basic = LicenseTemplate::create(['license_scope_id' => $scope->id, 'name' => 'Basic', 'tier_level' => 1]);
+    $pro = LicenseTemplate::create(['license_scope_id' => $scope->id, 'name' => 'Pro', 'tier_level' => 2]);
+    $enterprise = LicenseTemplate::create(['license_scope_id' => $scope->id, 'name' => 'Enterprise', 'tier_level' => 3]);
 
     expect($pro->isHigherTierThan($basic))->toBeTrue();
     expect($basic->isLowerTierThan($pro))->toBeTrue();

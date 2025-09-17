@@ -4,13 +4,22 @@ namespace LucaLongo\Licensing\Services;
 
 use Illuminate\Database\Eloquent\Collection;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicenseTemplate;
 
 class TemplateService
 {
-    public function getTemplatesByGroup(string $group): Collection
+    public function getTemplatesForScope(?LicenseScope $scope = null, bool $onlyActive = true): Collection
     {
-        return LicenseTemplate::getForGroup($group);
+        $query = LicenseTemplate::query()
+            ->when($scope, fn ($builder) => $builder->where('license_scope_id', $scope->getKey()))
+            ->when(! $scope, fn ($builder) => $builder->whereNull('license_scope_id'));
+
+        if ($onlyActive) {
+            $query->active();
+        }
+
+        return $query->orderedByTier()->get();
     }
 
     public function createLicenseFromTemplate(
@@ -35,12 +44,35 @@ class TemplateService
         return $template->resolveEntitlements();
     }
 
-    public function seedDefaultTemplates(string $group = 'default'): Collection
+    public function assignTemplateToScope(
+        LicenseScope $scope,
+        LicenseTemplate $template,
+    ): LicenseTemplate {
+        return $scope->assignTemplate($template);
+    }
+
+    public function removeTemplateFromScope(LicenseScope $scope, LicenseTemplate|int|string $template): bool
+    {
+        return $scope->removeTemplate($template);
+    }
+
+    public function createLicenseForScope(
+        LicenseScope $scope,
+        LicenseTemplate|int|string $template,
+        array $attributes = []
+    ): License {
+        return $scope->createLicenseFromTemplate($template, $attributes);
+    }
+
+    public function seedDefaultTemplates(?LicenseScope $scope = null): Collection
     {
         $templates = collect();
 
         $basic = LicenseTemplate::firstOrCreate(
-            ['group' => $group, 'name' => 'Basic'],
+            [
+                'license_scope_id' => $scope?->getKey(),
+                'name' => 'Basic',
+            ],
             [
                 'tier_level' => 1,
                 'base_configuration' => [
@@ -66,7 +98,10 @@ class TemplateService
         $templates->push($basic);
 
         $pro = LicenseTemplate::firstOrCreate(
-            ['group' => $group, 'name' => 'Pro'],
+            [
+                'license_scope_id' => $scope?->getKey(),
+                'name' => 'Pro',
+            ],
             [
                 'tier_level' => 2,
                 'parent_template_id' => $basic->id,
@@ -91,7 +126,10 @@ class TemplateService
         $templates->push($pro);
 
         $enterprise = LicenseTemplate::firstOrCreate(
-            ['group' => $group, 'name' => 'Enterprise'],
+            [
+                'license_scope_id' => $scope?->getKey(),
+                'name' => 'Enterprise',
+            ],
             [
                 'tier_level' => 3,
                 'parent_template_id' => $pro->id,
@@ -151,12 +189,12 @@ class TemplateService
     public function getAvailableUpgrades(License $license): Collection
     {
         if (! $license->template) {
-            return LicenseTemplate::query()->active()->get();
+            return LicenseTemplate::query()->active()->orderedByTier()->get();
         }
 
         return LicenseTemplate::query()
             ->active()
-            ->where('group', $license->template->group)
+            ->where('license_scope_id', $license->template->license_scope_id)
             ->where('tier_level', '>', $license->template->tier_level)
             ->orderedByTier()
             ->get();

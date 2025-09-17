@@ -184,12 +184,14 @@ Templates allow you to define reusable license configurations:
 ### Create a Template
 
 ```php
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicenseTemplate;
 
+$scope = LicenseScope::firstOrCreate(['slug' => 'saas-app'], ['name' => 'SaaS App']);
+
 $template = LicenseTemplate::create([
-    'group' => 'subscriptions',
+    'license_scope_id' => $scope->id,
     'name' => 'Professional Plan',
-    'slug' => 'professional-annual',
     'tier_level' => 2,
     'base_configuration' => [
         'max_usages' => 5,
@@ -210,7 +212,7 @@ $template = LicenseTemplate::create([
 ### Create License from Template
 
 ```php
-$license = License::createFromTemplate('professional-annual', [
+$license = License::createFromTemplate($template->slug, [
     'licensable_type' => Organization::class,
     'licensable_id' => $org->id,
 ]);

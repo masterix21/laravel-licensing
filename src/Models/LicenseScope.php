@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class LicenseScope extends Model
 {
@@ -66,6 +67,87 @@ class LicenseScope extends Model
     public function licenses(): HasMany
     {
         return $this->hasMany(License::class);
+    }
+
+    public function templates(): HasMany
+    {
+        return $this->hasMany(LicenseTemplate::class);
+    }
+
+    public function assignTemplate(LicenseTemplate $template): LicenseTemplate
+    {
+        if ($template->license_scope_id === $this->getKey()) {
+            return $template;
+        }
+
+        if ($template->license_scope_id && $template->license_scope_id !== $this->getKey()) {
+            throw new InvalidArgumentException('Template already assigned to another scope.');
+        }
+
+        $template->license_scope_id = $this->getKey();
+        $template->save();
+
+        return $template->refresh();
+    }
+
+    public function removeTemplate(LicenseTemplate|int|string $template): bool
+    {
+        $resolved = $this->findTemplate($template);
+
+        if (! $resolved) {
+            return false;
+        }
+
+        return $resolved->update(['license_scope_id' => null]);
+    }
+
+    public function hasTemplate(LicenseTemplate|int|string $template): bool
+    {
+        return $this->findTemplate($template) !== null;
+    }
+
+    public function createLicenseFromTemplate(
+        LicenseTemplate|int|string $template,
+        array $attributes = []
+    ): License {
+        $resolvedTemplate = $this->resolveTemplateForScope($template);
+
+        return License::createFromTemplate($resolvedTemplate, [
+            ...$attributes,
+            'license_scope_id' => $this->getKey(),
+        ]);
+    }
+
+    protected function resolveTemplateForScope(LicenseTemplate|int|string $template): LicenseTemplate
+    {
+        $resolved = $this->findTemplate($template);
+
+        if ($resolved) {
+            return $resolved;
+        }
+
+        $reference = $template instanceof LicenseTemplate
+            ? $template->slug
+            : (string) $template;
+
+        throw new InvalidArgumentException("Template {$reference} is not assigned to scope {$this->slug}");
+    }
+
+    protected function findTemplate(LicenseTemplate|int|string $template): ?LicenseTemplate
+    {
+        $query = $this->templates();
+
+        if ($template instanceof LicenseTemplate) {
+            return $template->license_scope_id === $this->getKey()
+                ? $template
+                : null;
+        }
+
+        if (is_int($template)) {
+            return $query->whereKey($template)->first();
+        }
+
+        return $query->where('slug', $template)->first();
     }
 
     /**

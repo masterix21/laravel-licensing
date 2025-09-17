@@ -384,6 +384,10 @@ class License extends Model
             ),
         ];
 
+        if ($template->license_scope_id && ! array_key_exists('license_scope_id', $attributes)) {
+            $defaultAttributes['license_scope_id'] = $template->license_scope_id;
+        }
+
         if (isset($config['validity_days'])) {
             $defaultAttributes['expires_at'] = now()->addDays($config['validity_days']);
         }

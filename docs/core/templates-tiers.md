@@ -20,11 +20,14 @@ The Templates & Tiers system provides a structured approach to defining license 
 License Templates define reusable configurations for different license types, plans, or customer segments. They support hierarchical inheritance, allowing you to create base templates and extend them for specific use cases.
 
 ```php
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicenseTemplate;
 
 // Create a base template
+$scope = LicenseScope::firstOrCreate(['slug' => 'saas-app'], ['name' => 'SaaS App']);
+
 $basicPlan = LicenseTemplate::create([
-    'group' => 'saas',
+    'license_scope_id' => $scope->id,
     'name' => 'Basic Plan',
     'tier_level' => 1,
     'base_configuration' => [
@@ -42,7 +45,7 @@ $basicPlan = LicenseTemplate::create([
 ]);
 
 // Create a license from template
-$license = License::createFromTemplate('saas-basic-plan', [
+$license = License::createFromTemplate($basicPlan->slug, [
     'licensable_type' => 'App\Models\User',
     'licensable_id' => $user->id,
     'key_hash' => License::hashKey($generatedKey),
@@ -57,7 +60,7 @@ $license = License::createFromTemplate('saas-basic-plan', [
 |----------|------|-------------|
 | `id` | ULID | Primary key |
 | `ulid` | ULID | Public-facing unique identifier |
-| `group` | String | Template group/category (e.g., 'saas', 'enterprise') |
+| `license_scope_id` | Nullable Integer | Owning scope ID (`null` for global templates) |
 | `name` | String | Human-readable template name |
 | `slug` | String | URL-friendly identifier (auto-generated) |
 | `tier_level` | Integer | Numeric tier level for hierarchy |
@@ -72,7 +75,7 @@ $license = License::createFromTemplate('saas-basic-plan', [
 
 ```php
 $template = LicenseTemplate::create([
-    'group' => 'saas',
+    'license_scope_id' => $scope->id,
     'name' => 'Professional Plan',
     'tier_level' => 2,
     'base_configuration' => [
@@ -165,7 +168,7 @@ class LicenseUpgradeService
         }
         
         return LicenseTemplate::active()
-            ->byGroup($license->template->group)
+            ->where('license_scope_id', $license->template->license_scope_id)
             ->where('tier_level', '>', $license->template->tier_level)
             ->orderedByTier()
             ->get();
@@ -180,7 +183,7 @@ Templates can inherit configuration from parent templates:
 ```php
 // Base template
 $baseTemplate = LicenseTemplate::create([
-    'group' => 'saas',
+    'license_scope_id' => $scope->id,
     'name' => 'Base SaaS',
     'tier_level' => 0,
     'base_configuration' => [
@@ -201,7 +204,7 @@ $baseTemplate = LicenseTemplate::create([
 
 // Child template inherits from parent
 $proTemplate = LicenseTemplate::create([
-    'group' => 'saas',
+    'license_scope_id' => $scope->id,
     'name' => 'Professional',
     'tier_level' => 2,
     'parent_template_id' => $baseTemplate->id,
@@ -398,7 +401,7 @@ class TemplateResolver
 
 ```php
 $template = LicenseTemplate::create([
-    'group' => 'saas',
+    'license_scope_id' => $scope->id,
     'name' => 'Startup Plan',
     'tier_level' => 1,
     'base_configuration' => [
@@ -431,11 +434,11 @@ class TemplateBuilder
     private array $features = [];
     private array $entitlements = [];
     
-    public static function create(string $group, string $name, int $tierLevel): self
+    public static function create(LicenseScope $scope, string $name, int $tierLevel): self
     {
         $builder = new self();
         $builder->config = [
-            'group' => $group,
+            'license_scope_id' => $scope->id,
             'name' => $name,
             'tier_level' => $tierLevel,
         ];

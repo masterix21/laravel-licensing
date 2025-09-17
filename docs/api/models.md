@@ -238,6 +238,9 @@ public function signingKeys(): HasMany
 
 // Get active signing key
 public function activeSigningKey(): ?LicensingKey
+
+// Templates available for this scope
+public function templates(): HasMany
 ```
 
 ### Methods
@@ -253,6 +256,12 @@ public function getDefaultLicenseAttributes(): array
 // Lookup methods
 public static function findBySlugOrIdentifier(string $value): ?self
 public static function global(): self  // Get or create global scope
+
+// Template management
+public function assignTemplate(LicenseTemplate $template): LicenseTemplate
+public function removeTemplate(LicenseTemplate|int|string $template): bool
+public function hasTemplate(LicenseTemplate|int|string $template): bool
+public function createLicenseFromTemplate(LicenseTemplate|int|string $template, array $attributes = []): License
 ```
 
 ### Scopes
@@ -414,7 +423,7 @@ class LicenseTemplate extends Model
 {
     public string $id;                         // ULID primary key
     public string $ulid;                       // Public ULID
-    public string $group;                      // Template group
+    public ?int $license_scope_id;             // Owning scope (null for global)
     public string $name;                       // Template name
     public string $slug;                       // URL-friendly identifier
     public int $tier_level;                    // Tier hierarchy level
@@ -433,6 +442,9 @@ class LicenseTemplate extends Model
 // Parent/child hierarchy
 public function parentTemplate(): BelongsTo
 public function childTemplates(): HasMany
+
+// Owning scope
+public function scope(): BelongsTo
 
 // Associated licenses
 public function licenses(): HasMany
@@ -457,7 +469,7 @@ public function isSameTierAs(self $otherTemplate): bool
 
 // Lookup methods
 public static function findBySlug(string $slug): ?self
-public static function getForGroup(string $group): Collection
+public static function getForScope(?LicenseScope $scope): Collection
 ```
 
 ### Scopes
@@ -466,8 +478,8 @@ public static function getForGroup(string $group): Collection
 // Active templates
 LicenseTemplate::active()->get();
 
-// By group
-LicenseTemplate::byGroup('saas')->get();
+// By scope
+LicenseTemplate::where('license_scope_id', $scope->id)->orderedByTier()->get();
 
 // By tier level
 LicenseTemplate::byTierLevel(2)->get();

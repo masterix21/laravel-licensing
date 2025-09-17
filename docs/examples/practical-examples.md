@@ -25,7 +25,7 @@ Complete implementation for a SaaS with Basic, Pro, and Enterprise tiers.
 // database/migrations/create_license_templates.php
 Schema::create('license_templates', function (Blueprint $table) {
     $table->ulid('id')->primary();
-    $table->string('group')->default('saas');
+    $table->foreignId('license_scope_id')->nullable()->constrained('license_scopes')->nullOnDelete();
     $table->string('name');
     $table->string('slug')->unique();
     $table->integer('tier_level');
@@ -42,14 +42,20 @@ Schema::create('license_templates', function (Blueprint $table) {
 ```php
 // database/seeders/LicenseTierSeeder.php
 use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Models\LicenseScope;
 
 class LicenseTierSeeder extends Seeder
 {
     public function run()
     {
+        $scope = LicenseScope::firstOrCreate(
+            ['slug' => 'saas-app'],
+            ['name' => 'SaaS App']
+        );
+
         // Basic Tier
         LicenseTemplate::create([
-            'group' => 'saas',
+            'license_scope_id' => $scope->id,
             'name' => 'Basic Plan',
             'slug' => 'basic-monthly',
             'tier_level' => 1,
@@ -71,7 +77,7 @@ class LicenseTierSeeder extends Seeder
 
         // Pro Tier
         LicenseTemplate::create([
-            'group' => 'saas',
+            'license_scope_id' => $scope->id,
             'name' => 'Professional Plan',
             'slug' => 'pro-monthly',
             'tier_level' => 2,
@@ -96,7 +102,7 @@ class LicenseTierSeeder extends Seeder
 
         // Enterprise Tier
         LicenseTemplate::create([
-            'group' => 'saas',
+            'license_scope_id' => $scope->id,
             'name' => 'Enterprise Plan',
             'slug' => 'enterprise-annual',
             'tier_level' => 3,

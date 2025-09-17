@@ -18,7 +18,7 @@ class LicenseTemplate extends Model
     use HasFactory, HasSlug, HasUlids;
 
     protected $fillable = [
-        'group',
+        'license_scope_id',
         'name',
         'tier_level',
         'parent_template_id',
@@ -46,9 +46,20 @@ class LicenseTemplate extends Model
     public function getSlugOptions(): SlugOptions
     {
         return SlugOptions::create()
-            ->generateSlugsFrom(['group', 'name'])
+            ->generateSlugsFrom(function (self $model) {
+                $scopePart = $model->license_scope_id
+                    ? 'scope-'.$model->license_scope_id
+                    : 'global';
+
+                return $scopePart.' '.$model->name;
+            })
             ->saveSlugsTo('slug')
             ->doNotGenerateSlugsOnUpdate();
+    }
+
+    public function scope(): BelongsTo
+    {
+        return $this->belongsTo(LicenseScope::class, 'license_scope_id');
     }
 
     public function parentTemplate(): BelongsTo
@@ -138,12 +149,6 @@ class LicenseTemplate extends Model
     }
 
     #[Scope]
-    public function byGroup(Builder $query, string $group): void
-    {
-        $query->where('group', $group);
-    }
-
-    #[Scope]
     public function byTierLevel(Builder $query, int $level): void
     {
         $query->where('tier_level', $level);
@@ -160,11 +165,11 @@ class LicenseTemplate extends Model
         return static::where('slug', $slug)->first();
     }
 
-    public static function getForGroup(string $group): \Illuminate\Database\Eloquent\Collection
+    public static function getForScope(?LicenseScope $scope): \Illuminate\Database\Eloquent\Collection
     {
         return static::query()
             ->active()
-            ->byGroup($group)
+            ->where('license_scope_id', optional($scope)->getKey())
             ->orderedByTier()
             ->get();
     }
