@@ -48,6 +48,7 @@ class LicensingServiceProvider extends PackageServiceProvider
                 'create_license_renewals_table',
                 'create_license_trials_table',
                 'create_license_templates_table',
+                'add_trial_and_duration_columns_to_license_templates_table',
                 'create_license_transfers_table',
                 'create_license_transfer_histories_table',
                 'create_license_transfer_approvals_table',

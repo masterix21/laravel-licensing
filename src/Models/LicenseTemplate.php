@@ -27,6 +27,11 @@ class LicenseTemplate extends Model
         'entitlements',
         'is_active',
         'meta',
+        'supports_trial',
+        'trial_duration_days',
+        'has_grace_period',
+        'grace_period_days',
+        'license_duration_days',
     ];
 
     protected $casts = [
@@ -36,6 +41,11 @@ class LicenseTemplate extends Model
         'entitlements' => AsArrayObject::class,
         'is_active' => 'boolean',
         'meta' => AsArrayObject::class,
+        'supports_trial' => 'boolean',
+        'trial_duration_days' => 'integer',
+        'has_grace_period' => 'boolean',
+        'grace_period_days' => 'integer',
+        'license_duration_days' => 'integer',
     ];
 
     public function uniqueIds(): array
@@ -127,6 +137,85 @@ class LicenseTemplate extends Model
         return $entitlements[$key] ?? null;
     }
 
+    public function supportsTrial(): bool
+    {
+        if ($this->hasConfiguredValue('supports_trial')) {
+            return (bool) $this->supports_trial;
+        }
+
+        if ($this->shouldInheritFromParent()) {
+            return $this->parentTemplate->supportsTrial();
+        }
+
+        return false;
+    }
+
+    public function getTrialDurationDays(): ?int
+    {
+        if (! $this->supportsTrial()) {
+            return null;
+        }
+
+        if ($this->hasConfiguredValue('trial_duration_days')) {
+            return $this->trial_duration_days;
+        }
+
+        if ($this->shouldInheritFromParent()) {
+            return $this->parentTemplate->getTrialDurationDays();
+        }
+
+        return config('licensing.trials.default_duration_days');
+    }
+
+    public function hasGracePeriod(): bool
+    {
+        if ($this->hasConfiguredValue('has_grace_period')) {
+            return (bool) $this->has_grace_period;
+        }
+
+        if ($this->shouldInheritFromParent()) {
+            return $this->parentTemplate->hasGracePeriod();
+        }
+
+        $config = $this->resolveConfiguration();
+
+        return isset($config['grace_days']) && (int) $config['grace_days'] > 0;
+    }
+
+    public function getGracePeriodDays(): ?int
+    {
+        if (! $this->hasGracePeriod()) {
+            return null;
+        }
+
+        if ($this->hasConfiguredValue('grace_period_days')) {
+            return $this->grace_period_days;
+        }
+
+        if ($this->shouldInheritFromParent()) {
+            return $this->parentTemplate->getGracePeriodDays();
+        }
+
+        $config = $this->resolveConfiguration();
+
+        return $config['grace_days'] ?? config('licensing.policies.grace_days');
+    }
+
+    public function getLicenseDurationDays(): ?int
+    {
+        if ($this->hasConfiguredValue('license_duration_days')) {
+            return $this->license_duration_days;
+        }
+
+        if ($this->shouldInheritFromParent()) {
+            return $this->parentTemplate->getLicenseDurationDays();
+        }
+
+        $config = $this->resolveConfiguration();
+
+        return $config['validity_days'] ?? null;
+    }
+
     public function isHigherTierThan(self $otherTemplate): bool
     {
         return $this->tier_level > $otherTemplate->tier_level;
@@ -172,5 +261,24 @@ class LicenseTemplate extends Model
             ->where('license_scope_id', optional($scope)->getKey())
             ->orderedByTier()
             ->get();
+    }
+
+    protected function shouldInheritFromParent(): bool
+    {
+        if (! config('licensing.templates.allow_inheritance', true)) {
+            return false;
+        }
+
+        if (! $this->parent_template_id) {
+            return false;
+        }
+
+        return $this->parentTemplate !== null;
+    }
+
+    protected function hasConfiguredValue(string $attribute): bool
+    {
+        return array_key_exists($attribute, $this->getAttributes())
+            && $this->getRawOriginal($attribute) !== null;
     }
 }

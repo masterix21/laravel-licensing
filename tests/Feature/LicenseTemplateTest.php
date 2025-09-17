@@ -115,6 +115,56 @@ it('creates a license from template', function () {
     expect($license->meta['grace_days'])->toBe(7);
 });
 
+it('exposes trial and grace period settings', function () {
+    $template = LicenseTemplate::create([
+        'name' => 'Trial Plan',
+        'supports_trial' => true,
+        'trial_duration_days' => 21,
+        'has_grace_period' => true,
+        'grace_period_days' => 5,
+    ]);
+
+    expect($template->supportsTrial())->toBeTrue();
+    expect($template->getTrialDurationDays())->toBe(21);
+    expect($template->hasGracePeriod())->toBeTrue();
+    expect($template->getGracePeriodDays())->toBe(5);
+});
+
+it('inherits trial configuration from parent template when enabled', function () {
+    $parent = LicenseTemplate::create([
+        'name' => 'Parent Plan',
+        'supports_trial' => true,
+        'trial_duration_days' => 14,
+        'has_grace_period' => true,
+        'grace_period_days' => 3,
+        'license_duration_days' => 60,
+    ]);
+
+    $child = LicenseTemplate::create([
+        'name' => 'Child Plan',
+        'parent_template_id' => $parent->id,
+    ]);
+
+    expect($child->supportsTrial())->toBeTrue();
+    expect($child->getTrialDurationDays())->toBe(14);
+    expect($child->hasGracePeriod())->toBeTrue();
+    expect($child->getGracePeriodDays())->toBe(3);
+    expect($child->getLicenseDurationDays())->toBe(60);
+});
+
+it('applies template license duration when generating licenses', function () {
+    $template = LicenseTemplate::create([
+        'name' => 'Timeboxed Plan',
+        'license_duration_days' => 45,
+    ]);
+
+    $license = License::createFromTemplate($template, [
+        'key_hash' => hash('sha256', 'timeboxed'),
+    ]);
+
+    expect($license->expires_at->format('Y-m-d'))->toBe(now()->addDays(45)->format('Y-m-d'));
+});
+
 it('creates a license from template slug', function () {
     $scope = LicenseScope::create([
         'name' => 'App',

@@ -388,8 +388,10 @@ class License extends Model
             $defaultAttributes['license_scope_id'] = $template->license_scope_id;
         }
 
-        if (isset($config['validity_days'])) {
-            $defaultAttributes['expires_at'] = now()->addDays($config['validity_days']);
+        $durationDays = $template->getLicenseDurationDays();
+
+        if ($durationDays !== null && ! array_key_exists('expires_at', $attributes)) {
+            $defaultAttributes['expires_at'] = now()->addDays($durationDays);
         }
 
         return static::create(array_merge($defaultAttributes, $attributes));
