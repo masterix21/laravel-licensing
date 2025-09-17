@@ -86,27 +86,52 @@ echo "Activation Key: {$formattedKey}";
 ### Using License Templates
 
 ```php
-use LucaLongo\Licensing\Models\License;
-use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Models\{License, LicenseScope, LicenseTemplate};
+use LucaLongo\Licensing\Services\TemplateService;
 
-// Method 1: Create from template slug
-$license = License::createFromTemplate('professional-annual', [
+// Method 1: Scoped template via TemplateService
+$scope = LicenseScope::firstOrCreate([
+    'slug' => 'analytics-suite',
+], ['name' => 'Analytics Suite']);
+
+$template = LicenseTemplate::updateOrCreate([
+    'license_scope_id' => $scope->id,
+    'name' => 'Mensile',
+], [
+    'tier_level' => 1,
+    'base_configuration' => [
+        'max_usages' => 2,
+        'validity_days' => 30,
+    ],
+]);
+
+$license = app(TemplateService::class)->createLicenseForScope($scope, $template->slug, [
     'licensable_type' => Organization::class,
     'licensable_id' => $organization->id,
     'key_hash' => License::hashKey($activationKey),
 ]);
 
-// Method 2: Create from template instance
-$template = LicenseTemplate::findBySlug('enterprise-unlimited');
-$license = License::createFromTemplate($template, [
+// Method 2: Global template (license_scope_id = null)
+$trialTemplate = LicenseTemplate::firstOrCreate([
+    'license_scope_id' => null,
+    'name' => '14-day Trial',
+], [
+    'tier_level' => 0,
+    'base_configuration' => [
+        'validity_days' => 14,
+        'max_usages' => 1,
+    ],
+]);
+
+$trialLicense = License::createFromTemplate($trialTemplate, [
     'licensable_type' => Organization::class,
     'licensable_id' => $organization->id,
 ]);
 
-// The license inherits all template settings
-echo $license->max_usages; // From template
-echo $license->getFeatures(); // From template
-echo $license->getEntitlements(); // From template
+// Licenses inherit all template settings
+echo $license->max_usages;
+echo $license->getFeatures();
+echo $license->getEntitlements();
 ```
 
 ### Batch License Creation

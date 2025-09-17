@@ -85,16 +85,25 @@ One license can have multiple usages up to `max_usages`.
 Templates define reusable license configurations:
 
 ```php
+$scope = LicenseScope::firstOrCreate(['slug' => 'saas-app'], ['name' => 'SaaS App']);
+
 $template = LicenseTemplate::create([
+    'license_scope_id' => $scope->id,
     'name' => 'Professional',
-    'max_usages' => 5,
-    'duration_days' => 365,
-    'features' => ['api_access', 'priority_support'],
+    'tier_level' => 2,
+    'base_configuration' => [
+        'max_usages' => 5,
+        'validity_days' => 365,
+    ],
+    'features' => ['api_access' => true, 'priority_support' => true],
     'entitlements' => ['api_calls' => 10000],
 ]);
 
 // Create license from template
-$license = License::createFromTemplate($template, $user);
+$license = app(TemplateService::class)->createLicenseForScope($scope, $template, [
+    'licensable_type' => get_class($user),
+    'licensable_id' => $user->id,
+]);
 ```
 
 ### Can I have multiple active licenses?

@@ -87,15 +87,42 @@
 ## 🚀 Quick Example
 
 ```php
-use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\{LicenseScope, LicenseTemplate};
+use LucaLongo\Licensing\Services\TemplateService;
 
-// Create a license from template
-$license = License::createFromTemplate('professional-annual', [
-    'licensable_type' => User::class,
-    'licensable_id' => $user->id,
+// Ensure the product scope and template exist
+$scope = LicenseScope::firstOrCreate([
+    'slug' => 'crm-platform',
+], [
+    'name' => 'CRM Platform',
+    'identifier' => 'com.company.crm',
 ]);
 
-// Activate the license
+$template = LicenseTemplate::updateOrCreate([
+    'license_scope_id' => $scope->id,
+    'name' => 'Professional Plan',
+], [
+    'tier_level' => 2,
+    'base_configuration' => [
+        'max_usages' => 5,
+        'validity_days' => 365,
+    ],
+    'features' => [
+        'advanced-analytics' => true,
+        'api-access' => true,
+    ],
+    'entitlements' => [
+        'api_calls_per_month' => 10000,
+    ],
+]);
+
+// Provision a scoped license using the template service
+$license = app(TemplateService::class)->createLicenseForScope($scope, $template->slug, [
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+    'key_hash' => License::hashKey($activationKey),
+]);
+
 $license->activate();
 
 // Register a device/usage
@@ -104,12 +131,10 @@ $usage = $license->usages()->create([
     'name' => 'John\'s MacBook Pro',
 ]);
 
-// Check features
 if ($license->hasFeature('advanced-analytics')) {
     // Enable advanced features
 }
 
-// Get entitlements
 $apiCallsLimit = $license->getEntitlement('api_calls_per_month');
 ```
 

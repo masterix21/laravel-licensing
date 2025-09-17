@@ -138,8 +138,8 @@ $basicTier = LicenseTemplate::byTierLevel(1)->get();
 $higherTiers = LicenseTemplate::where('tier_level', '>', 1)->orderedByTier()->get();
 
 // Compare tiers
-$pro = LicenseTemplate::findBySlug('saas-professional');
-$basic = LicenseTemplate::findBySlug('saas-basic');
+$pro = LicenseTemplate::where('license_scope_id', $scope->id)->where('name', 'Professional')->first();
+$basic = LicenseTemplate::where('license_scope_id', $scope->id)->where('name', 'Basic')->first();
 
 if ($pro->isHigherTierThan($basic)) {
     echo "Professional offers more features than Basic";
@@ -492,7 +492,9 @@ class TemplateBuilder
 }
 
 // Usage
-$template = TemplateBuilder::create('saas', 'Professional', 2)
+$scope = LicenseScope::firstOrCreate(['slug' => 'saas-app'], ['name' => 'SaaS App']);
+
+$template = TemplateBuilder::create($scope, 'Professional', 2)
     ->withSeats(10)
     ->validFor(365)
     ->withGracePeriod(14)
@@ -508,16 +510,16 @@ $template = TemplateBuilder::create('saas', 'Professional', 2)
 ### License Creation from Template
 
 ```php
-// Basic usage
-$license = License::createFromTemplate('saas-professional', [
-    'licensable_type' => 'App\Models\Organization',
+// Basic usage (scoped template)
+$license = app(TemplateService::class)->createLicenseForScope($scope, $template->slug, [
+    'licensable_type' => App\Models\Organization::class,
     'licensable_id' => $organization->id,
     'key_hash' => License::hashKey($generatedKey),
 ]);
 
 // With overrides
-$license = License::createFromTemplate('saas-professional', [
-    'licensable_type' => 'App\Models\User',
+$license = app(TemplateService::class)->createLicenseForScope($scope, $template->slug, [
+    'licensable_type' => App\Models\User::class,
     'licensable_id' => $user->id,
     'key_hash' => License::hashKey($generatedKey),
     'expires_at' => now()->addMonths(6), // Override validity_days
@@ -532,41 +534,49 @@ $license = License::createFromTemplate('saas-professional', [
 ### Template-Based License Factory
 
 ```php
+use Illuminate\Support\Str;
+
 class LicenseFactory
 {
     public function createForPlan(
-        string $planSlug, 
-        Model $licensable, 
+        LicenseScope $scope,
+        string|LicenseTemplate $templateRef,
+        Model $licensable,
         array $overrides = []
     ): array {
-        $template = LicenseTemplate::findBySlug($planSlug);
-        
-        if (!$template) {
-            throw new \InvalidArgumentException("Template not found: {$planSlug}");
-        }
-        
+        $template = $templateRef instanceof LicenseTemplate
+            ? $templateRef
+            : LicenseTemplate::where('license_scope_id', $scope->id)
+                ->where('slug', $templateRef)
+                ->firstOrFail();
+
         $key = $this->generateLicenseKey($template);
-        
-        $license = License::createFromTemplate($template, array_merge([
-            'licensable_type' => get_class($licensable),
-            'licensable_id' => $licensable->id,
+
+        $license = app(TemplateService::class)->createLicenseForScope($scope, $template, array_merge([
+            'licensable_type' => $licensable::class,
+            'licensable_id' => $licensable->getKey(),
             'key_hash' => License::hashKey($key),
         ], $overrides));
-        
+
         return [
             'license' => $license,
             'key' => $key,
             'template' => $template,
         ];
     }
-    
+
     private function generateLicenseKey(LicenseTemplate $template): string
     {
-        $prefix = strtoupper(substr($template->group, 0, 3));
-        $tier = str_pad($template->tier_level, 2, '0', STR_PAD_LEFT);
+        $prefix = Str::of($template->scope?->slug ?? 'global')
+            ->upper()
+            ->replace('-', '')
+            ->substr(0, 3)
+            ->padRight(3, 'X');
+
+        $tier = str_pad((string) $template->tier_level, 2, '0', STR_PAD_LEFT);
         $random = Str::upper(Str::random(8));
-        
-        return "{$prefix}-{$tier}-{$random}";
+
+        return $prefix.'-'.$tier.'-'.$random;
     }
 }
 ```
@@ -576,22 +586,24 @@ class LicenseFactory
 ### Template Queries
 
 ```php
-// All active templates
-$activeTemplates = LicenseTemplate::active()->get();
+// All active templates ordered by tier
+$activeTemplates = LicenseTemplate::active()->orderedByTier()->get();
 
-// Templates by group
-$saasTemplates = LicenseTemplate::getForGroup('saas');
+// Templates for a specific scope
+$scopeTemplates = LicenseTemplate::getForScope($scope);
 
-// Templates by tier
-$premiumTiers = LicenseTemplate::where('tier_level', '>=', 2)
+// Global catalog templates
+$globalTemplates = LicenseTemplate::query()
+    ->whereNull('license_scope_id')
+    ->active()
     ->orderedByTier()
     ->get();
 
-// Template hierarchy
-$template = LicenseTemplate::with(['parentTemplate', 'childTemplates'])->find($id);
+// Template hierarchy with scope
+$template = LicenseTemplate::with(['scope', 'parentTemplate', 'childTemplates'])->find($id);
 
 // Templates with license counts
-$templatesWithCounts = LicenseTemplate::withCount('licenses')->get();
+$templatesWithCounts = LicenseTemplate::with(['scope'])->withCount('licenses')->get();
 ```
 
 ### Template Analytics
@@ -615,6 +627,7 @@ class TemplateAnalytics
             ->map(function($template) {
                 return [
                     'template' => $template->name,
+                    'scope' => $template->scope->slug ?? 'global',
                     'tier_level' => $template->tier_level,
                     'total_licenses' => $template->licenses_count,
                     'active_licenses' => $template->active_licenses_count,
@@ -630,6 +643,7 @@ class TemplateAnalytics
     public function getPopularTemplates(int $limit = 10): Collection
     {
         return LicenseTemplate::query()
+            ->with('scope')
             ->withCount('licenses')
             ->orderByDesc('licenses_count')
             ->limit($limit)

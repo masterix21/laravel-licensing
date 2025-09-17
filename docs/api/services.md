@@ -622,36 +622,90 @@ public function validateTransfer(LicenseTransfer $transfer): array
 
 ## TemplateService
 
-Manages license templates and configurations.
+Coordinates scope-aware template management and license provisioning.
+
+### Common Responsibilities
+- Retrieve templates for a specific scope or global catalog
+- Assign or detach templates from product scopes
+- Provision licenses from templates while enforcing scope membership
+- Resolve configuration, features, and entitlements with inheritance
+- Seed default plan hierarchies and handle tier upgrades
 
 ### Methods
 
-#### createFromTemplate()
-
-Creates a license from a template.
+#### getTemplatesForScope()
 
 ```php
-public function createFromTemplate(LicenseTemplate $template, array $overrides = []): License
-
-// Parameters:
-// $template - Template to use
-// $overrides - Configuration overrides
-
-// Returns: License instance
+public function getTemplatesForScope(?LicenseScope $scope = null, bool $onlyActive = true): Collection
 ```
 
-#### resolveConfiguration()
+Returns ordered templates for the given scope. Pass `null` to retrieve global templates. When `$onlyActive` is `true` (default) the result excludes inactive plans.
 
-Resolves template configuration with inheritance.
+#### createLicenseFromTemplate()
+
+```php
+public function createLicenseFromTemplate(string|LicenseTemplate $template, array $attributes = []): License
+```
+
+Convenience wrapper around `License::createFromTemplate()` that accepts either a template instance or slug. Scope linkage on the template is respected automatically.
+
+#### createLicenseForScope()
+
+```php
+public function createLicenseForScope(LicenseScope $scope, string|LicenseTemplate $template, array $attributes = []): License
+```
+
+Validates that the template belongs to the provided scope (or is global) and provisions a license with `license_scope_id` enforced.
+
+#### assignTemplateToScope()
+
+```php
+public function assignTemplateToScope(LicenseScope $scope, LicenseTemplate $template): LicenseTemplate
+```
+
+Pins a template to the scope. Throws an `InvalidArgumentException` if the template is already attached to a different scope.
+
+#### removeTemplateFromScope()
+
+```php
+public function removeTemplateFromScope(LicenseScope $scope, LicenseTemplate|int|string $template): bool
+```
+
+Detaches a template from the scope by nulling `license_scope_id`. Returns `false` if the template is not associated with the scope.
+
+#### resolveConfiguration() / resolveFeatures() / resolveEntitlements()
 
 ```php
 public function resolveConfiguration(LicenseTemplate $template): array
-
-// Parameters:
-// $template - Template to resolve
-
-// Returns: Resolved configuration array
+public function resolveFeatures(LicenseTemplate $template): array
+public function resolveEntitlements(LicenseTemplate $template): array
 ```
+
+Bubble configuration, feature flags, and entitlements through the inheritance tree and return the merged arrays.
+
+#### seedDefaultTemplates()
+
+```php
+public function seedDefaultTemplates(?LicenseScope $scope = null): Collection
+```
+
+Creates or updates a Basic/Pro/Enterprise tier set for the given scope (or globally when `null`). Returns the created templates in tier order.
+
+#### upgradeLicense()
+
+```php
+public function upgradeLicense(License $license, string|LicenseTemplate $newTemplate): License
+```
+
+Moves a license to a higher tier, copying new configuration values. Throws if attempting to downgrade or if the template is not found.
+
+#### getAvailableUpgrades()
+
+```php
+public function getAvailableUpgrades(License $license): Collection
+```
+
+Returns templates with greater `tier_level` in the same scope (or all active templates when the license has no template).
 
 ## Service Configuration
 

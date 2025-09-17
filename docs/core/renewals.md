@@ -247,7 +247,9 @@ if ($license->status === LicenseStatus::Expired) {
 
 ```php
 // Renew with plan upgrade
-$newTemplate = LicenseTemplate::findBySlug('professional-plan');
+$newTemplate = LicenseTemplate::where('license_scope_id', $license->license_scope_id)
+    ->where('name', 'Professional Plan')
+    ->first();
 
 $license->renew(
     now()->addYear(),

@@ -19,7 +19,9 @@ Laravel Licensing is an enterprise-grade licensing system for Laravel applicatio
 - **Seat-based licensing** with usage fingerprints
 - **License Scopes** for multi-product/software key isolation
 - **Trial management** with conversion tracking
-- **Template-based licensing** with inheritance
+- **Template-based licensing** with inheritance and explicit scope linkage (`license_scope_id` on each template; `null` keeps the template global)
+
+Templates can be shared globally or assigned to individual scopes; the `TemplateService` orchestrates retrieval, assignment, and license provisioning while enforcing that a template belongs to at most one scope at a time.
 - **Comprehensive audit logging** with tamper detection
 
 ### Package Namespace
@@ -150,7 +152,60 @@ $license = License::create([
 $token = $tokenService->issue($license, $usage); // Uses ERP scope key
 ```
 
-#### 5. Key Management CLI Commands
+#### 5. Scope-Aware Template Management
+```php
+use LucaLongo\Licensing\Models\LicenseScope;
+use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Services\TemplateService;
+
+$scope = LicenseScope::firstOrCreate([
+    'slug' => 'reporting-suite',
+], [
+    'name' => 'Reporting Suite',
+    'identifier' => 'com.company.reporting',
+]);
+
+// Create or update template tied to this scope
+$monthly = LicenseTemplate::updateOrCreate([
+    'license_scope_id' => $scope->id,
+    'name' => 'Monthly Plan',
+], [
+    'tier_level' => 1,
+    'base_configuration' => [
+        'max_usages' => 3,
+        'validity_days' => 30,
+    ],
+    'features' => [
+        'dashboards' => true,
+        'export' => false,
+    ],
+]);
+
+$templates = app(TemplateService::class);
+
+// Idempotent assignment (throws if template belongs to another scope)
+$templates->assignTemplateToScope($scope, $monthly);
+
+// Provision a license scoped to the product; scope id is applied automatically
+$license = $templates->createLicenseForScope($scope, $monthly->slug, [
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+]);
+
+// Global template example (license_scope_id null)
+$globalTrial = LicenseTemplate::firstOrCreate([
+    'license_scope_id' => null,
+    'name' => '14-day Trial',
+], [
+    'tier_level' => 0,
+    'base_configuration' => [
+        'validity_days' => 14,
+        'max_usages' => 1,
+    ],
+]);
+```
+
+#### 6. Key Management CLI Commands
 ```bash
 # Claude Code should suggest CLI commands for key management
 php artisan licensing:keys:make-root
@@ -187,12 +242,18 @@ Important: This package uses:
 #### 1. Complete License Lifecycle
 ```php
 // ChatGPT prefers complete examples
-use LucaLongo\Licensing\Models\License;
-use LucaLongo\Licensing\Models\LicenseTemplate;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use LucaLongo\Licensing\Models\{License, LicenseScope, LicenseTemplate};
+use LucaLongo\Licensing\Services\TemplateService;
 
-// Method 1: Create from template
-$template = LicenseTemplate::where('slug', 'professional-annual')->first();
-$license = License::createFromTemplate($template, [
+// Method 1: Create from scope template via service
+$scope = LicenseScope::firstWhere('slug', 'crm-platform');
+$templateService = app(TemplateService::class);
+$template = $templateService->getTemplatesForScope($scope)
+    ->firstWhere('name', 'Professional Plan');
+
+$license = $templateService->createLicenseForScope($scope, $template->slug, [
     'licensable_type' => Company::class,
     'licensable_id' => $company->id,
 ]);
@@ -227,6 +288,7 @@ $daysLeft = $license->daysUntilExpiration();
 
 #### 2. Trial Management
 ```php
+use LucaLongo\Licensing\Models\LicenseTemplate;
 use LucaLongo\Licensing\Services\TrialService;
 
 $trialService = app(TrialService::class);
@@ -245,8 +307,12 @@ if ($trial->isInTrial()) {
 
     // Convert to paid
     if ($paymentSuccessful) {
+        $paidTemplate = LicenseTemplate::findBySlug(
+            'scope-'.$trial->license?->license_scope_id.'-professional-plan'
+        );
+
         $paidLicense = $trialService->convertToPaid($trial, [
-            'template' => 'professional-annual',
+            'template' => $paidTemplate?->slug,
             'payment_reference' => $paymentId
         ]);
     }
@@ -805,7 +871,57 @@ class ScopedMaintenanceJob extends Job
 
 ## Common Patterns
 
-### 1. License Scope Management Pattern
+### 1. Template Management Pattern
+```php
+use LucaLongo\Licensing\Models\{License, LicenseScope, LicenseTemplate};
+use LucaLongo\Licensing\Services\TemplateService;
+
+class TemplateCatalog
+{
+    public function ensurePlans(LicenseScope $scope): void
+    {
+        // Create or refresh scoped templates
+        $plans = [
+            ['name' => 'Monthly', 'tier_level' => 1, 'days' => 30],
+            ['name' => 'Annual', 'tier_level' => 2, 'days' => 365],
+        ];
+
+        foreach ($plans as $plan) {
+            LicenseTemplate::updateOrCreate(
+                [
+                    'license_scope_id' => $scope->id,
+                    'name' => $plan['name'],
+                ],
+                [
+                    'tier_level' => $plan['tier_level'],
+                    'base_configuration' => [
+                        'validity_days' => $plan['days'],
+                        'max_usages' => $plan['tier_level'] === 1 ? 3 : 10,
+                    ],
+                ]
+            );
+        }
+    }
+
+    public function createLicense(LicenseScope $scope, string $templateSlug, Model $licensable, array $overrides = []): License
+    {
+        $service = app(TemplateService::class);
+
+        return $service->createLicenseForScope($scope, $templateSlug, [
+            'licensable_type' => $licensable::class,
+            'licensable_id' => $licensable->getKey(),
+            ...$overrides,
+        ]);
+    }
+
+    public function listTemplates(?LicenseScope $scope = null): Collection
+    {
+        return app(TemplateService::class)->getTemplatesForScope($scope);
+    }
+}
+```
+
+### 2. License Scope Management Pattern
 ```php
 // Pattern for managing multi-product licensing
 class LicenseScopeManager
@@ -870,7 +986,7 @@ class LicenseScopeManager
 }
 ```
 
-### 2. License Validation Pattern
+### 3. License Validation Pattern
 ```php
 // Universal validation pattern for all AI tools
 public function validateLicense(string $key, string $fingerprint): array
@@ -906,7 +1022,7 @@ public function validateLicense(string $key, string $fingerprint): array
 }
 ```
 
-### 2. Token Verification Pattern
+### 4. Token Verification Pattern
 ```php
 // Offline token verification (client-side compatible)
 public function verifyOfflineToken(string $token, string $publicKeyBundle): bool
@@ -934,7 +1050,7 @@ public function verifyOfflineToken(string $token, string $publicKeyBundle): bool
 }
 ```
 
-### 3. Renewal Pattern
+### 5. Renewal Pattern
 ```php
 // License renewal with audit trail
 public function renewLicense(License $license, int $months = 12): LicenseRenewal
@@ -996,6 +1112,7 @@ use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Services\TrialService;
 use LucaLongo\Licensing\Services\LicenseTransferService;
+use LucaLongo\Licensing\Services\TemplateService;
 
 // Enums
 use LucaLongo\Licensing\Enums\LicenseStatus;
@@ -1011,6 +1128,27 @@ use LucaLongo\Licensing\Exceptions\InvalidActivationKeyException;
 use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
 use LucaLongo\Licensing\Events\UsageRegistered;
+```
+
+### Template Helpers
+```php
+$templates = app(TemplateService::class);
+
+// Retrieve active templates for a scope (null = global templates)
+$scopedTemplates = $templates->getTemplatesForScope($scope);
+$globalTemplates = $templates->getTemplatesForScope(null);
+
+// Assign or remove templates
+$templates->assignTemplateToScope($scope, $template);
+$templates->removeTemplateFromScope($scope, $template->slug);
+
+// Provision scoped license (license_scope_id auto-filled)
+$license = $templates->createLicenseForScope($scope, $template->slug, [
+    'licensable_type' => Company::class,   // Replace with your licensable model
+    'licensable_id' => $company->id,
+]);
+
+// Slugs are auto-generated as "scope-{id}-{slugified-name}" or "global-{slugified-name}"
 ```
 
 ### Configuration Keys
@@ -1062,3 +1200,4 @@ use LucaLongo\Licensing\Events\UsageRegistered;
 - **Tests**: `/tests/` (180+ test cases)
 
 For AI-specific questions, refer to the appropriate section above or consult the comprehensive documentation in the `/docs` directory.
+

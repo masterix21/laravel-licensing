@@ -138,23 +138,24 @@ class LicenseTierSeeder extends Seeder
 // app/Services/SaaSLicensingService.php
 namespace App\Services;
 
-use LucaLongo\Licensing\Models\License;
-use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Models\{License, LicenseScope, LicenseTemplate};
+use LucaLongo\Licensing\Services\TemplateService;
 use App\Models\Organization;
 use Illuminate\Support\Str;
 
 class SaaSLicensingService
 {
+    public function __construct(private TemplateService $templates) {}
+
     public function createLicenseForOrganization(
         Organization $org,
-        string $plan,
+        LicenseScope $scope,
+        string|LicenseTemplate $plan,
         array $options = []
     ): License {
-        // Generate secure activation key
         $activationKey = $this->generateActivationKey();
-        
-        // Create license from template
-        $license = License::createFromTemplate($plan, [
+
+        $license = $this->templates->createLicenseForScope($scope, $plan, [
             'key_hash' => License::hashKey($activationKey),
             'licensable_type' => Organization::class,
             'licensable_id' => $org->id,
@@ -164,20 +165,18 @@ class SaaSLicensingService
                 'created_by' => auth()->id(),
             ], $options),
         ]);
-        
-        // Store activation key securely (encrypted)
+
         $org->update([
             'activation_key' => encrypt($activationKey),
         ]);
-        
-        // Send activation email
+
         Mail::to($org->billing_email)->send(
             new LicenseCreatedMail($license, $activationKey)
         );
-        
+
         return $license;
     }
-    
+
     private function generateActivationKey(): string
     {
         return implode('-', str_split(
@@ -185,33 +184,24 @@ class SaaSLicensingService
             4
         ));
     }
-    
-    public function upgradeLicense(License $license, string $newPlan): License
+
+    public function upgradeLicense(License $license, LicenseTemplate $newTemplate): License
     {
-        $newTemplate = LicenseTemplate::findBySlug($newPlan);
         $currentTemplate = $license->template;
-        
+
         if (!$newTemplate->isHigherTierThan($currentTemplate)) {
-            throw new \Exception('Can only upgrade to higher tier');
+            throw new \RuntimeException('Can only upgrade to higher tier');
         }
-        
-        // Update license template
-        $license->update([
-            'template_id' => $newTemplate->id,
-            'meta' => array_merge($license->meta->toArray(), [
-                'upgraded_from' => $currentTemplate->slug,
-                'upgraded_at' => now(),
-            ]),
-        ]);
-        
-        // Extend expiration if upgrading to annual
-        if (str_contains($newPlan, 'annual')) {
-            $license->renew(now()->addYear());
+
+        $upgraded = $this->templates->upgradeLicense($license, $newTemplate);
+
+        if ($newTemplate->base_configuration['validity_days'] ?? null === 365) {
+            $upgraded->renew(now()->addYear());
         }
-        
-        event(new LicenseUpgraded($license, $currentTemplate, $newTemplate));
-        
-        return $license->fresh();
+
+        event(new LicenseUpgraded($upgraded, $currentTemplate, $newTemplate));
+
+        return $upgraded;
     }
 }
 ```
