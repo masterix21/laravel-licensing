@@ -17,7 +17,7 @@ class MakeRootKeyCommand extends Command
 
         if ($existingRoot) {
             if (! $this->option('force')) {
-                $this->error('Active root key already exists. Use --force to replace.');
+                $this->line('Active root key already exists. Use --force to replace.');
 
                 return 1;
             }
@@ -26,7 +26,7 @@ class MakeRootKeyCommand extends Command
                 return 0;
             }
 
-            $this->info('Revoking existing root key...');
+            $this->line('Revoking existing root key...');
             $existingRoot->revoke('replaced');
         }
 
@@ -34,14 +34,14 @@ class MakeRootKeyCommand extends Command
             return 3;
         }
 
-        $this->info('Generating root key pair...');
+        $this->line('Generating root key pair...');
 
         $rootKey = LicensingKey::generateRootKey();
 
-        $this->info('Root key generated successfully.');
-        $this->info('Key ID: '.$rootKey->kid);
-        $this->info('Public key bundle exported to: '.$this->getPublicBundlePath());
-        $this->warn('IMPORTANT: Back up your private key and passphrase securely!');
+        $this->line('Root key generated successfully');
+        $this->line('Key ID: '.$rootKey->kid);
+        $this->line('Public key bundle exported to: '.$this->getPublicBundlePath());
+        $this->line('IMPORTANT: Back up your private key and passphrase securely!');
 
         return 0;
     }
@@ -69,19 +69,17 @@ class MakeRootKeyCommand extends Command
         }
 
         if ($isSilent) {
-            $this->error('Passphrase environment variable not set.');
-
             return false;
         }
 
-        $this->warn("Passphrase environment variable {$envKey} not set.");
+        $this->line("Passphrase environment variable {$envKey} not set.");
         $this->line('A passphrase is required to encrypt generated keys.');
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             $passphrase = (string) $this->secret('Create a new passphrase');
 
             if ($passphrase === '') {
-                $this->error('Passphrase cannot be empty.');
+                $this->line('Passphrase cannot be empty.');
 
                 continue;
             }
@@ -89,7 +87,7 @@ class MakeRootKeyCommand extends Command
             $confirmation = (string) $this->secret('Confirm passphrase');
 
             if ($passphrase !== $confirmation) {
-                $this->error('Passphrases do not match.');
+                $this->line('Passphrases do not match.');
 
                 continue;
             }
@@ -97,12 +95,12 @@ class MakeRootKeyCommand extends Command
             config()->set('licensing.crypto.keystore.passphrase', $passphrase);
             LicensingKey::cachePassphrase($passphrase);
 
-            $this->info("Passphrase set for this run. Add {$envKey}=<your-passphrase> to your environment for future commands.");
+            $this->line('Passphrase set for this run.');
 
             return true;
         }
 
-        $this->error('Failed to capture passphrase.');
+        $this->line('Failed to capture passphrase.');
 
         return false;
     }

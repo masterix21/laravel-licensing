@@ -47,7 +47,10 @@ trait LicenseTestHelper
 
     protected function createSigningKey(): LicensingKey
     {
-        $this->createRootKey();
+        // Only create root key if one doesn't exist
+        if (! LicensingKey::findActiveRoot()) {
+            $this->createRootKey();
+        }
 
         $key = new LicensingKey;
         $key->generate(['type' => KeyType::Signing]);

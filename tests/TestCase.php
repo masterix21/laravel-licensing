@@ -24,6 +24,23 @@ class TestCase extends Orchestra
         \LucaLongo\Licensing\Models\LicenseUsage::observe(\LucaLongo\Licensing\Observers\LicenseUsageObserver::class);
         \LucaLongo\Licensing\Models\LicensingKey::observe(\LucaLongo\Licensing\Observers\LicensingKeyObserver::class);
         \LucaLongo\Licensing\Models\LicensingAuditLog::observe(\LucaLongo\Licensing\Observers\LicensingAuditLogObserver::class);
+
+        // Clear any cached data from previous tests
+        \LucaLongo\Licensing\Models\LicensingKey::forgetCachedPassphrase();
+    }
+
+    protected function tearDown(): void
+    {
+        // Clear any cached data
+        \LucaLongo\Licensing\Models\LicensingKey::forgetCachedPassphrase();
+
+        // Clean up key storage
+        $keyPath = config('licensing.crypto.keystore.path');
+        if ($keyPath && \Illuminate\Support\Facades\File::exists($keyPath)) {
+            \Illuminate\Support\Facades\File::deleteDirectory($keyPath);
+        }
+
+        parent::tearDown();
     }
 
     protected function getPackageProviders($app)
@@ -40,6 +57,7 @@ class TestCase extends Orchestra
             'driver' => 'sqlite',
             'database' => ':memory:',
             'prefix' => '',
+            'foreign_key_constraints' => true,
         ]);
 
         // Set app key for encryption

@@ -23,7 +23,7 @@ class IssueOfflineTokenCommand extends Command
         $ttl = $this->option('ttl');
 
         if (! $licenseRef || ! $fingerprint) {
-            $this->error('Both --license and --fingerprint are required.');
+            $this->line('Both --license and --fingerprint are required.');
 
             return 1;
         }
@@ -34,7 +34,7 @@ class IssueOfflineTokenCommand extends Command
             : License::findByKey($licenseRef);
 
         if (! $license) {
-            $this->error("License not found: {$licenseRef}");
+            $this->line("License not found: {$licenseRef}");
 
             return 2;
         }
@@ -46,7 +46,7 @@ class IssueOfflineTokenCommand extends Command
             ->first();
 
         if (! $usage) {
-            $this->error("No active usage found for fingerprint: {$fingerprint}");
+            $this->line("No active usage found for fingerprint: {$fingerprint}");
 
             return 2;
         }
@@ -54,13 +54,13 @@ class IssueOfflineTokenCommand extends Command
         // Check if signing key is available and not revoked
         $signingKey = \LucaLongo\Licensing\Models\LicensingKey::findActiveSigning();
         if (! $signingKey) {
-            $this->error('No active signing key available');
+            $this->line('No active signing key available');
 
             return 3;
         }
 
         if ($signingKey->isRevoked()) {
-            $this->error('Signing key is revoked');
+            $this->line('Signing key is revoked');
 
             return 3;
         }
@@ -73,19 +73,19 @@ class IssueOfflineTokenCommand extends Command
                 'ttl_days' => $ttlDays,
             ]);
 
-            $this->info('Offline token issued successfully');
+            $this->line('Offline token issued successfully');
             $this->line('Token:');
             $this->line($token);
 
             return 0;
         } catch (\RuntimeException $e) {
             // Crypto/key errors return code 3
-            $this->error('Failed to issue token: '.$e->getMessage());
+            $this->line('Failed to issue token: '.$e->getMessage());
 
             return 3;
         } catch (\Exception $e) {
             // Other errors
-            $this->error('Failed to issue token: '.$e->getMessage());
+            $this->line('Failed to issue token: '.$e->getMessage());
 
             return 4;
         }

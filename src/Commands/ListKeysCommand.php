@@ -16,7 +16,7 @@ class ListKeysCommand extends Command
         $keys = LicensingKey::orderBy('type')->orderBy('created_at', 'desc')->get();
 
         if ($keys->isEmpty()) {
-            $this->warn('No keys found.');
+            $this->line('No keys found.');
 
             return 0;
         }

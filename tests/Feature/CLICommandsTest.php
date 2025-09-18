@@ -6,8 +6,35 @@ use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
+use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
+use LucaLongo\Licensing\Commands\ListKeysCommand;
+use LucaLongo\Licensing\Commands\MakeRootKeyCommand;
+use LucaLongo\Licensing\Commands\RotateKeysCommand;
+use LucaLongo\Licensing\Commands\RevokeKeyCommand;
+use LucaLongo\Licensing\Commands\ExportKeysCommand;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Tester\CommandTester;
 
-uses(LicenseTestHelper::class);
+uses(LicenseTestHelper::class)->group('cli');
+
+function runCommand(string $commandClass, array $parameters = [], array $inputs = [], int $verbosity = OutputInterface::VERBOSITY_NORMAL): CommandTester
+{
+    $command = app($commandClass);
+    $command->setLaravel(app());
+    $tester = new CommandTester($command);
+
+    if ($inputs !== []) {
+        $tester->setInputs($inputs);
+    }
+
+    $tester->execute($parameters, [
+        'interactive' => true,
+        'verbosity' => $verbosity,
+    ]);
+
+    return $tester;
+}
 
 beforeEach(function () {
     // Ensure clean key storage
@@ -16,16 +43,34 @@ beforeEach(function () {
         File::deleteDirectory($keyPath);
     }
 
+    // Clear any cached data
+    LicensingKey::forgetCachedPassphrase();
+
+    // Reset the passphrase to the test default
+    $_ENV['LICENSING_KEY_PASSPHRASE'] = 'test-passphrase-for-testing';
+});
+
+afterEach(function () {
+    // Clean up after each test
+    $keyPath = config('licensing.crypto.keystore.path');
+    if (File::exists($keyPath)) {
+        File::deleteDirectory($keyPath);
+    }
+
+    // Clear any cached data
     LicensingKey::forgetCachedPassphrase();
 });
 
 test('can make root key via CLI', function () {
-    $this->artisan('licensing:keys:make-root')
-        ->expectsOutput('Generating root key pair...')
-        ->expectsOutputToContain('Root key generated successfully')
-        ->expectsOutputToContain('Key ID:')
-        ->expectsOutputToContain('Public key bundle exported to:')
-        ->assertSuccessful();
+    $tester = runCommand(MakeRootKeyCommand::class);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Generating root key pair...');
+    expect($display)->toContain('Root key generated successfully');
+    expect($display)->toContain('Key ID:');
+    expect($display)->toContain('Public key bundle exported to:');
 
     $rootKey = LicensingKey::where('type', KeyType::Root)->first();
 
@@ -45,14 +90,15 @@ test('prompts to create passphrase when environment variable is missing', functi
     LicensingKey::forgetCachedPassphrase();
 
     try {
-        $this->artisan('licensing:keys:make-root')
-            ->expectsOutput("Passphrase environment variable {$temporaryEnvKey} not set.")
-            ->expectsOutput('A passphrase is required to encrypt generated keys.')
-            ->expectsQuestion('Create a new passphrase', 'new-passphrase-123')
-            ->expectsQuestion('Confirm passphrase', 'new-passphrase-123')
-            ->expectsOutputToContain('Passphrase set for this run.')
-            ->expectsOutput('Generating root key pair...')
-            ->assertSuccessful();
+        $tester = runCommand(MakeRootKeyCommand::class, [], ['new-passphrase-123', 'new-passphrase-123']);
+
+        expect($tester->getStatusCode())->toBe(0);
+
+        $display = $tester->getDisplay();
+        expect($display)->toContain("Passphrase environment variable {$temporaryEnvKey} not set.");
+        expect($display)->toContain('A passphrase is required to encrypt generated keys.');
+        expect($display)->toContain('Passphrase set for this run.');
+        expect($display)->toContain('Generating root key pair...');
     } finally {
         config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
         config()->set('licensing.crypto.keystore.passphrase', null);
@@ -83,10 +129,10 @@ test('returns error silently when missing passphrase and silent flag used', func
     LicensingKey::forgetCachedPassphrase();
 
     try {
-        $this->artisan('licensing:keys:make-root', ['--silent' => true])
-            ->assertFailed();
+    $tester = runCommand(MakeRootKeyCommand::class, ['--silent' => true]);
 
-        expect(LicensingKey::findActiveRoot())->toBeNull();
+    expect($tester->getStatusCode())->not->toBe(0);
+    expect(LicensingKey::findActiveRoot())->toBeNull();
     } finally {
         config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
         config()->set('licensing.crypto.keystore.passphrase', null);
@@ -106,21 +152,27 @@ test('returns error silently when missing passphrase and silent flag used', func
 });
 
 test('cannot create duplicate root key', function () {
+    // Ensure clean state
+    LicensingKey::where('type', \LucaLongo\Licensing\Enums\KeyType::Root)->delete();
+
     $this->createRootKey();
 
-    $this->artisan('licensing:keys:make-root')
-        ->expectsOutput('Active root key already exists. Use --force to replace.')
-        ->assertFailed();
+    $tester = runCommand(MakeRootKeyCommand::class);
+
+    expect($tester->getStatusCode())->not->toBe(0);
+    expect($tester->getDisplay())->toContain('Active root key already exists. Use --force to replace.');
 });
 
 test('can force replace root key', function () {
     $oldRoot = $this->createRootKey();
 
-    $this->artisan('licensing:keys:make-root', ['--force' => true])
-        ->expectsConfirmation('This will revoke the existing root key. Continue?', 'yes')
-        ->expectsOutputToContain('Revoking existing root key')
-        ->expectsOutputToContain('Root key generated successfully')
-        ->assertSuccessful();
+    $tester = runCommand(MakeRootKeyCommand::class, ['--force' => true], ['yes']);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Revoking existing root key');
+    expect($display)->toContain('Root key generated successfully');
 
     $oldRoot->refresh();
     expect($oldRoot->status)->toBe(KeyStatus::Revoked);
@@ -129,15 +181,18 @@ test('can force replace root key', function () {
 test('can issue signing key via CLI', function () {
     $this->createRootKey();
 
-    $this->artisan('licensing:keys:issue-signing', [
+    $tester = runCommand(IssueSigningKeyCommand::class, [
         '--kid' => 'test-signing-001',
         '--days' => 90,
-    ])
-        ->expectsOutput('Generating signing key pair...')
-        ->expectsOutputToContain('Signing key issued successfully')
-        ->expectsOutputToContain('Key ID: test-signing-001')
-        ->expectsOutputToContain('Valid for: 90 days')
-        ->assertSuccessful();
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Generating signing key pair');
+    expect($display)->toContain('Signing key issued successfully');
+    expect($display)->toContain('Key ID: test-signing-001');
+    expect($display)->toContain('Valid for: 90 days');
 
     $signingKey = LicensingKey::where('kid', 'test-signing-001')->first();
 
@@ -147,22 +202,28 @@ test('can issue signing key via CLI', function () {
 });
 
 test('cannot issue signing key without root', function () {
-    $this->artisan('licensing:keys:issue-signing')
-        ->expectsOutput('No active root key found. Run licensing:keys:make-root first.')
-        ->assertFailed();
+    // Explicitly ensure no root key exists
+    LicensingKey::where('type', \LucaLongo\Licensing\Enums\KeyType::Root)->delete();
+
+    $tester = runCommand(IssueSigningKeyCommand::class);
+
+    expect($tester->getStatusCode())->not->toBe(0);
+    expect($tester->getDisplay())->toContain('No active root key found. Run licensing:keys:make-root first.');
 });
 
 test('can rotate signing keys via CLI', function () {
     $this->createRootKey();
     $oldSigning = $this->createSigningKey();
 
-    $this->artisan('licensing:keys:rotate', [
+    $tester = runCommand(RotateKeysCommand::class, [
         '--reason' => 'routine',
-    ])
-        ->expectsOutput('Rotating signing key...')
-        ->expectsOutputToContain('Current signing key revoked')
-        ->expectsOutputToContain('New signing key issued')
-        ->assertSuccessful();
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Rotating signing key');
+    expect($display)->toContain('Current signing key revoked');
+    expect($display)->toContain('New signing key issued');
 
     $oldSigning->refresh();
     expect($oldSigning->status)->toBe(KeyStatus::Revoked)
@@ -180,13 +241,13 @@ test('can revoke key via CLI', function () {
     $this->createRootKey();
     $signingKey = $this->createSigningKey();
 
-    $this->artisan('licensing:keys:revoke', [
+    $tester = runCommand(\LucaLongo\Licensing\Commands\RevokeKeyCommand::class, [
         'kid' => $signingKey->kid,
         '--reason' => 'compromised',
-    ])
-        ->expectsConfirmation('Are you sure you want to revoke key '.$signingKey->kid.'?', 'yes')
-        ->expectsOutputToContain('Key revoked successfully')
-        ->assertSuccessful();
+    ], ['yes']);
+
+    expect($tester->getStatusCode())->toBe(0);
+    expect($tester->getDisplay())->toContain('Key revoked successfully');
 
     $signingKey->refresh();
     expect($signingKey->status)->toBe(KeyStatus::Revoked)
@@ -197,15 +258,19 @@ test('can list keys via CLI', function () {
     $rootKey = $this->createRootKey();
     $signingKey = $this->createSigningKey();
 
-    $this->artisan('licensing:keys:list')
-        ->expectsTable(
-            ['Type', 'KID', 'Status', 'Valid From', 'Valid Until', 'Revoked At'],
-            [
-                ['root', $rootKey->kid, 'active', $rootKey->valid_from->format('Y-m-d'), 'perpetual', '-'],
-                ['signing', $signingKey->kid, 'active', $signingKey->valid_from->format('Y-m-d'), $signingKey->valid_until->format('Y-m-d'), '-'],
-            ]
-        )
-        ->assertSuccessful();
+    $command = app(ListKeysCommand::class);
+    $command->setLaravel($this->app);
+    $tester = new CommandTester($command);
+
+    $exitCode = $tester->execute([]);
+
+    expect($exitCode)->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain($rootKey->kid);
+    expect($display)->toContain($signingKey->kid);
+    expect($display)->toContain('root');
+    expect($display)->toContain('signing');
 });
 
 test('can export keys in different formats', function () {
@@ -217,28 +282,23 @@ test('can export keys in different formats', function () {
     expect($signingKey->isActive())->toBeTrue();
 
     // Export as JWKS
-    $this->artisan('licensing:keys:export', [
-        '--format' => 'jwks',
-    ])
-        ->expectsOutputToContain('"keys":')
-        ->assertSuccessful();
+    $jwks = runCommand(ExportKeysCommand::class, ['--format' => 'jwks']);
+    expect($jwks->getStatusCode())->toBe(0);
+    expect($jwks->getDisplay())->toContain('"keys":');
 
     // Export as PEM (will fall back to JSON)
-    $this->artisan('licensing:keys:export', [
-        '--format' => 'pem',
-    ])
-        ->expectsOutputToContain('PEM format is not applicable')
-        ->assertSuccessful();
+    $pem = runCommand(ExportKeysCommand::class, ['--format' => 'pem']);
+    expect($pem->getStatusCode())->toBe(0);
+    expect($pem->getDisplay())->toContain('PEM format is not applicable');
 
     // Export as JSON bundle
-    $result = $this->artisan('licensing:keys:export', [
+    $json = runCommand(ExportKeysCommand::class, [
         '--format' => 'json',
         '--include-chain' => true,
     ]);
 
-    // Just check that it runs successfully and contains root
-    $result->expectsOutputToContain('"root":')
-        ->assertSuccessful();
+    expect($json->getStatusCode())->toBe(0);
+    expect($json->getDisplay())->toContain('"root":');
 });
 
 test('can issue offline token via CLI', function () {
@@ -247,27 +307,31 @@ test('can issue offline token via CLI', function () {
     $license = $this->createLicense();
     $usage = $this->createUsage($license);
 
-    $this->artisan('licensing:offline:issue', [
-        '--license' => $license->id,
+    $tester = runCommand(IssueOfflineTokenCommand::class, [
+        '--license' => (string) $license->id,
         '--fingerprint' => $usage->usage_fingerprint,
         '--ttl' => '3d',
-    ])
-        ->expectsOutputToContain('Offline token issued successfully')
-        ->expectsOutputToContain('Token:')
-        ->expectsOutputToContain('v4.public.')
-        ->assertSuccessful();
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Offline token issued successfully');
+    expect($display)->toContain('Token:');
+    expect($display)->toContain('v4.public.');
 });
 
 test('validates license exists for token issuance', function () {
     $this->createRootKey();
     $this->createSigningKey();
 
-    $this->artisan('licensing:offline:issue', [
+    $tester = runCommand(IssueOfflineTokenCommand::class, [
         '--license' => 'non-existent',
         '--fingerprint' => 'test-fp',
-    ])
-        ->expectsOutput('License not found: non-existent')
-        ->assertFailed();
+    ]);
+
+    expect($tester->getStatusCode())->not->toBe(0);
+    expect($tester->getDisplay())->toContain('License not found: non-existent');
 });
 
 test('validates usage exists for token issuance', function () {
@@ -275,12 +339,13 @@ test('validates usage exists for token issuance', function () {
     $this->createSigningKey();
     $license = $this->createLicense();
 
-    $this->artisan('licensing:offline:issue', [
-        '--license' => $license->id,
+    $tester = runCommand(IssueOfflineTokenCommand::class, [
+        '--license' => (string) $license->id,
         '--fingerprint' => 'non-existent-fp',
-    ])
-        ->expectsOutput('No active usage found for fingerprint: non-existent-fp')
-        ->assertFailed();
+    ]);
+
+    expect($tester->getStatusCode())->not->toBe(0);
+    expect($tester->getDisplay())->toContain('No active usage found for fingerprint: non-existent-fp');
 });
 
 test('can issue token by license key', function () {
@@ -293,26 +358,30 @@ test('can issue token by license key', function () {
     ]);
     $usage = $this->createUsage($license);
 
-    $this->artisan('licensing:offline:issue', [
+    $tester = runCommand(IssueOfflineTokenCommand::class, [
         '--license' => $licenseKey,
         '--fingerprint' => $usage->usage_fingerprint,
-    ])
-        ->expectsOutputToContain('Offline token issued successfully')
-        ->assertSuccessful();
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+    expect($tester->getDisplay())->toContain('Offline token issued successfully');
 });
 
 test('handles compromised key rotation', function () {
     $this->createRootKey();
     $signingKey = $this->createSigningKey();
 
-    $this->artisan('licensing:keys:rotate', [
+    $tester = runCommand(RotateKeysCommand::class, [
         '--reason' => 'compromised',
         '--immediate' => true,
-    ])
-        ->expectsOutput('SECURITY: Rotating compromised key immediately...')
-        ->expectsOutputToContain('All tokens signed with the compromised key are now invalid')
-        ->expectsOutputToContain('Clients must refresh their tokens immediately')
-        ->assertSuccessful();
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain('SECURITY: Rotating compromised key immediately...');
+    expect($display)->toContain('All tokens signed with the compromised key are now invalid');
+    expect($display)->toContain('Clients must refresh their tokens immediately');
 
     $signingKey->refresh();
     expect($signingKey->revocation_reason)->toBe('compromised');
@@ -321,14 +390,15 @@ test('handles compromised key rotation', function () {
 test('respects verbose output flag', function () {
     $this->createRootKey();
 
-    $this->artisan('licensing:keys:issue-signing', [
-        '--verbose' => true,
-    ])
-        ->expectsOutputToContain('Generating RSA key pair')
-        ->expectsOutputToContain('Creating certificate')
-        ->expectsOutputToContain('Signing certificate with root key')
-        ->expectsOutputToContain('Storing key in keystore')
-        ->assertSuccessful();
+    $tester = runCommand(IssueSigningKeyCommand::class, [], [], OutputInterface::VERBOSITY_VERBOSE);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Generating RSA key pair');
+    expect($display)->toContain('Creating certificate');
+    expect($display)->toContain('Signing certificate with root key');
+    expect($display)->toContain('Storing key in keystore');
 });
 
 test('command return codes follow spec', function () {

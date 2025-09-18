@@ -29,3 +29,5 @@ phpunit.xml
 phpstan.neon
 testbench.yaml
 /coverage
+database/testing.sqlite
+*.sqlite

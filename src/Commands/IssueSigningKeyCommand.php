@@ -2,84 +2,146 @@
 
 namespace LucaLongo\Licensing\Commands;
 
+use DateTimeImmutable;
 use Illuminate\Console\Command;
+use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Enums\KeyType;
+use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Services\AuditLoggerService;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
 
 class IssueSigningKeyCommand extends Command
 {
-    protected $signature = 'licensing:keys:issue-signing 
-        {--kid= : Key ID} 
-        {--days=30 : Validity period in days}
-        {--nbf= : Not before date (ISO)}
-        {--exp= : Expiration date (ISO)}';
+    protected $signature = 'licensing:keys:issue-signing '
+        .'{--kid= : Key ID for the new signing key} '
+        .'{--scope= : Scope slug or identifier for the signing key} '
+        .'{--days= : Validity window in days} '
+        .'{--nbf= : Not before date (ISO format)} '
+        .'{--exp= : Expiration date (ISO format)}';
 
-    protected $description = 'Issue a new signing key';
+    protected $description = 'Issue a new signing key signed by the active root key';
 
-    public function handle(CertificateAuthorityService $ca): int
-    {
+    public function handle(
+        AuditLoggerService $auditLogger,
+        CertificateAuthorityService $ca
+    ): int {
         $rootKey = LicensingKey::findActiveRoot();
 
         if (! $rootKey) {
-            $this->error('No active root key found. Run licensing:keys:make-root first.');
+            $this->line('No active root key found. Run licensing:keys:make-root first.');
 
-            return 2;
+            return self::FAILURE;
         }
-
-        $this->info('Generating signing key pair...');
 
         $kid = $this->option('kid') ?? 'signing-'.uniqid();
-        $days = (int) $this->option('days');
-        $nbf = $this->option('nbf');
-        $exp = $this->option('exp');
-        $verbose = $this->output->isVerbose();
 
-        if ($days <= 0) {
-            $this->error('Invalid --days value. Must be greater than 0.');
+        $licenseScope = null;
+        if ($scopeOption = $this->option('scope')) {
+            $licenseScope = LicenseScope::findBySlugOrIdentifier($scopeOption);
 
-            return 1;
+            if (! $licenseScope) {
+                $this->line("Scope not found: {$scopeOption}");
+                $this->line('Available scopes:');
+                LicenseScope::active()->each(function ($scope) {
+                    $this->line("  - {$scope->slug} ({$scope->name})");
+                });
+
+                return 2;
+            }
         }
 
-        // Calculate validity period
-        $validFrom = $nbf ? new \DateTimeImmutable($nbf) : now();
-        $validUntil = $exp ? new \DateTimeImmutable($exp) : now()->addDays($days);
+        $validFrom = $this->option('nbf')
+            ? new DateTimeImmutable($this->option('nbf'))
+            : new DateTimeImmutable;
 
-        if ($verbose) {
-            $this->info('Generating RSA key pair...');
+        $validUntil = null;
+        $validForDays = 30;
+
+        if ($this->option('days') !== null) {
+            $daysOption = $this->option('days');
+
+            if (! is_numeric($daysOption) || (int) $daysOption <= 0) {
+                $this->line('The --days option must be a positive integer.');
+
+                return self::FAILURE;
+            }
+
+            $validForDays = (int) $daysOption;
+            $validUntil = $validFrom->modify("+{$validForDays} days");
+        } elseif ($this->option('exp')) {
+            $validUntil = new DateTimeImmutable($this->option('exp'));
+            $validForDays = max(1, $validUntil->diff($validFrom)->days);
+        } else {
+            $validUntil = $validFrom->modify('+30 days');
         }
 
-        // Generate the signing key with validity period
-        $signingKey = new LicensingKey;
-        $signingKey->kid = $kid;
-        $signingKey->valid_from = $validFrom;
-        $signingKey->valid_until = $validUntil;
-        $signingKey->generate(['type' => KeyType::Signing]);
-
-        if ($verbose) {
-            $this->info('Creating certificate...');
-            $this->info('Signing certificate with root key...');
+        $this->line('Generating signing key pair...');
+        if ($this->output->isVerbose()) {
+            $this->line('Generating RSA key pair');
         }
 
-        // Issue certificate signed by root
-        $certificate = $ca->issueSigningCertificate(
-            $signingKey->getPublicKey(),
-            $signingKey->kid,
-            $validFrom,
-            $validUntil
-        );
+        try {
+            $signingKey = new LicensingKey;
+            $signingKey->generate([
+                'type' => KeyType::Signing,
+                'valid_from' => $validFrom,
+                'valid_until' => $validUntil,
+            ]);
 
-        if ($verbose) {
-            $this->info('Storing key in keystore...');
+            $signingKey->kid = $kid;
+
+            if ($licenseScope) {
+                $signingKey->license_scope_id = $licenseScope->id;
+            }
+
+            $signingKey->save();
+
+            if ($this->output->isVerbose()) {
+                $this->line('Creating certificate');
+                $this->line('Signing certificate with root key');
+            }
+
+            $certificate = $ca->issueSigningCertificate(
+                $signingKey->getPublicKey(),
+                $kid,
+                $validFrom,
+                $validUntil,
+                $licenseScope
+            );
+
+            if ($this->output->isVerbose()) {
+                $this->line('Storing key in keystore');
+            }
+
+            $signingKey->update(['certificate' => $certificate]);
+
+            $auditLogger->log(
+                AuditEventType::KeySigningIssued,
+                [
+                    'kid' => $kid,
+                    'scope_id' => $licenseScope?->id,
+                    'scope_name' => $licenseScope?->name,
+                    'valid_from' => $validFrom->format('c'),
+                    'valid_until' => $validUntil->format('c'),
+                ],
+                'console'
+            );
+
+            $this->line('Signing key issued successfully');
+            $this->line('Key ID: '.$kid);
+            if ($licenseScope) {
+                $this->line('Scope: '.$licenseScope->name.' ('.$licenseScope->slug.')');
+            } else {
+                $this->line('Scope: Global');
+            }
+            $this->line('Valid for: '.$validForDays.' days');
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->line('Failed to issue signing key: '.$e->getMessage());
+
+            return 3;
         }
-
-        $signingKey->update(['certificate' => $certificate]);
-
-        $this->info('Signing key issued successfully.');
-        $this->info("Key ID: {$kid}");
-        $this->info("Valid for: {$days} days");
-        $this->info("Expires at: {$validUntil->format('Y-m-d H:i:s')}");
-
-        return 0;
     }
 }

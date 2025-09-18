@@ -20,32 +20,32 @@ class RotateKeysCommand extends Command
         $immediate = $this->option('immediate');
 
         if (! in_array($reason, ['routine', 'compromised'])) {
-            $this->error('Invalid reason. Must be "routine" or "compromised".');
+            $this->line('Invalid reason. Must be "routine" or "compromised".');
 
             return 1;
         }
 
         if ($reason === 'compromised' && $immediate) {
-            $this->error('SECURITY: Rotating compromised key immediately...');
+            $this->line('SECURITY: Rotating compromised key immediately...');
         }
 
         $rootKey = LicensingKey::findActiveRoot();
         if (! $rootKey) {
-            $this->error('No active root key found.');
+            $this->line('No active root key found.');
 
             return 2;
         }
 
-        $this->info('Rotating signing key...');
+        $this->line('Rotating signing key...');
 
         $currentSigningKey = LicensingKey::findActiveSigning();
 
         if ($currentSigningKey) {
-            $this->info("Current signing key revoked: {$currentSigningKey->kid}");
+            $this->line('Current signing key revoked');
             $currentSigningKey->revoke($reason);
         }
 
-        $this->info('Generating new signing key...');
+        $this->line('Generating new signing key...');
 
         $newKid = 'signing-'.uniqid();
         $newSigningKey = LicensingKey::generateSigningKey($newKid);
@@ -63,12 +63,13 @@ class RotateKeysCommand extends Command
 
         $newSigningKey->save();
 
-        $this->info("New signing key issued: {$newKid}");
+        $this->line('New signing key issued');
+        $this->line('Key ID: '.$newKid);
 
         if ($reason === 'compromised') {
-            $this->warn('All tokens signed with the compromised key are now invalid');
-            $this->warn('Clients must refresh their tokens immediately');
-            $this->warn('IMPORTANT: Update all clients immediately with the new public key bundle.');
+            $this->line('All tokens signed with the compromised key are now invalid');
+            $this->line('Clients must refresh their tokens immediately');
+            $this->line('IMPORTANT: Update all clients immediately with the new public key bundle.');
         }
 
         return 0;
