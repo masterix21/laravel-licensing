@@ -2,8 +2,10 @@
 
 namespace LucaLongo\Licensing\Tests;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use LucaLongo\Licensing\LicensingServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -18,6 +20,10 @@ class TestCase extends Orchestra
         Factory::guessFactoryNamesUsing(
             fn (string $modelName) => 'LucaLongo\\Licensing\\Database\\Factories\\'.class_basename($modelName).'Factory'
         );
+
+        RateLimiter::for('api', function () {
+            return Limit::perMinute(600);
+        });
 
         // Register observers for testing
         \LucaLongo\Licensing\Models\License::observe(\LucaLongo\Licensing\Observers\LicenseObserver::class);
@@ -37,7 +43,23 @@ class TestCase extends Orchestra
         // Clean up key storage
         $keyPath = config('licensing.crypto.keystore.path');
         if ($keyPath && \Illuminate\Support\Facades\File::exists($keyPath)) {
-            \Illuminate\Support\Facades\File::deleteDirectory($keyPath);
+            // Try to delete directory, but don't fail if it doesn't work (Windows issue)
+            try {
+                \Illuminate\Support\Facades\File::deleteDirectory($keyPath);
+            } catch (\Exception $e) {
+                // On Windows, files might still be locked
+                // We'll try to clean individual files at least
+                if (PHP_OS_FAMILY === 'Windows') {
+                    $files = \Illuminate\Support\Facades\File::allFiles($keyPath);
+                    foreach ($files as $file) {
+                        try {
+                            \Illuminate\Support\Facades\File::delete($file);
+                        } catch (\Exception $e) {
+                            // Ignore individual file deletion errors
+                        }
+                    }
+                }
+            }
         }
 
         parent::tearDown();
@@ -59,6 +81,8 @@ class TestCase extends Orchestra
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
+
+        config()->set('cache.default', 'array');
 
         // Set app key for encryption
         config()->set('app.key', 'base64:'.base64_encode('32characterslong1234567890123456'));

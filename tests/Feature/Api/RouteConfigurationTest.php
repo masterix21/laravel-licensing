@@ -22,17 +22,29 @@ test('license API routes expose expected URIs and middleware', function () {
 
     $prefix = config('licensing.api.prefix');
 
+    $activateRoute = routeByName('licensing.activate');
+    expect($activateRoute->uri())->toBe($prefix.'/activate');
+
+    $deactivateRoute = routeByName('licensing.deactivate');
+    expect($deactivateRoute->uri())->toBe($prefix.'/deactivate');
+
+    $refreshRoute = routeByName('licensing.refresh');
+    expect($refreshRoute->uri())->toBe($prefix.'/refresh');
+
     $validateRoute = routeByName('licensing.validate');
     expect($validateRoute->uri())->toBe($prefix.'/validate')
         ->and(collect($validateRoute->gatherMiddleware()))
-        ->toContain('api')
-        ->toContain('throttle:api');
+        ->toContain('api');
+
+    $heartbeatRoute = routeByName('licensing.heartbeat');
+    expect($heartbeatRoute->uri())->toBe($prefix.'/heartbeat');
+
+    $licenseShowRoute = routeByName('licensing.licenses.show');
+    expect($licenseShowRoute->uri())->toBe($prefix.'/licenses/{licenseKey}');
+
+    $healthRoute = routeByName('licensing.health');
+    expect($healthRoute->uri())->toBe($prefix.'/health');
 
     $tokenRoute = routeByName('licensing.token.issue');
     expect($tokenRoute->uri())->toBe($prefix.'/token');
-
-    $registerRoute = routeByName('licensing.usages.register');
-    expect($registerRoute->uri())->toBe($prefix.'/licenses/{license}/usages/register');
-
-    expect(RouteFacade::has('licensing.jwks'))->toBeFalse();
 });

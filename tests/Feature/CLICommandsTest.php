@@ -23,12 +23,20 @@ function runCommand(string $commandClass, array $parameters = [], array $inputs 
     $command->setLaravel(app());
     $tester = new CommandTester($command);
 
+    // Determine if we should be interactive based on inputs
+    $interactive = ! empty($inputs);
+
+    // On Windows CI, disable interactivity to avoid TTY issues
+    if (PHP_OS_FAMILY === 'Windows' && (getenv('CI') || getenv('GITHUB_ACTIONS'))) {
+        $interactive = false;
+    }
+
     if ($inputs !== []) {
         $tester->setInputs($inputs);
     }
 
     $tester->execute($parameters, [
-        'interactive' => true,
+        'interactive' => $interactive,
         'verbosity' => $verbosity,
     ]);
 
@@ -78,6 +86,10 @@ test('can make root key via CLI', function () {
 });
 
 test('prompts to create passphrase when environment variable is missing', function () {
+    // Skip this test on Windows CI due to TTY limitations
+    if (PHP_OS_FAMILY === 'Windows' && (getenv('CI') || getenv('GITHUB_ACTIONS'))) {
+        $this->markTestSkipped('Interactive tests are skipped on Windows CI');
+    }
     $originalEnvKey = config('licensing.crypto.keystore.passphrase_env');
     $originalPassphrase = $_ENV[$originalEnvKey] ?? null;
     $temporaryEnvKey = 'LICENSING_KEY_PASSPHRASE_PROMPT_TEST';
@@ -163,6 +175,10 @@ test('cannot create duplicate root key', function () {
 });
 
 test('can force replace root key', function () {
+    // Skip this test on Windows CI due to TTY limitations
+    if (PHP_OS_FAMILY === 'Windows' && (getenv('CI') || getenv('GITHUB_ACTIONS'))) {
+        $this->markTestSkipped('Interactive tests are skipped on Windows CI');
+    }
     $oldRoot = $this->createRootKey();
 
     $tester = runCommand(MakeRootKeyCommand::class, ['--force' => true], ['yes']);
@@ -237,6 +253,10 @@ test('can rotate signing keys via CLI', function () {
 });
 
 test('can revoke key via CLI', function () {
+    // Skip this test on Windows CI due to TTY limitations
+    if (PHP_OS_FAMILY === 'Windows' && (getenv('CI') || getenv('GITHUB_ACTIONS'))) {
+        $this->markTestSkipped('Interactive tests are skipped on Windows CI');
+    }
     $this->createRootKey();
     $signingKey = $this->createSigningKey();
 
