@@ -29,6 +29,8 @@ class RotateKeysCommand extends Command
             return 1;
         }
 
+        $this->info('Rotating signing key...');
+
         $currentSigningKey = LicensingKey::findActiveSigning();
 
         if (! $currentSigningKey) {
@@ -100,7 +102,7 @@ class RotateKeysCommand extends Command
                 'console'
             );
 
-            $this->info('Key rotation completed successfully!');
+            $this->info('New signing key issued successfully!');
             $this->line('');
             $this->line('New Key ID: '.$kid);
             $this->line('Reason: '.$reason);

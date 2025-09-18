@@ -34,7 +34,7 @@ class MakeRootKeyCommand extends Command
             $this->info('Existing root key revoked.');
         }
 
-        $this->info('Generating new root keypair...');
+        $this->info('Generating root key pair...');
 
         try {
             $rootKey = new LicensingKey;
@@ -66,7 +66,7 @@ class MakeRootKeyCommand extends Command
             $this->info('Root key generated successfully!');
             $this->line('');
             $this->line('Key ID: '.$rootKey->kid);
-            $this->line('Public bundle saved to: '.$publicBundlePath);
+            $this->line('Public key bundle exported to: '.$publicBundlePath);
             $this->line('');
             $this->warn('IMPORTANT: Back up your key passphrase and private keys securely!');
 
