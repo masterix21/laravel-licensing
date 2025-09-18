@@ -30,9 +30,11 @@ $basicPlan = LicenseTemplate::create([
     'license_scope_id' => $scope->id,
     'name' => 'Basic Plan',
     'tier_level' => 1,
+    'trial_days' => 7,          // 7-day trial period
+    'duration_days' => 365,     // 1-year duration after activation
     'base_configuration' => [
         'max_usages' => 1,
-        'validity_days' => 365,
+        'validity_days' => 365,  // Can override duration_days if needed
     ],
     'features' => [
         'core_features' => true,
@@ -44,7 +46,7 @@ $basicPlan = LicenseTemplate::create([
     ],
 ]);
 
-// Create a license from template
+// Create a license from template - trial and duration are automatically applied
 $license = License::createFromTemplate($basicPlan->slug, [
     'licensable_type' => 'App\Models\User',
     'licensable_id' => $user->id,
@@ -65,6 +67,8 @@ $license = License::createFromTemplate($basicPlan->slug, [
 | `slug` | String | URL-friendly identifier (auto-generated) |
 | `tier_level` | Integer | Numeric tier level for hierarchy |
 | `parent_template_id` | ULID | Parent template for inheritance |
+| `trial_days` | Nullable Integer | Trial period duration in days |
+| `duration_days` | Nullable Integer | License duration in days from activation |
 | `base_configuration` | JSON | License configuration defaults |
 | `features` | JSON | Available features |
 | `entitlements` | JSON | Usage limits and quotas |
@@ -78,6 +82,8 @@ $template = LicenseTemplate::create([
     'license_scope_id' => $scope->id,
     'name' => 'Professional Plan',
     'tier_level' => 2,
+    'trial_days' => 14,         // 14-day trial
+    'duration_days' => 365,     // 1-year subscription
     'base_configuration' => [
         'max_usages' => 5,
         'validity_days' => 365,
@@ -113,7 +119,6 @@ $template = LicenseTemplate::create([
             'monthly' => 4900, // $49.00 in cents
             'annually' => 49000, // $490.00 in cents (2 months free)
         ],
-        'trial_days' => 14,
         'popular' => true,
     ],
 ]);
@@ -174,6 +179,113 @@ class LicenseUpgradeService
             ->get();
     }
 }
+```
+
+## Trial and Duration Management
+
+Templates support automatic trial periods and license duration management:
+
+### Trial Periods
+
+```php
+// Template with 14-day trial
+$template = LicenseTemplate::create([
+    'name' => 'Pro Plan',
+    'trial_days' => 14,  // Automatic 14-day trial
+    'duration_days' => 365,
+]);
+
+// Create license with trial
+$license = License::createWithKey([
+    'license_template_id' => $template->id,
+    'licensable_type' => User::class,
+    'licensable_id' => $user->id,
+]);
+
+// Trial expiration is automatically calculated
+$trialEndsAt = $license->activated_at->addDays($template->trial_days);
+
+// Check if in trial
+if ($license->isInTrial()) {
+    $daysRemaining = $license->trialDaysRemaining();
+    // Show trial banner
+}
+```
+
+### Duration Management
+
+```php
+// Monthly subscription template
+$monthly = LicenseTemplate::create([
+    'name' => 'Monthly Plan',
+    'trial_days' => 7,
+    'duration_days' => 30,  // Auto-renews every 30 days
+]);
+
+// Annual subscription template
+$annual = LicenseTemplate::create([
+    'name' => 'Annual Plan',
+    'trial_days' => 14,
+    'duration_days' => 365,  // 1-year license
+]);
+
+// Lifetime license (no automatic expiration)
+$lifetime = LicenseTemplate::create([
+    'name' => 'Lifetime License',
+    'trial_days' => null,     // No trial
+    'duration_days' => null,  // Never expires automatically
+]);
+```
+
+### Flexible Configuration
+
+```php
+// Override template values per license
+$license = License::createWithKey([
+    'license_template_id' => $monthly->id,
+    'licensable_type' => Company::class,
+    'licensable_id' => $company->id,
+    'expires_at' => now()->addMonths(3),  // Override template duration
+]);
+
+// Template with configurable trial
+$enterprise = LicenseTemplate::create([
+    'name' => 'Enterprise',
+    'trial_days' => null,  // Trial configured per customer
+    'duration_days' => null,  // Duration negotiated
+    'meta' => [
+        'custom_pricing' => true,
+        'negotiable_terms' => true,
+    ],
+]);
+```
+
+### Working with Trial and Duration
+
+```php
+// Access template settings
+$template = $license->template;
+$trialDays = $template->trial_days;
+$durationDays = $template->duration_days;
+
+// Calculate dates
+if ($template->trial_days) {
+    $trialEnd = $license->activated_at->addDays($template->trial_days);
+}
+
+if ($template->duration_days) {
+    $expiresAt = $license->activated_at->addDays($template->duration_days);
+}
+
+// Query licenses by trial status
+$inTrial = License::whereHas('template', function($q) {
+    $q->whereNotNull('trial_days');
+})->where('activated_at', '>', now()->subDays(14))->get();
+
+// Find expiring licenses
+$expiringSoon = License::whereHas('template', function($q) {
+    $q->whereNotNull('duration_days');
+})->whereBetween('expires_at', [now(), now()->addDays(7)])->get();
 ```
 
 ## Template Inheritance
@@ -404,6 +516,8 @@ $template = LicenseTemplate::create([
     'license_scope_id' => $scope->id,
     'name' => 'Startup Plan',
     'tier_level' => 1,
+    'trial_days' => 14,        // 14-day trial
+    'duration_days' => 365,    // 1-year subscription
     'base_configuration' => [
         'max_usages' => 3,
         'validity_days' => 365,
@@ -463,7 +577,19 @@ class TemplateBuilder
         $this->config['base_configuration']['validity_days'] = $days;
         return $this;
     }
-    
+
+    public function withTrialDays(int $days): self
+    {
+        $this->config['trial_days'] = $days;
+        return $this;
+    }
+
+    public function withDurationDays(int $days): self
+    {
+        $this->config['duration_days'] = $days;
+        return $this;
+    }
+
     public function withGracePeriod(int $days): self
     {
         $this->config['base_configuration']['policies']['grace_days'] = $days;
@@ -496,7 +622,8 @@ $scope = LicenseScope::firstOrCreate(['slug' => 'saas-app'], ['name' => 'SaaS Ap
 
 $template = TemplateBuilder::create($scope, 'Professional', 2)
     ->withSeats(10)
-    ->validFor(365)
+    ->withTrialDays(14)      // 14-day trial
+    ->withDurationDays(365)  // 1-year subscription
     ->withGracePeriod(14)
     ->enableFeature('api_access')
     ->enableFeature('advanced_reporting')
