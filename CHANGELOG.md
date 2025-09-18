@@ -2,6 +2,56 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 1.0.3 - 2025-09-18
+
+### What's Changed
+
+#### ✨ New Features
+
+- **License Templates**: Added support for license templates with trial periods and custom durations
+  - New `LicenseTemplate` model for managing reusable license configurations
+  - Support for trial days and duration months in templates
+  - Database migrations for template management
+  
+
+#### 🔧 Improvements
+
+- **CLI Commands**: Enhanced command-line interface with better user experience
+  - Improved passphrase handling with interactive prompts when missing
+  - Better error messages and output formatting
+  - Enhanced test coverage for all CLI commands
+  - More robust key management commands
+  
+
+#### 📚 Documentation
+
+- Added references to companion packages in README:
+  - `masterix21/laravel-licensing-client`: Client package for Laravel applications
+  - `masterix21/laravel-licensing-filament-manager`: Filament UI for license management
+  
+- Expanded documentation for license templates and trial features
+- Improved templates and tiers documentation
+
+#### 🐛 Bug Fixes
+
+- Fixed CLI command output messages for better test compatibility
+- Corrected issues with key passphrase prompting
+- Improved error handling in key rotation commands
+
+#### 🧪 Testing
+
+- Significantly improved test coverage for CLI commands
+- Added comprehensive tests for license templates
+- Enhanced test helpers for better test reliability
+
+#### 📦 Dependencies
+
+- Updated internal dependencies for better compatibility
+
+### Full Changelog
+
+https://github.com/masterix21/laravel-licensing/compare/1.0.2...1.0.3
+
 ## 1.0.2 - 2025-09-17
 
 1.0.2
@@ -57,6 +107,7 @@ $license = License::create([
     'license_scope_id' => $scope->id,
     // ... other fields
 ]);
+
 
 
 ```
@@ -125,6 +176,7 @@ composer require masterix21/laravel-licensing
 
 
 
+
 ```
 #### 🚀 Quick Start
 
@@ -133,6 +185,7 @@ php artisan vendor:publish --provider="LucaLongo\Licensing\LicensingServiceProvi
 php artisan migrate
 php artisan licensing:keys:make-root
 php artisan licensing:keys:issue-signing
+
 
 
 
