@@ -128,7 +128,9 @@ trait HasKeyStore
         $passphrase = $config['passphrase'] ?? null;
 
         if (! $passphrase && isset($config['passphrase_env'])) {
-            $passphrase = env($config['passphrase_env']);
+            // Try multiple methods to get the environment variable
+            $envKey = $config['passphrase_env'];
+            $passphrase = $_ENV[$envKey] ?? $_SERVER[$envKey] ?? getenv($envKey) ?: null;
         }
 
         if (! $passphrase) {

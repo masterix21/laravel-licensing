@@ -44,6 +44,16 @@ class CertificateAuthorityService implements CertificateAuthority
 
         // Sign with Ed25519
         $privateKey = base64_decode($privateKeyBase64);
+
+        // Ensure the private key is the correct length for Ed25519
+        if (strlen($privateKey) !== SODIUM_CRYPTO_SIGN_SECRETKEYBYTES) {
+            throw new \RuntimeException(sprintf(
+                'Invalid private key length. Expected %d bytes, got %d bytes',
+                SODIUM_CRYPTO_SIGN_SECRETKEYBYTES,
+                strlen($privateKey)
+            ));
+        }
+
         $signature = sodium_crypto_sign_detached($certificateJson, $privateKey);
 
         $signedCertificate = [
