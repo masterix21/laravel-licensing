@@ -2,17 +2,16 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use LucaLongo\Licensing\Commands\ExportKeysCommand;
+use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
+use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
+use LucaLongo\Licensing\Commands\ListKeysCommand;
+use LucaLongo\Licensing\Commands\MakeRootKeyCommand;
+use LucaLongo\Licensing\Commands\RotateKeysCommand;
 use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
-use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
-use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
-use LucaLongo\Licensing\Commands\ListKeysCommand;
-use LucaLongo\Licensing\Commands\MakeRootKeyCommand;
-use LucaLongo\Licensing\Commands\RotateKeysCommand;
-use LucaLongo\Licensing\Commands\RevokeKeyCommand;
-use LucaLongo\Licensing\Commands\ExportKeysCommand;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -129,10 +128,10 @@ test('returns error silently when missing passphrase and silent flag used', func
     LicensingKey::forgetCachedPassphrase();
 
     try {
-    $tester = runCommand(MakeRootKeyCommand::class, ['--silent' => true]);
+        $tester = runCommand(MakeRootKeyCommand::class, ['--silent' => true]);
 
-    expect($tester->getStatusCode())->not->toBe(0);
-    expect(LicensingKey::findActiveRoot())->toBeNull();
+        expect($tester->getStatusCode())->not->toBe(0);
+        expect(LicensingKey::findActiveRoot())->toBeNull();
     } finally {
         config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
         config()->set('licensing.crypto.keystore.passphrase', null);
