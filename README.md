@@ -281,12 +281,15 @@ $mobileToken = Licensing::issueToken($mobileLicense, $mobileUsage);
 
 ### Laravel Licensing Client
 [![Packagist](https://img.shields.io/packagist/v/masterix21/laravel-licensing-client.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing-client)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?style=flat-square&logo=github)](https://github.com/masterix21/laravel-licensing-client)
 
 Client package for Laravel applications that need to validate licenses against a licensing server.
 
 ```bash
 composer require masterix21/laravel-licensing-client
 ```
+
+**[View on GitHub →](https://github.com/masterix21/laravel-licensing-client)**
 
 Features:
 - Automatic license validation
@@ -297,12 +300,15 @@ Features:
 
 ### Laravel Licensing Filament Manager
 [![Packagist](https://img.shields.io/packagist/v/masterix21/laravel-licensing-filament-manager.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing-filament-manager)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?style=flat-square&logo=github)](https://github.com/masterix21/laravel-licensing-filament-manager)
 
 Complete admin panel for Filament to manage licenses, monitor usage, and handle key rotation.
 
 ```bash
 composer require masterix21/laravel-licensing-filament-manager
 ```
+
+**[View on GitHub →](https://github.com/masterix21/laravel-licensing-filament-manager)**
 
 Features:
 - License management dashboard
