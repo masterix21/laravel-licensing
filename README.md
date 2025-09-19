@@ -351,6 +351,23 @@ This package includes comprehensive guidelines for AI coding assistants. See [AI
 - OpenSSL extension
 - Sodium extension (for PASETO tokens and Ed25519 signatures)
 
+## Support This Project
+
+### 💖 Sponsor on GitHub
+
+If you find this package useful and want to support its continued development, please consider sponsoring:
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red?style=flat-square)](https://github.com/sponsors/masterix21)
+
+Your sponsorship helps:
+- 🚀 Maintain and improve the package
+- 📚 Keep documentation up-to-date
+- 🐛 Fix bugs and add new features
+- 💬 Provide community support
+- 🔒 Ensure security updates
+
+**[Become a sponsor →](https://github.com/sponsors/masterix21)**
+
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
