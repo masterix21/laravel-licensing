@@ -123,15 +123,7 @@ trait HasKeyStore
             return static::$cachedPassphrase;
         }
 
-        $config = config('licensing.crypto.keystore');
-
-        $passphrase = $config['passphrase'] ?? null;
-
-        if (! $passphrase && isset($config['passphrase_env'])) {
-            // Try multiple methods to get the environment variable
-            $envKey = $config['passphrase_env'];
-            $passphrase = $_ENV[$envKey] ?? $_SERVER[$envKey] ?? getenv($envKey) ?: null;
-        }
+        $passphrase = config('licensing.crypto.keystore.passphrase');
 
         if (! $passphrase) {
             throw new \RuntimeException('Key passphrase not configured');

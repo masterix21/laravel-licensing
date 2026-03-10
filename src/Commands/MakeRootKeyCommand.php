@@ -53,8 +53,7 @@ class MakeRootKeyCommand extends Command
 
     private function ensurePassphrase(): bool
     {
-        $envKey = (string) config('licensing.crypto.keystore.passphrase_env', '');
-        $passphrase = $_ENV[$envKey] ?? $_SERVER[$envKey] ?? getenv($envKey) ?: null;
+        $passphrase = config('licensing.crypto.keystore.passphrase');
 
         if ($passphrase) {
             LicensingKey::cachePassphrase($passphrase);
@@ -72,7 +71,7 @@ class MakeRootKeyCommand extends Command
             return false;
         }
 
-        $this->line("Passphrase environment variable {$envKey} not set.");
+        $this->line('Passphrase environment variable LICENSING_KEY_PASSPHRASE not set.');
         $this->line('A passphrase is required to encrypt generated keys.');
 
         for ($attempt = 0; $attempt < 3; $attempt++) {

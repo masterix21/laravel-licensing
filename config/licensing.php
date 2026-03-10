@@ -69,7 +69,7 @@ return [
         'keystore' => [
             'driver' => 'files', // files | database | custom
             'path' => storage_path('app/licensing/keys'),
-            'passphrase_env' => 'LICENSING_KEY_PASSPHRASE',
+            'passphrase' => env('LICENSING_KEY_PASSPHRASE'),
         ],
     ],
 

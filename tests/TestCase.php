@@ -87,8 +87,7 @@ class TestCase extends Orchestra
         // Set app key for encryption
         config()->set('app.key', 'base64:'.base64_encode('32characterslong1234567890123456'));
 
-        config()->set('licensing.crypto.keystore.passphrase_env', 'LICENSING_KEY_PASSPHRASE');
-        $_ENV['LICENSING_KEY_PASSPHRASE'] = 'test-passphrase-for-testing';
+        config()->set('licensing.crypto.keystore.passphrase', 'test-passphrase-for-testing');
     }
 
     protected function defineDatabaseMigrations()

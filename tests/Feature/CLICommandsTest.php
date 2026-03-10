@@ -54,7 +54,7 @@ beforeEach(function () {
     LicensingKey::forgetCachedPassphrase();
 
     // Reset the passphrase to the test default
-    $_ENV['LICENSING_KEY_PASSPHRASE'] = 'test-passphrase-for-testing';
+    config()->set('licensing.crypto.keystore.passphrase', 'test-passphrase-for-testing');
 });
 
 afterEach(function () {
@@ -90,76 +90,29 @@ test('prompts to create passphrase when environment variable is missing', functi
     if (PHP_OS_FAMILY === 'Windows' && (getenv('CI') || getenv('GITHUB_ACTIONS'))) {
         $this->markTestSkipped('Interactive tests are skipped on Windows CI');
     }
-    $originalEnvKey = config('licensing.crypto.keystore.passphrase_env');
-    $originalPassphrase = $_ENV[$originalEnvKey] ?? null;
-    $temporaryEnvKey = 'LICENSING_KEY_PASSPHRASE_PROMPT_TEST';
 
     config()->set('licensing.crypto.keystore.passphrase', null);
-    config()->set('licensing.crypto.keystore.passphrase_env', $temporaryEnvKey);
-    unset($_ENV[$temporaryEnvKey]);
-    putenv($temporaryEnvKey);
     LicensingKey::forgetCachedPassphrase();
 
-    try {
-        $tester = runCommand(MakeRootKeyCommand::class, [], ['new-passphrase-123', 'new-passphrase-123']);
+    $tester = runCommand(MakeRootKeyCommand::class, [], ['new-passphrase-123', 'new-passphrase-123']);
 
-        expect($tester->getStatusCode())->toBe(0);
+    expect($tester->getStatusCode())->toBe(0);
 
-        $display = $tester->getDisplay();
-        expect($display)->toContain("Passphrase environment variable {$temporaryEnvKey} not set.");
-        expect($display)->toContain('A passphrase is required to encrypt generated keys.');
-        expect($display)->toContain('Passphrase set for this run.');
-        expect($display)->toContain('Generating root key pair...');
-    } finally {
-        config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
-        config()->set('licensing.crypto.keystore.passphrase', null);
-        LicensingKey::forgetCachedPassphrase();
-
-        if ($originalPassphrase !== null) {
-            $_ENV[$originalEnvKey] = $originalPassphrase;
-            putenv($originalEnvKey.'='.$originalPassphrase);
-        } else {
-            unset($_ENV[$originalEnvKey]);
-            putenv($originalEnvKey);
-        }
-
-        unset($_ENV[$temporaryEnvKey]);
-        putenv($temporaryEnvKey);
-    }
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Passphrase environment variable LICENSING_KEY_PASSPHRASE not set.');
+    expect($display)->toContain('A passphrase is required to encrypt generated keys.');
+    expect($display)->toContain('Passphrase set for this run.');
+    expect($display)->toContain('Generating root key pair...');
 });
 
 test('returns error silently when missing passphrase and silent flag used', function () {
-    $originalEnvKey = config('licensing.crypto.keystore.passphrase_env');
-    $originalPassphrase = $_ENV[$originalEnvKey] ?? null;
-    $temporaryEnvKey = 'LICENSING_KEY_PASSPHRASE_SILENT_TEST';
-
     config()->set('licensing.crypto.keystore.passphrase', null);
-    config()->set('licensing.crypto.keystore.passphrase_env', $temporaryEnvKey);
-    unset($_ENV[$temporaryEnvKey]);
-    putenv($temporaryEnvKey);
     LicensingKey::forgetCachedPassphrase();
 
-    try {
-        $tester = runCommand(MakeRootKeyCommand::class, ['--silent' => true]);
+    $tester = runCommand(MakeRootKeyCommand::class, ['--silent' => true]);
 
-        expect($tester->getStatusCode())->not->toBe(0);
-        expect(LicensingKey::findActiveRoot())->toBeNull();
-    } finally {
-        config()->set('licensing.crypto.keystore.passphrase_env', $originalEnvKey);
-        config()->set('licensing.crypto.keystore.passphrase', null);
-        LicensingKey::forgetCachedPassphrase();
-
-        if ($originalPassphrase !== null) {
-            $_ENV[$originalEnvKey] = $originalPassphrase;
-            putenv($originalEnvKey.'='.$originalPassphrase);
-        } else {
-            unset($_ENV[$originalEnvKey]);
-            putenv($originalEnvKey);
-        }
-
-        unset($_ENV[$temporaryEnvKey]);
-        putenv($temporaryEnvKey);
-    }
+    expect($tester->getStatusCode())->not->toBe(0);
+    expect(LicensingKey::findActiveRoot())->toBeNull();
 });
 
 test('cannot create duplicate root key', function () {
