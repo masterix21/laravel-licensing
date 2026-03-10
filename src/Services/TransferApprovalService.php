@@ -64,6 +64,7 @@ class TransferApprovalService
 
     protected function canApproveAsSource(LicenseTransferApproval $approval, Model $approver): bool
     {
+        /** @var LicenseTransfer $transfer */
         $transfer = $approval->transfer;
 
         if (get_class($approver) !== $transfer->from_licensable_type) {
@@ -75,7 +76,10 @@ class TransferApprovalService
         }
 
         if ($approver instanceof CanInitiateLicenseTransfers) {
-            return $approver->ownsLicense($transfer->license);
+            /** @var \LucaLongo\Licensing\Models\License $license */
+            $license = $transfer->license;
+
+            return $approver->ownsLicense($license);
         }
 
         return true;
@@ -83,6 +87,7 @@ class TransferApprovalService
 
     protected function canApproveAsTarget(LicenseTransferApproval $approval, Model $approver): bool
     {
+        /** @var LicenseTransfer $transfer */
         $transfer = $approval->transfer;
 
         if (get_class($approver) !== $transfer->to_licensable_type) {
@@ -110,6 +115,7 @@ class TransferApprovalService
         string $approvalType,
         ?Model $approver = null
     ): LicenseTransferApproval {
+        /** @var LicenseTransferApproval */
         return LicenseTransferApproval::create([
             'transfer_id' => $transfer->id,
             'approval_type' => $approvalType,

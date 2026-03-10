@@ -38,7 +38,8 @@ class UsageController extends ApiController
         $this->licensing->heartbeat($usage);
 
         if (! empty($payload['data'])) {
-            $usage->meta = array_merge((array) ($usage->meta ?? []), $payload['data']);
+            $merged = array_merge((array) ($usage->meta ?? []), $payload['data']);
+            $usage->fill(['meta' => $merged]);
             $usage->save();
         }
 

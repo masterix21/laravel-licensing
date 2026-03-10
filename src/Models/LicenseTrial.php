@@ -12,6 +12,24 @@ use LucaLongo\Licensing\Events\TrialExpired;
 use LucaLongo\Licensing\Events\TrialExtended;
 use LucaLongo\Licensing\Events\TrialStarted;
 
+/**
+ * @property int $id
+ * @property int $license_id
+ * @property string $trial_fingerprint
+ * @property TrialStatus $status
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property \Illuminate\Support\Carbon|null $converted_at
+ * @property int $duration_days
+ * @property bool $is_extended
+ * @property int $extension_days
+ * @property string|null $extension_reason
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $limitations
+ * @property array|null $feature_restrictions
+ * @property string|null $conversion_trigger
+ * @property string|null $conversion_value
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ */
 class LicenseTrial extends Model
 {
     protected $fillable = [
@@ -52,9 +70,10 @@ class LicenseTrial extends Model
         'extension_days' => 0,
     ];
 
+    /** @return BelongsTo<License, self> */
     public function license(): BelongsTo
     {
-        return $this->belongsTo(config('licensing.models.license'));
+        return $this->belongsTo(config('licensing.models.license', License::class)); // @phpstan-ignore return.type
     }
 
     public function canConvert(): bool
@@ -139,9 +158,9 @@ class LicenseTrial extends Model
             'conversion_value' => $value,
         ]);
 
+        /** @var License $license */
         $license = $this->license;
 
-        // Only activate if not already active
         if ($license->status !== LicenseStatus::Active) {
             $license->activate();
         }

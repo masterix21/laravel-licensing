@@ -21,6 +21,20 @@ use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
 use LucaLongo\Licensing\Events\LicenseRenewed;
 
+/**
+ * @property string $id
+ * @property string $uid
+ * @property string|null $key_hash
+ * @property LicenseStatus $status
+ * @property string|null $licensable_type
+ * @property string|null $licensable_id
+ * @property int|null $template_id
+ * @property int|null $license_scope_id
+ * @property \Illuminate\Support\Carbon|null $activated_at
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property int $max_usages
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ */
 class License extends Model
 {
     use HasFactory, HasUlids;
@@ -94,16 +108,18 @@ class License extends Model
         return $this->hasMany(LicenseTransferHistory::class);
     }
 
+    /** @return BelongsTo<LicenseTemplate, self> */
     public function template(): BelongsTo
     {
-        return $this->belongsTo(LicenseTemplate::class, 'template_id');
+        return $this->belongsTo(LicenseTemplate::class, 'template_id'); // @phpstan-ignore return.type
     }
 
+    /** @return BelongsTo<LicenseScope, self> */
     public function scope(): BelongsTo
     {
         $model = config('licensing.models.license_scope', LicenseScope::class);
 
-        return $this->belongsTo($model, 'license_scope_id');
+        return $this->belongsTo($model, 'license_scope_id'); // @phpstan-ignore return.type
     }
 
     public function activeUsages(): HasMany
@@ -251,7 +267,7 @@ class License extends Model
             return null;
         }
 
-        return now()->startOfDay()->diffInDays($this->expires_at->startOfDay(), false);
+        return (int) now()->startOfDay()->diffInDays($this->expires_at->startOfDay(), false);
     }
 
     public function hasAvailableSeats(): bool
@@ -406,6 +422,7 @@ class License extends Model
 
     public function getLatestTransfer(): ?LicenseTransfer
     {
+        /** @var LicenseTransfer|null */
         return $this->transfers()->latest()->first();
     }
 
@@ -428,6 +445,7 @@ class License extends Model
             throw new \RuntimeException('License is not transferable in its current state');
         }
 
+        /** @var LicenseTransfer */
         return $this->transfers()->create($data);
     }
 
@@ -471,14 +489,11 @@ class License extends Model
 
     /**
      * Create a new license with an encrypted key stored.
-     *
-     * @return static
      */
-    public static function createWithKey(array $attributes = [], ?string $providedKey = null): self
+    public static function createWithKey(array $attributes = [], ?string $providedKey = null): static
     {
         $key = $providedKey ?? static::generateKey();
 
-        // Add encrypted key to meta
         $meta = $attributes['meta'] ?? [];
         if (config('licensing.key_management.retrieval_enabled', true)) {
             $meta['encrypted_key'] = Crypt::encryptString($key);
@@ -487,9 +502,9 @@ class License extends Model
         $attributes['key_hash'] = static::hashKey($key);
         $attributes['meta'] = $meta;
 
+        /** @var static */
         $license = static::create($attributes);
 
-        // Store the key temporarily (not persisted to database)
         $license->temporaryLicenseKey = $key;
 
         return $license;

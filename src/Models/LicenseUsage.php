@@ -10,6 +10,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageRevoked;
 
+/**
+ * @property int $id
+ * @property int $license_id
+ * @property string $usage_fingerprint
+ * @property UsageStatus $status
+ * @property \Illuminate\Support\Carbon|null $registered_at
+ * @property \Illuminate\Support\Carbon|null $last_seen_at
+ * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property string|null $client_type
+ * @property string|null $name
+ * @property string|null $ip
+ * @property string|null $user_agent
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ */
 class LicenseUsage extends Model
 {
     protected $fillable = [
@@ -50,9 +64,10 @@ class LicenseUsage extends Model
         });
     }
 
+    /** @return BelongsTo<License, self> */
     public function license(): BelongsTo
     {
-        return $this->belongsTo(config('licensing.models.license'));
+        return $this->belongsTo(config('licensing.models.license', License::class)); // @phpstan-ignore return.type
     }
 
     public function heartbeat(): self
@@ -104,7 +119,7 @@ class LicenseUsage extends Model
 
     public function getDaysSinceLastSeen(): int
     {
-        return $this->last_seen_at->diffInDays(now());
+        return (int) $this->last_seen_at?->diffInDays(now());
     }
 
     #[Scope]

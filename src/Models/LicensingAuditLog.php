@@ -8,6 +8,22 @@ use LucaLongo\Licensing\Contracts\AuditLog;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Models\Traits\HasAuditLog;
 
+/**
+ * @property int $id
+ * @property AuditEventType $event_type
+ * @property string|null $auditable_type
+ * @property string|null $auditable_id
+ * @property string|null $actor_type
+ * @property string|null $actor_id
+ * @property string|null $actor
+ * @property string|null $ip
+ * @property string|null $user_agent
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property string|null $previous_hash
+ * @property \Illuminate\Support\Carbon $occurred_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class LicensingAuditLog extends Model implements AuditLog
 {
     use HasAuditLog;

@@ -22,10 +22,12 @@ class UsageRegistrarService implements UsageRegistrar
         array $metadata = []
     ): LicenseUsage {
         $shouldLogLimitReached = false;
+        /** @var array{license_id?: string, license_class?: string, fingerprint?: string} $auditData */
         $auditData = [];
 
         try {
             return DB::transaction(function () use ($license, $fingerprint, $metadata, &$shouldLogLimitReached, &$auditData) {
+                /** @var License|null $lockedLicense */
                 $lockedLicense = $license->newQuery()
                     ->lockForUpdate()
                     ->find($license->getKey());
@@ -37,21 +39,18 @@ class UsageRegistrarService implements UsageRegistrar
                 $existingUsage = $this->findByFingerprint($lockedLicense, $fingerprint);
 
                 if ($existingUsage && $existingUsage->isActive()) {
-                    // Check if it's the same license
-                    if ($existingUsage->license_id === $lockedLicense->id) {
+                    if ((string) $existingUsage->license_id === (string) $lockedLicense->id) {
                         $existingUsage->heartbeat();
 
                         return $existingUsage;
                     }
 
-                    // If global scope and different license, throw error
                     if ($lockedLicense->getUniqueUsageScope() === 'global') {
                         throw new \RuntimeException('Fingerprint already in use globally');
                     }
                 }
 
                 if (! $this->canRegister($lockedLicense, $fingerprint)) {
-                    // Check if it's a global scope conflict
                     if ($lockedLicense->getUniqueUsageScope() === 'global') {
                         $existingGlobal = LicenseUsage::forFingerprint($fingerprint)
                             ->active()
@@ -68,10 +67,9 @@ class UsageRegistrarService implements UsageRegistrar
                     if ($policy === OverLimitPolicy::Reject) {
                         event(new UsageLimitReached($lockedLicense, $fingerprint, $metadata));
 
-                        // Store details for audit log (will be created after transaction rollback)
                         $shouldLogLimitReached = true;
                         $auditData = [
-                            'license_id' => $lockedLicense->id,
+                            'license_id' => (string) $lockedLicense->id,
                             'license_class' => get_class($lockedLicense),
                             'fingerprint' => $fingerprint,
                         ];
@@ -79,11 +77,10 @@ class UsageRegistrarService implements UsageRegistrar
                         throw new \RuntimeException('License usage limit reached');
                     }
 
-                    if ($policy === OverLimitPolicy::AutoReplaceOldest) {
-                        $this->revokeOldestUsage($lockedLicense);
-                    }
+                    $this->revokeOldestUsage($lockedLicense);
                 }
 
+                /** @var LicenseUsage $usage */
                 $usage = $lockedLicense->usages()->create([
                     'usage_fingerprint' => $fingerprint,
                     'status' => \LucaLongo\Licensing\Enums\UsageStatus::Active->value,
@@ -101,7 +98,8 @@ class UsageRegistrarService implements UsageRegistrar
                 return $usage;
             });
         } catch (\Exception $e) {
-            if ($shouldLogLimitReached && config('licensing.audit.enabled', true)) {
+            // @phpstan-ignore booleanAnd.leftAlwaysFalse, booleanAnd.alwaysFalse
+            if ($shouldLogLimitReached && isset($auditData['license_class']) && config('licensing.audit.enabled', true)) {
                 LicensingAuditLog::create([
                     'event_type' => AuditEventType::UsageLimitReached,
                     'auditable_type' => $auditData['license_class'],
@@ -134,13 +132,15 @@ class UsageRegistrarService implements UsageRegistrar
         $scope = $license->getUniqueUsageScope();
 
         if ($scope === 'global') {
+            /** @var LicenseUsage|null */
             return LicenseUsage::forFingerprint($fingerprint)
                 ->active()
                 ->first();
         }
 
+        /** @var LicenseUsage|null */
         return $license->usages()
-            ->forFingerprint($fingerprint)
+            ->where('usage_fingerprint', $fingerprint)
             ->first();
     }
 
@@ -153,9 +153,8 @@ class UsageRegistrarService implements UsageRegistrar
         $existingUsage = $this->findByFingerprint($license, $fingerprint);
 
         if ($existingUsage && $existingUsage->isActive()) {
-            // If it's global scope and the usage belongs to a different license, can't register
             if ($license->getUniqueUsageScope() === 'global' &&
-                $existingUsage->license_id !== $license->id) {
+                (string) $existingUsage->license_id !== (string) $license->id) {
                 return false;
             }
 
@@ -167,6 +166,7 @@ class UsageRegistrarService implements UsageRegistrar
 
     protected function revokeOldestUsage(License $license): void
     {
+        /** @var LicenseUsage|null $oldestUsage */
         $oldestUsage = $license->activeUsages()
             ->orderBy('last_seen_at')
             ->first();
@@ -201,6 +201,7 @@ class UsageRegistrarService implements UsageRegistrar
             return null;
         }
 
+        /** @var mixed $request */
         $request = App::make('request');
 
         return $request instanceof Request ? $request : null;

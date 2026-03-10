@@ -38,6 +38,7 @@ class TransferValidationService
             return;
         }
 
+        /** @var \LucaLongo\Licensing\Models\LicenseTransfer|null $lastTransfer */
         $lastTransfer = $license->transfers()
             ->where('status', 'completed')
             ->latest('completed_at')
@@ -47,7 +48,7 @@ class TransferValidationService
             return;
         }
 
-        $daysSinceLastTransfer = $lastTransfer->completed_at->diffInDays(now());
+        $daysSinceLastTransfer = $lastTransfer->completed_at?->diffInDays(now());
 
         if ($daysSinceLastTransfer < $coolingDays) {
             throw new TransferValidationException(
@@ -140,6 +141,7 @@ class TransferValidationService
 
     protected function detectPingPongPattern(License $license, Model $targetEntity): bool
     {
+        /** @var \LucaLongo\Licensing\Models\LicenseTransfer|null $lastTransfer */
         $lastTransfer = $license->transfers()
             ->where('status', 'completed')
             ->latest('completed_at')
@@ -159,7 +161,7 @@ class TransferValidationService
             return false;
         }
 
-        $value = $license->template->getMetadata('estimated_value');
+        $value = $license->template->meta['estimated_value'] ?? null;
 
         if (! $value) {
             return false;

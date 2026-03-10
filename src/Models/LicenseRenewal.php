@@ -7,6 +7,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $license_id
+ * @property \Illuminate\Support\Carbon $period_start
+ * @property \Illuminate\Support\Carbon $period_end
+ * @property int|null $amount_cents
+ * @property string|null $currency
+ * @property string|null $notes
+ */
 class LicenseRenewal extends Model
 {
     protected $fillable = [
@@ -31,7 +40,7 @@ class LicenseRenewal extends Model
 
     public function getDurationInDays(): int
     {
-        return $this->period_start->diffInDays($this->period_end);
+        return (int) $this->period_start->diffInDays($this->period_end);
     }
 
     public function getFormattedAmount(): ?string

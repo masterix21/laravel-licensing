@@ -29,6 +29,7 @@ class TrialService
 
             $hashedFingerprint = hash('sha256', $fingerprint);
 
+            /** @var LicenseTrial $trial */
             $trial = $license->trials()->create([
                 'trial_fingerprint' => $hashedFingerprint,
                 'status' => TrialStatus::Active,

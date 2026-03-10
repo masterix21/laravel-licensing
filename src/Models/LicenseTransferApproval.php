@@ -9,6 +9,22 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
 use LucaLongo\Licensing\Enums\ApprovalStatus;
 
+/**
+ * @property int $id
+ * @property int $transfer_id
+ * @property string|null $approver_type
+ * @property string|null $approver_id
+ * @property string|null $approval_type
+ * @property ApprovalStatus $status
+ * @property string|null $reason
+ * @property array|null $conditions
+ * @property string|null $approval_token
+ * @property \Illuminate\Support\Carbon|null $token_expires_at
+ * @property string|null $approver_ip
+ * @property string|null $approver_user_agent
+ * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property \Illuminate\Support\Carbon|null $rejected_at
+ */
 class LicenseTransferApproval extends Model
 {
     use HasFactory;
@@ -56,9 +72,10 @@ class LicenseTransferApproval extends Model
         });
     }
 
+    /** @return BelongsTo<LicenseTransfer, self> */
     public function transfer(): BelongsTo
     {
-        return $this->belongsTo(LicenseTransfer::class, 'transfer_id');
+        return $this->belongsTo(LicenseTransfer::class, 'transfer_id'); // @phpstan-ignore return.type
     }
 
     public function approver(): MorphTo
@@ -109,7 +126,7 @@ class LicenseTransferApproval extends Model
             return false;
         }
 
-        return $this->token_expires_at->isPast();
+        return $this->token_expires_at?->isPast() ?? false;
     }
 
     public function approve(Model $approver, ?string $reason = null, ?array $conditions = null): void

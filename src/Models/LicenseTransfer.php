@@ -11,6 +11,43 @@ use Illuminate\Support\Str;
 use LucaLongo\Licensing\Enums\TransferStatus;
 use LucaLongo\Licensing\Enums\TransferType;
 
+/**
+ * @property int $id
+ * @property int $license_id
+ * @property string|null $from_licensable_type
+ * @property string|null $from_licensable_id
+ * @property string|null $to_licensable_type
+ * @property string|null $to_licensable_id
+ * @property string $transfer_token
+ * @property string $transfer_code
+ * @property TransferStatus $status
+ * @property TransferType|null $transfer_type
+ * @property string|null $reason
+ * @property string|null $rejection_reason
+ * @property string|null $initiated_by_type
+ * @property string|null $initiated_by_id
+ * @property string|null $approved_by_type
+ * @property string|null $approved_by_id
+ * @property string|null $rejected_by_type
+ * @property string|null $rejected_by_id
+ * @property string|null $executed_by_type
+ * @property string|null $executed_by_id
+ * @property bool $requires_source_approval
+ * @property bool $requires_target_approval
+ * @property bool $requires_admin_approval
+ * @property bool|null $preserve_usages
+ * @property bool $preserve_expiration
+ * @property bool $reset_activation
+ * @property array|null $conditions
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $source_approved_at
+ * @property \Illuminate\Support\Carbon|null $target_approved_at
+ * @property \Illuminate\Support\Carbon|null $admin_approved_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $cancelled_at
+ * @property \Illuminate\Support\Carbon|null $rolled_back_at
+ * @property \Illuminate\Support\Carbon $expires_at
+ */
 class LicenseTransfer extends Model
 {
     use HasFactory;
@@ -89,9 +126,10 @@ class LicenseTransfer extends Model
         });
     }
 
+    /** @return BelongsTo<License, self> */
     public function license(): BelongsTo
     {
-        return $this->belongsTo(License::class);
+        return $this->belongsTo(License::class); // @phpstan-ignore return.type
     }
 
     public function fromLicensable(): MorphTo

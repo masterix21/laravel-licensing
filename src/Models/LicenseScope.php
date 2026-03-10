@@ -8,6 +8,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $identifier
+ * @property string|null $description
+ * @property bool $is_active
+ * @property int $key_rotation_days
+ * @property \Illuminate\Support\Carbon|null $last_key_rotation_at
+ * @property \Illuminate\Support\Carbon|null $next_key_rotation_at
+ * @property int $default_max_usages
+ * @property int|null $default_duration_days
+ * @property int $default_grace_days
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ */
 class LicenseScope extends Model
 {
     protected $fillable = [
@@ -144,9 +159,11 @@ class LicenseScope extends Model
         }
 
         if (is_int($template)) {
+            /** @var LicenseTemplate|null */
             return $query->whereKey($template)->first();
         }
 
+        /** @var LicenseTemplate|null */
         return $query->where('slug', $template)->first();
     }
 
@@ -164,6 +181,7 @@ class LicenseScope extends Model
      */
     public function activeSigningKey(): ?LicensingKey
     {
+        /** @var LicensingKey|null */
         return $this->signingKeys()
             ->where('status', 'active')
             ->where(function ($query) {

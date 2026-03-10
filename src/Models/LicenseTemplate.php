@@ -13,6 +13,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 
+/**
+ * @property int $id
+ * @property string $ulid
+ * @property string $slug
+ * @property int|null $license_scope_id
+ * @property string $name
+ * @property int|null $tier_level
+ * @property int|null $parent_template_id
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $base_configuration
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $features
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $entitlements
+ * @property bool $is_active
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property bool $supports_trial
+ * @property int|null $trial_duration_days
+ * @property bool $has_grace_period
+ * @property int|null $grace_period_days
+ * @property int|null $license_duration_days
+ */
 class LicenseTemplate extends Model
 {
     use HasFactory, HasSlug, HasUlids;
@@ -72,9 +91,10 @@ class LicenseTemplate extends Model
         return $this->belongsTo(LicenseScope::class, 'license_scope_id');
     }
 
+    /** @return BelongsTo<self, self> */
     public function parentTemplate(): BelongsTo
     {
-        return $this->belongsTo(self::class, 'parent_template_id');
+        return $this->belongsTo(self::class, 'parent_template_id'); // @phpstan-ignore return.type
     }
 
     public function childTemplates(): HasMany
@@ -232,19 +252,19 @@ class LicenseTemplate extends Model
     }
 
     #[Scope]
-    public function active(Builder $query): void
+    protected function active(Builder $query): void
     {
         $query->where('is_active', true);
     }
 
     #[Scope]
-    public function byTierLevel(Builder $query, int $level): void
+    protected function byTierLevel(Builder $query, int $level): void
     {
         $query->where('tier_level', $level);
     }
 
     #[Scope]
-    public function orderedByTier(Builder $query, string $direction = 'asc'): void
+    protected function orderedByTier(Builder $query, string $direction = 'asc'): void
     {
         $query->orderBy('tier_level', $direction);
     }

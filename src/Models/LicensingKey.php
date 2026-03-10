@@ -12,6 +12,21 @@ use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Models\Traits\HasKeyStore;
 
+/**
+ * @property string $kid
+ * @property KeyType $type
+ * @property KeyStatus $status
+ * @property int|null $license_scope_id
+ * @property string $public_key
+ * @property string|null $private_key_encrypted
+ * @property string|null $certificate
+ * @property string|null $algorithm
+ * @property \Illuminate\Support\Carbon|null $valid_from
+ * @property \Illuminate\Support\Carbon|null $valid_until
+ * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property string|null $revocation_reason
+ * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ */
 class LicensingKey extends Model implements KeyStore
 {
     use HasKeyStore;

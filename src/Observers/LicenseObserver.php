@@ -57,7 +57,7 @@ class LicenseObserver
                     'auditable_type' => get_class($license),
                     'auditable_id' => $license->id,
                     'meta' => [
-                        'old_expires_at' => $oldExpiresAt instanceof \DateTimeInterface ? $oldExpiresAt->toIso8601String() : $oldExpiresAt,
+                        'old_expires_at' => $oldExpiresAt instanceof \DateTimeInterface ? $oldExpiresAt->format(\DateTimeInterface::ATOM) : $oldExpiresAt,
                         'new_expires_at' => $license->expires_at?->toIso8601String(),
                     ],
                 ]));

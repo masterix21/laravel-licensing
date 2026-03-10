@@ -53,8 +53,8 @@ class MakeRootKeyCommand extends Command
 
     private function ensurePassphrase(): bool
     {
-        $envKey = config('licensing.crypto.keystore.passphrase_env');
-        $passphrase = env($envKey);
+        $envKey = (string) config('licensing.crypto.keystore.passphrase_env', '');
+        $passphrase = $_ENV[$envKey] ?? $_SERVER[$envKey] ?? getenv($envKey) ?: null;
 
         if ($passphrase) {
             LicensingKey::cachePassphrase($passphrase);

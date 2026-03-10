@@ -85,6 +85,7 @@ class LicenseTransferService
         DB::transaction(function () use ($approval, $approver, $reason) {
             $approval->approve($approver, $reason);
 
+            /** @var LicenseTransfer $transfer */
             $transfer = $approval->transfer;
 
             if ($transfer->canBeExecuted()) {
@@ -111,10 +112,13 @@ class LicenseTransferService
         DB::transaction(function () use ($approval, $rejector, $reason) {
             $approval->reject($rejector, $reason);
 
-            event(new LicenseTransferRejected($approval->transfer));
+            /** @var LicenseTransfer $transfer */
+            $transfer = $approval->transfer;
+
+            event(new LicenseTransferRejected($transfer));
 
             $this->auditLogger->log(AuditEventType::TransferRejected, [
-                'transfer_id' => $approval->transfer->id,
+                'transfer_id' => $transfer->id,
                 'rejector' => get_class($rejector).':'.$rejector->getKey(),
                 'reason' => $reason,
             ]);
@@ -123,6 +127,7 @@ class LicenseTransferService
 
     protected function executeTransfer(LicenseTransfer $transfer): void
     {
+        /** @var License $license */
         $license = $transfer->license;
 
         $previousSnapshot = $this->createSnapshot($license);
@@ -147,11 +152,15 @@ class LicenseTransferService
             ]);
         }
 
-        $newSnapshot = $this->createSnapshot($license->fresh());
+        /** @var License $freshLicense */
+        $freshLicense = $license->fresh();
+        $newSnapshot = $this->createSnapshot($freshLicense);
 
         $this->createTransferHistory($transfer, $previousSnapshot, $newSnapshot);
 
-        $transfer->markAsCompleted($transfer->initiatedBy);
+        /** @var Model $initiator */
+        $initiator = $transfer->initiatedBy;
+        $transfer->markAsCompleted($initiator);
 
         event(new LicenseTransferCompleted($transfer));
 

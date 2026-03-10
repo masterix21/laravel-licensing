@@ -66,7 +66,8 @@ class TemplateService
 
     public function seedDefaultTemplates(?LicenseScope $scope = null): Collection
     {
-        $templates = collect();
+        /** @var Collection<int, LicenseTemplate> $templates */
+        $templates = new Collection;
 
         $basic = LicenseTemplate::firstOrCreate(
             [
@@ -183,6 +184,7 @@ class TemplateService
             ),
         ]);
 
+        /** @var License */
         return $license->fresh();
     }
 

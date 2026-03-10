@@ -45,9 +45,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
         // Reconstruct PASETO AsymmetricSecretKey from raw bytes
         $privateKey = new AsymmetricSecretKey(base64_decode($privateKeyBase64), new Version4);
 
-        $ttlDays = $options['ttl_days']
-            ?? $license->getTokenTtlDays()
-            ?? config('licensing.offline_token.ttl_days');
+        $ttlDays = $options['ttl_days'] ?? $license->getTokenTtlDays();
 
         $issuer = $options['issuer']
             ?? config('licensing.offline_token.issuer', 'laravel-licensing');
@@ -112,6 +110,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             throw new \RuntimeException('License not found');
         }
 
+        /** @var \LucaLongo\Licensing\Models\LicenseUsage|null $usage */
         $usage = $license->usages()
             ->where('usage_fingerprint', $claims['usage_fingerprint'])
             ->first();

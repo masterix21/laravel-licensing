@@ -39,7 +39,7 @@ class IssueOfflineTokenCommand extends Command
             return 2;
         }
 
-        // Find or create usage
+        /** @var \LucaLongo\Licensing\Models\LicenseUsage|null $usage */
         $usage = $license->usages()
             ->where('usage_fingerprint', $fingerprint)
             ->where('status', UsageStatus::Active->value)

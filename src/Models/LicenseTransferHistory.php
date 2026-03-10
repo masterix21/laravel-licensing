@@ -8,6 +8,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $license_id
+ * @property int $transfer_id
+ * @property string|null $previous_licensable_type
+ * @property string|null $previous_licensable_id
+ * @property string|null $new_licensable_type
+ * @property string|null $new_licensable_id
+ * @property array|null $previous_snapshot
+ * @property array|null $new_snapshot
+ * @property string|null $transfer_type
+ * @property string|null $executed_by_type
+ * @property string|null $executed_by_id
+ * @property bool $usages_preserved
+ * @property bool $expiration_preserved
+ * @property bool $activation_reset
+ * @property int|null $usages_transferred_count
+ * @property int|null $usages_revoked_count
+ * @property string|null $integrity_hash
+ * @property \Illuminate\Support\Carbon|null $executed_at
+ */
 class LicenseTransferHistory extends Model
 {
     use HasFactory;
@@ -51,11 +72,7 @@ class LicenseTransferHistory extends Model
                 $history->executed_at = now();
             }
 
-            if ($history->executed_at instanceof Carbon) {
-                $history->executed_at = $history->executed_at->copy()->setMicro(0);
-            } else {
-                $history->executed_at = Carbon::parse($history->executed_at)->setMicro(0);
-            }
+            $history->executed_at = $history->executed_at->copy()->setMicro(0);
 
             $history->integrity_hash = $history->calculateIntegrityHash();
         });
