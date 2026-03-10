@@ -7,6 +7,7 @@ use LucaLongo\Licensing\Contracts\CanReceiveLicenseTransfers;
 use LucaLongo\Licensing\Enums\TransferType;
 use LucaLongo\Licensing\Exceptions\TransferValidationException;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseTransfer;
 use LucaLongo\Licensing\Models\LicenseTransferApproval;
 
 class TransferValidationService
@@ -38,7 +39,7 @@ class TransferValidationService
             return;
         }
 
-        /** @var \LucaLongo\Licensing\Models\LicenseTransfer|null $lastTransfer */
+        /** @var LicenseTransfer|null $lastTransfer */
         $lastTransfer = $license->transfers()
             ->where('status', 'completed')
             ->latest('completed_at')
@@ -141,7 +142,7 @@ class TransferValidationService
 
     protected function detectPingPongPattern(License $license, Model $targetEntity): bool
     {
-        /** @var \LucaLongo\Licensing\Models\LicenseTransfer|null $lastTransfer */
+        /** @var LicenseTransfer|null $lastTransfer */
         $lastTransfer = $license->transfers()
             ->where('status', 'completed')
             ->latest('completed_at')

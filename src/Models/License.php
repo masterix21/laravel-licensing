@@ -2,6 +2,7 @@
 
 namespace LucaLongo\Licensing\Models;
 
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
 use LucaLongo\Licensing\Contracts\LicenseKeyRegeneratorContract;
@@ -30,10 +32,10 @@ use LucaLongo\Licensing\Events\LicenseRenewed;
  * @property string|null $licensable_id
  * @property int|null $template_id
  * @property int|null $license_scope_id
- * @property \Illuminate\Support\Carbon|null $activated_at
- * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property Carbon|null $activated_at
+ * @property Carbon|null $expires_at
  * @property int $max_usages
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  */
 class License extends Model
 {

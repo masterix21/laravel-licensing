@@ -238,7 +238,7 @@ it('creates immutable transfer history', function () {
 
     // Test immutability
     expect(fn () => $history->update(['new_licensable_id' => 999]))
-        ->toThrow(\RuntimeException::class, 'Transfer history records are immutable');
+        ->toThrow(RuntimeException::class, 'Transfer history records are immutable');
 });
 
 it('enforces cooling period between transfers', function () {

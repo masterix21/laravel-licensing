@@ -3,8 +3,11 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use LucaLongo\Licensing\Enums\AuditEventType;
+use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Models\LicensingAuditLog;
+use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use LucaLongo\Licensing\Tests\TestClasses\User;
 
 uses(LicenseTestHelper::class);
 
@@ -26,7 +29,7 @@ test('logs license creation', function () {
 });
 
 test('logs license activation', function () {
-    $license = $this->createLicense(['status' => \LucaLongo\Licensing\Enums\LicenseStatus::Pending]);
+    $license = $this->createLicense(['status' => LicenseStatus::Pending]);
     $license->activate();
 
     $log = LicensingAuditLog::where('auditable_id', $license->id)
@@ -103,7 +106,7 @@ test('logs license renewal', function () {
     // Create a fresh license that's not "recently created"
     $license = $this->createLicense([
         'expires_at' => now()->addMonth(),
-        'status' => \LucaLongo\Licensing\Enums\LicenseStatus::Active,
+        'status' => LicenseStatus::Active,
     ]);
 
     // Clear the recently created flag by refreshing from DB
@@ -137,9 +140,9 @@ test('logs usage limit reached', function () {
 
     $exceptionThrown = false;
     try {
-        app(\LucaLongo\Licensing\Services\UsageRegistrarService::class)
+        app(UsageRegistrarService::class)
             ->register($this->license, 'new-fingerprint');
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         $exceptionThrown = true;
         // Expected - usage limit should be reached
     }
@@ -163,12 +166,12 @@ test('audit logs are append-only', function () {
 
     // Try to update via direct update method
     expect(fn () => $log->update(['event_type' => AuditEventType::LicenseActivated]))
-        ->toThrow(\RuntimeException::class, 'Audit logs are append-only');
+        ->toThrow(RuntimeException::class, 'Audit logs are append-only');
 
     // Also test save after modification
     $log->event_type = AuditEventType::LicenseActivated;
     expect(fn () => $log->save())
-        ->toThrow(\RuntimeException::class, 'Audit logs are append-only');
+        ->toThrow(RuntimeException::class, 'Audit logs are append-only');
 
     $log->refresh();
 
@@ -207,7 +210,7 @@ test('can disable audit logging', function () {
 
     $initialCount = LicensingAuditLog::count();
 
-    $license = $this->createLicense(['status' => \LucaLongo\Licensing\Enums\LicenseStatus::Pending]);
+    $license = $this->createLicense(['status' => LicenseStatus::Pending]);
     $license->activate();
     $usage = $this->createUsage($license);
     $usage->revoke();
@@ -217,7 +220,7 @@ test('can disable audit logging', function () {
 
 test('stores actor information when available', function () {
     // Create a test user
-    $user = \LucaLongo\Licensing\Tests\TestClasses\User::create([
+    $user = User::create([
         'name' => 'Test User',
         'email' => 'test@example.com',
     ]);

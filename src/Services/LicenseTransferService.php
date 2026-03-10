@@ -24,8 +24,7 @@ class LicenseTransferService
         protected TransferValidationService $validationService,
         protected TransferApprovalService $approvalService,
         protected AuditLoggerService $auditLogger
-    ) {
-    }
+    ) {}
 
     public function initiateTransfer(
         License $license,

@@ -12,6 +12,5 @@ class LicenseRenewed
 
     public function __construct(
         public License $license
-    ) {
-    }
+    ) {}
 }

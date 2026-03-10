@@ -12,6 +12,5 @@ class LicenseActivated
 
     public function __construct(
         public License $license
-    ) {
-    }
+    ) {}
 }

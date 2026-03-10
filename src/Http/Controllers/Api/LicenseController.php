@@ -22,8 +22,7 @@ class LicenseController extends ApiController
         protected UsageRegistrar $usageRegistrar,
         protected TokenVerifier $tokenVerifier,
         protected CertificateAuthorityService $certificateAuthority
-    ) {
-    }
+    ) {}
 
     public function activate(Request $request): JsonResponse
     {

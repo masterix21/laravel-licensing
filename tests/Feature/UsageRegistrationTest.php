@@ -68,7 +68,7 @@ test('enforces max usage limit with reject policy', function () {
     $this->registrar->register($this->license, 'fingerprint2');
 
     $this->registrar->register($this->license, 'fingerprint3');
-})->throws(\RuntimeException::class, 'License usage limit reached');
+})->throws(RuntimeException::class, 'License usage limit reached');
 
 test('auto replaces oldest usage when limit reached', function () {
     testTime()->freeze();
@@ -99,7 +99,7 @@ test('emits usage limit reached event', function () {
 
     try {
         $this->registrar->register($this->license, 'fingerprint2');
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         // Expected
     }
 
@@ -129,7 +129,7 @@ test('prevents double registration once seat limit is hit', function () {
     expect($first->isActive())->toBeTrue();
 
     expect(fn () => DB::transaction(fn () => $this->registrar->register($this->license, 'fingerprint2')))
-        ->toThrow(\RuntimeException::class, 'License usage limit reached');
+        ->toThrow(RuntimeException::class, 'License usage limit reached');
 
     expect($this->license->activeUsages()->count())->toBe(1);
 });
@@ -200,7 +200,7 @@ test('cannot heartbeat revoked usage', function () {
     $this->registrar->revoke($usage);
 
     $this->registrar->heartbeat($usage);
-})->throws(\RuntimeException::class, 'Cannot heartbeat revoked usage');
+})->throws(RuntimeException::class, 'Cannot heartbeat revoked usage');
 
 test('registers usage without request binding when metadata provided', function () {
     app()->forgetInstance('request');

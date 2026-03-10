@@ -1,10 +1,13 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
 use LucaLongo\Licensing\Services\PasetoTokenService;
+use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
 
 use function Spatie\PestPluginTestTime\testTime;
@@ -85,7 +88,7 @@ test('tokens cannot be tampered with', function () {
     $tamperedToken = implode('.', $parts);
 
     expect(fn () => $this->tokenService->verify($tamperedToken))
-        ->toThrow(\Exception::class);
+        ->toThrow(Exception::class);
 });
 
 test('expired tokens are rejected', function () {
@@ -99,7 +102,7 @@ test('expired tokens are rejected', function () {
     $this->travelBack();
 
     expect(fn () => $this->tokenService->verify($token))
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(RuntimeException::class);
 });
 
 test('tokens with future nbf are rejected', function () {
@@ -119,7 +122,7 @@ test('tokens with future nbf are rejected', function () {
 
     // Token was issued with nbf 2 hours in the future, should be rejected
     expect(fn () => $this->tokenService->verify($token))
-        ->toThrow(\RuntimeException::class, 'Token not valid yet');
+        ->toThrow(RuntimeException::class, 'Token not valid yet');
 });
 
 test('clock skew tolerance works', function () {
@@ -158,7 +161,7 @@ test('revoked signing keys reject tokens', function () {
 
     // Token should be rejected
     expect(fn () => $this->tokenService->verify($token))
-        ->toThrow(\RuntimeException::class, 'Signing key has been revoked');
+        ->toThrow(RuntimeException::class, 'Signing key has been revoked');
 });
 
 test('certificate chain validation', function () {
@@ -213,8 +216,8 @@ test('SQL injection prevention in license lookup', function () {
 test('XSS prevention in audit logs', function () {
     $maliciousData = '<script>alert("XSS")</script>';
 
-    $log = \LucaLongo\Licensing\Models\LicensingAuditLog::create([
-        'event_type' => \LucaLongo\Licensing\Enums\AuditEventType::LicenseCreated,
+    $log = LicensingAuditLog::create([
+        'event_type' => AuditEventType::LicenseCreated,
         'auditable_type' => 'App\\Models\\License',
         'auditable_id' => 1,
         'meta' => ['user_input' => $maliciousData],
@@ -240,12 +243,12 @@ test('token force online enforcement', function () {
 
     // Token has force_online_after in the past, should require online verification
     expect(fn () => $this->tokenService->verify($token))
-        ->toThrow(\RuntimeException::class, 'Token requires online verification');
+        ->toThrow(RuntimeException::class, 'Token requires online verification');
 });
 
 test('rejects additional usage registrations when limit already reached', function () {
     $license = $this->createLicense(['max_usages' => 1]);
-    $registrar = app(\LucaLongo\Licensing\Services\UsageRegistrarService::class);
+    $registrar = app(UsageRegistrarService::class);
 
     $first = DB::transaction(fn () => $registrar->register($license, 'concurrent-fp-0'));
 
@@ -253,15 +256,15 @@ test('rejects additional usage registrations when limit already reached', functi
 
     foreach (range(1, 4) as $index) {
         expect(fn () => DB::transaction(fn () => $registrar->register($license, "concurrent-fp-{$index}")))
-            ->toThrow(\RuntimeException::class, 'License usage limit reached');
+            ->toThrow(RuntimeException::class, 'License usage limit reached');
     }
 
     expect($license->activeUsages()->count())->toBe(1);
 });
 
 test('audit logs are tamper-evident', function () {
-    $log1 = \LucaLongo\Licensing\Models\LicensingAuditLog::create([
-        'event_type' => \LucaLongo\Licensing\Enums\AuditEventType::LicenseCreated,
+    $log1 = LicensingAuditLog::create([
+        'event_type' => AuditEventType::LicenseCreated,
         'auditable_type' => 'App\\Models\\License',
         'auditable_id' => 1,
         'meta' => ['test' => 'data1'],
@@ -269,8 +272,8 @@ test('audit logs are tamper-evident', function () {
 
     $hash1 = $log1->calculateHash();
 
-    $log2 = \LucaLongo\Licensing\Models\LicensingAuditLog::create([
-        'event_type' => \LucaLongo\Licensing\Enums\AuditEventType::LicenseActivated,
+    $log2 = LicensingAuditLog::create([
+        'event_type' => AuditEventType::LicenseActivated,
         'auditable_type' => 'App\\Models\\License',
         'auditable_id' => 1,
         'meta' => ['test' => 'data2'],

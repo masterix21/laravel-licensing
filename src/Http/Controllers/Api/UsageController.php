@@ -14,8 +14,7 @@ class UsageController extends ApiController
     public function __construct(
         protected Licensing $licensing,
         protected UsageRegistrar $usageRegistrar
-    ) {
-    }
+    ) {}
 
     public function heartbeat(Request $request): JsonResponse
     {

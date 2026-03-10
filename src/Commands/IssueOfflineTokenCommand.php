@@ -5,6 +5,8 @@ namespace LucaLongo\Licensing\Commands;
 use Illuminate\Console\Command;
 use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseUsage;
+use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 
 class IssueOfflineTokenCommand extends Command
@@ -39,7 +41,7 @@ class IssueOfflineTokenCommand extends Command
             return 2;
         }
 
-        /** @var \LucaLongo\Licensing\Models\LicenseUsage|null $usage */
+        /** @var LicenseUsage|null $usage */
         $usage = $license->usages()
             ->where('usage_fingerprint', $fingerprint)
             ->where('status', UsageStatus::Active->value)
@@ -52,7 +54,7 @@ class IssueOfflineTokenCommand extends Command
         }
 
         // Check if signing key is available and not revoked
-        $signingKey = \LucaLongo\Licensing\Models\LicensingKey::findActiveSigning();
+        $signingKey = LicensingKey::findActiveSigning();
         if (! $signingKey) {
             $this->line('No active signing key available');
 

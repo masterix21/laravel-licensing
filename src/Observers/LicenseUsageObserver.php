@@ -3,6 +3,7 @@
 namespace LucaLongo\Licensing\Observers;
 
 use LucaLongo\Licensing\Enums\AuditEventType;
+use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicensingAuditLog;
 
@@ -33,7 +34,7 @@ class LicenseUsageObserver
         }
 
         // Check for revocation
-        if ($usage->wasChanged('status') && $usage->status === \LucaLongo\Licensing\Enums\UsageStatus::Revoked) {
+        if ($usage->wasChanged('status') && $usage->status === UsageStatus::Revoked) {
             // Get the reason from meta
             $reason = $usage->meta['revocation_reason'] ?? null;
 

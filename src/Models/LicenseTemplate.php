@@ -4,7 +4,9 @@ namespace LucaLongo\Licensing\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,11 +23,11 @@ use Spatie\Sluggable\SlugOptions;
  * @property string $name
  * @property int|null $tier_level
  * @property int|null $parent_template_id
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $base_configuration
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $features
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $entitlements
+ * @property ArrayObject|null $base_configuration
+ * @property ArrayObject|null $features
+ * @property ArrayObject|null $entitlements
  * @property bool $is_active
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  * @property bool $supports_trial
  * @property int|null $trial_duration_days
  * @property bool $has_grace_period
@@ -274,7 +276,7 @@ class LicenseTemplate extends Model
         return static::where('slug', $slug)->first();
     }
 
-    public static function getForScope(?LicenseScope $scope): \Illuminate\Database\Eloquent\Collection
+    public static function getForScope(?LicenseScope $scope): Collection
     {
         return static::query()
             ->active()

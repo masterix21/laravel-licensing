@@ -51,7 +51,7 @@ it('impedisce di riassegnare un template già collegato ad un altro scope', func
     expect($scopeA->assignTemplate($template))->toBeInstanceOf(LicenseTemplate::class);
 
     expect(fn () => $scopeB->assignTemplate($template))
-        ->toThrow(\InvalidArgumentException::class, 'Template already assigned to another scope.');
+        ->toThrow(InvalidArgumentException::class, 'Template already assigned to another scope.');
 });
 
 it('crea una licenza partendo da un template assegnato allo scope', function () {
@@ -90,5 +90,5 @@ it('impedisce di usare template non assegnati allo scope', function () {
 
     expect(fn () => $scope->createLicenseFromTemplate($template->slug, [
         'key_hash' => hash('sha256', 'plugin-license'),
-    ]))->toThrow(\InvalidArgumentException::class);
+    ]))->toThrow(InvalidArgumentException::class);
 });

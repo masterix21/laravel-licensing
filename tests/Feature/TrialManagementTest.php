@@ -97,7 +97,7 @@ it('cannot extend trial twice', function () {
     $this->trialService->extendTrial($trial, 3);
 
     $this->trialService->extendTrial($trial, 3);
-})->throws(\RuntimeException::class);
+})->throws(RuntimeException::class);
 
 it('marks expired trials correctly', function () {
     $trial = $this->trialService->startTrial($this->license, 'test-device-123', 7);

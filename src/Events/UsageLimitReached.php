@@ -14,6 +14,5 @@ class UsageLimitReached
         public License $license,
         public string $fingerprint,
         public array $metadata = []
-    ) {
-    }
+    ) {}
 }

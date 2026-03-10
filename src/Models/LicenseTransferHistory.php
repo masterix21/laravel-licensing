@@ -27,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $usages_transferred_count
  * @property int|null $usages_revoked_count
  * @property string|null $integrity_hash
- * @property \Illuminate\Support\Carbon|null $executed_at
+ * @property Carbon|null $executed_at
  */
 class LicenseTransferHistory extends Model
 {

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use LucaLongo\Licensing\Enums\TransferStatus;
 use LucaLongo\Licensing\Enums\TransferType;
@@ -40,13 +41,13 @@ use LucaLongo\Licensing\Enums\TransferType;
  * @property bool $reset_activation
  * @property array|null $conditions
  * @property array|null $metadata
- * @property \Illuminate\Support\Carbon|null $source_approved_at
- * @property \Illuminate\Support\Carbon|null $target_approved_at
- * @property \Illuminate\Support\Carbon|null $admin_approved_at
- * @property \Illuminate\Support\Carbon|null $completed_at
- * @property \Illuminate\Support\Carbon|null $cancelled_at
- * @property \Illuminate\Support\Carbon|null $rolled_back_at
- * @property \Illuminate\Support\Carbon $expires_at
+ * @property Carbon|null $source_approved_at
+ * @property Carbon|null $target_approved_at
+ * @property Carbon|null $admin_approved_at
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $cancelled_at
+ * @property Carbon|null $rolled_back_at
+ * @property Carbon $expires_at
  */
 class LicenseTransfer extends Model
 {

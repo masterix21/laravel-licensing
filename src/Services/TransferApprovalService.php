@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Services;
 
 use Illuminate\Database\Eloquent\Model;
 use LucaLongo\Licensing\Contracts\CanInitiateLicenseTransfers;
+use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseTransfer;
 use LucaLongo\Licensing\Models\LicenseTransferApproval;
 
@@ -76,7 +77,7 @@ class TransferApprovalService
         }
 
         if ($approver instanceof CanInitiateLicenseTransfers) {
-            /** @var \LucaLongo\Licensing\Models\License $license */
+            /** @var License $license */
             $license = $transfer->license;
 
             return $approver->ownsLicense($license);

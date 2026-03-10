@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use LucaLongo\Licensing\Enums\ApprovalStatus;
 
@@ -19,11 +20,11 @@ use LucaLongo\Licensing\Enums\ApprovalStatus;
  * @property string|null $reason
  * @property array|null $conditions
  * @property string|null $approval_token
- * @property \Illuminate\Support\Carbon|null $token_expires_at
+ * @property Carbon|null $token_expires_at
  * @property string|null $approver_ip
  * @property string|null $approver_user_agent
- * @property \Illuminate\Support\Carbon|null $approved_at
- * @property \Illuminate\Support\Carbon|null $rejected_at
+ * @property Carbon|null $approved_at
+ * @property Carbon|null $rejected_at
  */
 class LicenseTransferApproval extends Model
 {

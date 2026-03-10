@@ -14,8 +14,7 @@ class TrialService
 {
     public function __construct(
         protected FingerprintResolverService $fingerprintResolver
-    ) {
-    }
+    ) {}
 
     public function startTrial(
         License $license,

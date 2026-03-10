@@ -8,6 +8,7 @@ use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Services\CertificateAuthorityService;
 
 trait LicenseTestHelper
 {
@@ -55,7 +56,7 @@ trait LicenseTestHelper
         $key = new LicensingKey;
         $key->generate(['type' => KeyType::Signing]);
 
-        $ca = app(\LucaLongo\Licensing\Services\CertificateAuthorityService::class);
+        $ca = app(CertificateAuthorityService::class);
         $certificate = $ca->issueSigningCertificate(
             $key->getPublicKey(),
             $key->kid,

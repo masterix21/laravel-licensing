@@ -1,22 +1,34 @@
 <?php
 
+use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseRenewal;
+use LucaLongo\Licensing\Models\LicenseScope;
+use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Models\LicenseUsage;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
+use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator;
+use LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator;
+use LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever;
+use LucaLongo\Licensing\Services\PasetoTokenService;
+
 return [
     'key_salt' => env('LICENSING_KEY_SALT', env('APP_KEY')),
 
     'models' => [
-        'license_scope' => \LucaLongo\Licensing\Models\LicenseScope::class,
-        'license' => \LucaLongo\Licensing\Models\License::class,
-        'license_usage' => \LucaLongo\Licensing\Models\LicenseUsage::class,
-        'license_renewal' => \LucaLongo\Licensing\Models\LicenseRenewal::class,
-        'license_template' => \LucaLongo\Licensing\Models\LicenseTemplate::class,
-        'licensing_key' => \LucaLongo\Licensing\Models\LicensingKey::class,
-        'audit_log' => \LucaLongo\Licensing\Models\LicensingAuditLog::class,
+        'license_scope' => LicenseScope::class,
+        'license' => License::class,
+        'license_usage' => LicenseUsage::class,
+        'license_renewal' => LicenseRenewal::class,
+        'license_template' => LicenseTemplate::class,
+        'licensing_key' => LicensingKey::class,
+        'audit_log' => LicensingAuditLog::class,
     ],
 
     'services' => [
-        'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
-        'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
-        'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+        'key_generator' => EncryptedLicenseKeyGenerator::class,
+        'key_retriever' => EncryptedLicenseKeyRetriever::class,
+        'key_regenerator' => EncryptedLicenseKeyRegenerator::class,
     ],
 
     'key_management' => [
@@ -57,7 +69,7 @@ return [
 
     'offline_token' => [
         'enabled' => true,
-        'service' => \LucaLongo\Licensing\Services\PasetoTokenService::class,
+        'service' => PasetoTokenService::class,
         'issuer' => 'laravel-licensing',
         'ttl_days' => 7,
         'force_online_after_days' => 14,

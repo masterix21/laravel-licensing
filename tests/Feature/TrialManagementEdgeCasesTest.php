@@ -3,7 +3,9 @@
 use App\Models\User;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Enums\TrialStatus;
+use LucaLongo\Licensing\Exceptions\TrialAlreadyExistsException;
 use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseTrial;
 use LucaLongo\Licensing\Services\TrialService;
 
 beforeEach(function () {
@@ -28,7 +30,7 @@ it('prevents conversion of expired trial', function () {
     $trial->expire();
 
     expect(fn () => $trial->convert('purchase'))
-        ->toThrow(\RuntimeException::class, 'Trial cannot be converted in current status: expired');
+        ->toThrow(RuntimeException::class, 'Trial cannot be converted in current status: expired');
 });
 
 it('prevents conversion of cancelled trial', function () {
@@ -36,7 +38,7 @@ it('prevents conversion of cancelled trial', function () {
     $trial->cancel();
 
     expect(fn () => $trial->convert('purchase'))
-        ->toThrow(\RuntimeException::class, 'Trial cannot be converted in current status: cancelled');
+        ->toThrow(RuntimeException::class, 'Trial cannot be converted in current status: cancelled');
 });
 
 it('handles concurrent trial registrations safely', function () {
@@ -47,7 +49,7 @@ it('handles concurrent trial registrations safely', function () {
 
     // Attempt to start second trial with same fingerprint should fail
     expect(fn () => $this->trialService->startTrial($this->license, $fingerprint))
-        ->toThrow(\LucaLongo\Licensing\Exceptions\TrialAlreadyExistsException::class);
+        ->toThrow(TrialAlreadyExistsException::class);
 
     // First trial should remain valid
     expect($trial1->fresh()->status)->toBe(TrialStatus::Active);
@@ -133,7 +135,7 @@ it('prevents starting trial on suspended license', function () {
     // Should still allow trial start (business decision)
     $trial = $this->trialService->startTrial($this->license, 'device-1');
 
-    expect($trial)->toBeInstanceOf(\LucaLongo\Licensing\Models\LicenseTrial::class)
+    expect($trial)->toBeInstanceOf(LicenseTrial::class)
         ->and($trial->status)->toBe(TrialStatus::Active);
 
     // But license should remain suspended

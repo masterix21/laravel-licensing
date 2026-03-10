@@ -97,7 +97,7 @@ test('cannot activate already active license', function () {
     ]);
 
     $license->activate();
-})->throws(\RuntimeException::class, 'License cannot be activated in current status: active');
+})->throws(RuntimeException::class, 'License cannot be activated in current status: active');
 
 test('can renew license', function () {
     $license = $this->createLicense([

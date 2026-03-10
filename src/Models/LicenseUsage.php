@@ -4,9 +4,11 @@ namespace LucaLongo\Licensing\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageRevoked;
 
@@ -15,14 +17,14 @@ use LucaLongo\Licensing\Events\UsageRevoked;
  * @property int $license_id
  * @property string $usage_fingerprint
  * @property UsageStatus $status
- * @property \Illuminate\Support\Carbon|null $registered_at
- * @property \Illuminate\Support\Carbon|null $last_seen_at
- * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property Carbon|null $registered_at
+ * @property Carbon|null $last_seen_at
+ * @property Carbon|null $revoked_at
  * @property string|null $client_type
  * @property string|null $name
  * @property string|null $ip
  * @property string|null $user_agent
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  */
 class LicenseUsage extends Model
 {

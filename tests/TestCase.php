@@ -5,8 +5,17 @@ namespace LucaLongo\Licensing\Tests;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\RateLimiter;
 use LucaLongo\Licensing\LicensingServiceProvider;
+use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseUsage;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
+use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Observers\LicenseObserver;
+use LucaLongo\Licensing\Observers\LicenseUsageObserver;
+use LucaLongo\Licensing\Observers\LicensingAuditLogObserver;
+use LucaLongo\Licensing\Observers\LicensingKeyObserver;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
@@ -26,34 +35,34 @@ class TestCase extends Orchestra
         });
 
         // Register observers for testing
-        \LucaLongo\Licensing\Models\License::observe(\LucaLongo\Licensing\Observers\LicenseObserver::class);
-        \LucaLongo\Licensing\Models\LicenseUsage::observe(\LucaLongo\Licensing\Observers\LicenseUsageObserver::class);
-        \LucaLongo\Licensing\Models\LicensingKey::observe(\LucaLongo\Licensing\Observers\LicensingKeyObserver::class);
-        \LucaLongo\Licensing\Models\LicensingAuditLog::observe(\LucaLongo\Licensing\Observers\LicensingAuditLogObserver::class);
+        License::observe(LicenseObserver::class);
+        LicenseUsage::observe(LicenseUsageObserver::class);
+        LicensingKey::observe(LicensingKeyObserver::class);
+        LicensingAuditLog::observe(LicensingAuditLogObserver::class);
 
         // Clear any cached data from previous tests
-        \LucaLongo\Licensing\Models\LicensingKey::forgetCachedPassphrase();
+        LicensingKey::forgetCachedPassphrase();
     }
 
     protected function tearDown(): void
     {
         // Clear any cached data
-        \LucaLongo\Licensing\Models\LicensingKey::forgetCachedPassphrase();
+        LicensingKey::forgetCachedPassphrase();
 
         // Clean up key storage
         $keyPath = config('licensing.crypto.keystore.path');
-        if ($keyPath && \Illuminate\Support\Facades\File::exists($keyPath)) {
+        if ($keyPath && File::exists($keyPath)) {
             // Try to delete directory, but don't fail if it doesn't work (Windows issue)
             try {
-                \Illuminate\Support\Facades\File::deleteDirectory($keyPath);
+                File::deleteDirectory($keyPath);
             } catch (\Exception $e) {
                 // On Windows, files might still be locked
                 // We'll try to clean individual files at least
                 if (PHP_OS_FAMILY === 'Windows') {
-                    $files = \Illuminate\Support\Facades\File::allFiles($keyPath);
+                    $files = File::allFiles($keyPath);
                     foreach ($files as $file) {
                         try {
-                            \Illuminate\Support\Facades\File::delete($file);
+                            File::delete($file);
                         } catch (\Exception $e) {
                             // Ignore individual file deletion errors
                         }

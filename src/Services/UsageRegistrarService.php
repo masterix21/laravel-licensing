@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use LucaLongo\Licensing\Contracts\UsageRegistrar;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Enums\OverLimitPolicy;
+use LucaLongo\Licensing\Enums\UsageStatus;
 use LucaLongo\Licensing\Events\UsageLimitReached;
 use LucaLongo\Licensing\Events\UsageRegistered;
 use LucaLongo\Licensing\Models\License;
@@ -83,7 +84,7 @@ class UsageRegistrarService implements UsageRegistrar
                 /** @var LicenseUsage $usage */
                 $usage = $lockedLicense->usages()->create([
                     'usage_fingerprint' => $fingerprint,
-                    'status' => \LucaLongo\Licensing\Enums\UsageStatus::Active->value,
+                    'status' => UsageStatus::Active->value,
                     'registered_at' => now(),
                     'last_seen_at' => now(),
                     'client_type' => $metadata['client_type'] ?? null,

@@ -1,6 +1,7 @@
 <?php
 
 use LucaLongo\Licensing\Enums\LicenseStatus;
+use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
 
@@ -99,7 +100,7 @@ test('verification fails for expired token', function () {
     $this->travelBack();
 
     $this->tokenService->verify($token);
-})->throws(\RuntimeException::class);
+})->throws(RuntimeException::class);
 
 test('verification fails when force online required', function () {
     $license = $this->createLicense([
@@ -113,7 +114,7 @@ test('verification fails when force online required', function () {
     $token = $this->tokenService->issue($license, $usage);
 
     $this->tokenService->verify($token);
-})->throws(\RuntimeException::class, 'Token requires online verification');
+})->throws(RuntimeException::class, 'Token requires online verification');
 
 test('respects per-license clock skew when verifying', function () {
     testTime()->freeze();
@@ -167,7 +168,7 @@ test('token footer contains certificate chain', function () {
 test('can verify token offline with public key bundle', function () {
     $token = $this->tokenService->issue($this->license, $this->usage);
 
-    $rootKey = \LucaLongo\Licensing\Models\LicensingKey::findActiveRoot();
+    $rootKey = LicensingKey::findActiveRoot();
     $publicKeyBundle = json_encode([
         'root' => [
             'public_key' => $rootKey->getPublicKey(),
@@ -190,7 +191,7 @@ test('offline verification fails with wrong public key', function () {
     ]);
 
     $this->tokenService->verifyOffline($token, $wrongBundle);
-})->throws(\RuntimeException::class);
+})->throws(RuntimeException::class);
 
 test('custom issuer is included in token', function () {
     $customIssuer = 'my-app-licensing';

@@ -2,9 +2,11 @@
 
 namespace LucaLongo\Licensing\Models;
 
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Enums\TrialStatus;
 use LucaLongo\Licensing\Events\TrialConverted;
@@ -17,18 +19,18 @@ use LucaLongo\Licensing\Events\TrialStarted;
  * @property int $license_id
  * @property string $trial_fingerprint
  * @property TrialStatus $status
- * @property \Illuminate\Support\Carbon|null $started_at
- * @property \Illuminate\Support\Carbon|null $expires_at
- * @property \Illuminate\Support\Carbon|null $converted_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $expires_at
+ * @property Carbon|null $converted_at
  * @property int $duration_days
  * @property bool $is_extended
  * @property int $extension_days
  * @property string|null $extension_reason
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $limitations
+ * @property ArrayObject|null $limitations
  * @property array|null $feature_restrictions
  * @property string|null $conversion_trigger
  * @property string|null $conversion_value
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  */
 class LicenseTrial extends Model
 {

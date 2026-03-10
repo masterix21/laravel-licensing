@@ -127,7 +127,7 @@ class LicensingServiceProvider extends PackageServiceProvider
 
     protected function registerLicensing(): void
     {
-        $this->app->singleton(\LucaLongo\Licensing\Licensing::class, fn ($app) => new \LucaLongo\Licensing\Licensing(
+        $this->app->singleton(Licensing::class, fn ($app) => new Licensing(
             $app->make(UsageRegistrar::class),
             $app->make(TokenIssuer::class),
             $app->make(TokenVerifier::class)

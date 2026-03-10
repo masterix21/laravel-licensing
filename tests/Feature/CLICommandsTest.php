@@ -7,9 +7,11 @@ use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
 use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
 use LucaLongo\Licensing\Commands\ListKeysCommand;
 use LucaLongo\Licensing\Commands\MakeRootKeyCommand;
+use LucaLongo\Licensing\Commands\RevokeKeyCommand;
 use LucaLongo\Licensing\Commands\RotateKeysCommand;
 use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
+use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -117,7 +119,7 @@ test('returns error silently when missing passphrase and silent flag used', func
 
 test('cannot create duplicate root key', function () {
     // Ensure clean state
-    LicensingKey::where('type', \LucaLongo\Licensing\Enums\KeyType::Root)->delete();
+    LicensingKey::where('type', KeyType::Root)->delete();
 
     $this->createRootKey();
 
@@ -171,7 +173,7 @@ test('can issue signing key via CLI', function () {
 
 test('cannot issue signing key without root', function () {
     // Explicitly ensure no root key exists
-    LicensingKey::where('type', \LucaLongo\Licensing\Enums\KeyType::Root)->delete();
+    LicensingKey::where('type', KeyType::Root)->delete();
 
     $tester = runCommand(IssueSigningKeyCommand::class);
 
@@ -213,7 +215,7 @@ test('can revoke key via CLI', function () {
     $this->createRootKey();
     $signingKey = $this->createSigningKey();
 
-    $tester = runCommand(\LucaLongo\Licensing\Commands\RevokeKeyCommand::class, [
+    $tester = runCommand(RevokeKeyCommand::class, [
         'kid' => $signingKey->kid,
         '--reason' => 'compromised',
     ], ['yes']);
@@ -326,7 +328,7 @@ test('can issue token by license key', function () {
 
     $licenseKey = 'TEST-LICENSE-KEY-123';
     $license = $this->createLicense([
-        'key_hash' => \LucaLongo\Licensing\Models\License::hashKey($licenseKey),
+        'key_hash' => License::hashKey($licenseKey),
     ]);
     $usage = $this->createUsage($license);
 

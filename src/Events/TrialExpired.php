@@ -12,6 +12,5 @@ class TrialExpired
 
     public function __construct(
         public LicenseTrial $trial
-    ) {
-    }
+    ) {}
 }

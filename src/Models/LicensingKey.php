@@ -4,8 +4,11 @@ namespace LucaLongo\Licensing\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use LucaLongo\Licensing\Contracts\KeyStore;
 use LucaLongo\Licensing\Enums\KeyStatus;
@@ -21,11 +24,11 @@ use LucaLongo\Licensing\Models\Traits\HasKeyStore;
  * @property string|null $private_key_encrypted
  * @property string|null $certificate
  * @property string|null $algorithm
- * @property \Illuminate\Support\Carbon|null $valid_from
- * @property \Illuminate\Support\Carbon|null $valid_until
- * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property Carbon|null $valid_from
+ * @property Carbon|null $valid_until
+ * @property Carbon|null $revoked_at
  * @property string|null $revocation_reason
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  */
 class LicensingKey extends Model implements KeyStore
 {
@@ -104,7 +107,7 @@ class LicensingKey extends Model implements KeyStore
         $query->where('type', $type);
     }
 
-    public function scope(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function scope(): BelongsTo
     {
         return $this->belongsTo(LicenseScope::class, 'license_scope_id');
     }

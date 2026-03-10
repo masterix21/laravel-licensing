@@ -2,9 +2,11 @@
 
 namespace LucaLongo\Licensing\Models;
 
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -16,12 +18,12 @@ use InvalidArgumentException;
  * @property string|null $description
  * @property bool $is_active
  * @property int $key_rotation_days
- * @property \Illuminate\Support\Carbon|null $last_key_rotation_at
- * @property \Illuminate\Support\Carbon|null $next_key_rotation_at
+ * @property Carbon|null $last_key_rotation_at
+ * @property Carbon|null $next_key_rotation_at
  * @property int $default_max_usages
  * @property int|null $default_duration_days
  * @property int $default_grace_days
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  */
 class LicenseScope extends Model
 {

@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Event;
 use LucaLongo\Licensing\Enums\LicenseStatus;
+use LucaLongo\Licensing\Events\LicenseExpired;
+use LucaLongo\Licensing\Events\LicenseExpiringSoon;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
 
@@ -24,7 +26,7 @@ test('enforces over limit reject policy', function () {
     $this->registrar->register($license, 'fingerprint2');
 
     expect(fn () => $this->registrar->register($license, 'fingerprint3'))
-        ->toThrow(\RuntimeException::class, 'License usage limit reached');
+        ->toThrow(RuntimeException::class, 'License usage limit reached');
 });
 
 test('enforces auto replace oldest policy', function () {
@@ -116,7 +118,7 @@ test('enforces global fingerprint uniqueness', function () {
     expect($this->registrar->canRegister($license2, $fingerprint))->toBeFalse();
 
     expect(fn () => $this->registrar->register($license2, $fingerprint))
-        ->toThrow(\RuntimeException::class, 'Fingerprint already in use globally');
+        ->toThrow(RuntimeException::class, 'Fingerprint already in use globally');
 });
 
 test('enforces per-license fingerprint scope', function () {
@@ -207,7 +209,7 @@ test('license status transitions follow business rules', function () {
 
     // Cannot activate expired
     expect(fn () => $license->activate())
-        ->toThrow(\RuntimeException::class, 'License cannot be activated in current status: expired');
+        ->toThrow(RuntimeException::class, 'License cannot be activated in current status: expired');
 });
 
 test('enforces usage limit once maximum seats are taken', function () {
@@ -219,7 +221,7 @@ test('enforces usage limit once maximum seats are taken', function () {
     }
 
     expect(fn () => $this->registrar->register($license, 'fingerprint-6'))
-        ->toThrow(\RuntimeException::class, 'License usage limit reached');
+        ->toThrow(RuntimeException::class, 'License usage limit reached');
 
     expect($license->activeUsages()->count())->toBe(5);
 });
@@ -235,13 +237,13 @@ test('grace period notification timing', function () {
     // Simulate expiration check - emit event when license is expiring soon
     if ($license->expires_at->isPast()) {
         $license->transitionToGrace();
-        event(new \LucaLongo\Licensing\Events\LicenseExpired($license));
+        event(new LicenseExpired($license));
     } elseif ($license->expires_at->diffInDays(now()) <= 7) {
         $daysRemaining = $license->daysUntilExpiration();
-        event(new \LucaLongo\Licensing\Events\LicenseExpiringSoon($license, $daysRemaining));
+        event(new LicenseExpiringSoon($license, $daysRemaining));
     }
 
-    Event::assertDispatched(\LucaLongo\Licensing\Events\LicenseExpiringSoon::class);
+    Event::assertDispatched(LicenseExpiringSoon::class);
 
     // Move to grace period
     $license->update(['expires_at' => now()->subDay()]);

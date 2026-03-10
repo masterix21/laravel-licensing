@@ -13,6 +13,5 @@ class LicenseExpiringSoon
     public function __construct(
         public License $license,
         public int $daysRemaining
-    ) {
-    }
+    ) {}
 }

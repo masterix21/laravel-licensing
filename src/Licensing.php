@@ -14,8 +14,7 @@ class Licensing
         protected UsageRegistrar $usageRegistrar,
         protected TokenIssuer $tokenIssuer,
         protected TokenVerifier $tokenVerifier
-    ) {
-    }
+    ) {}
 
     public function findByKey(string $key): ?License
     {

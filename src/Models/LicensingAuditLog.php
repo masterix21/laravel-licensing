@@ -2,8 +2,10 @@
 
 namespace LucaLongo\Licensing\Models;
 
+use Illuminate\Database\Eloquent\Casts\ArrayObject;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use LucaLongo\Licensing\Contracts\AuditLog;
 use LucaLongo\Licensing\Enums\AuditEventType;
 use LucaLongo\Licensing\Models\Traits\HasAuditLog;
@@ -18,11 +20,11 @@ use LucaLongo\Licensing\Models\Traits\HasAuditLog;
  * @property string|null $actor
  * @property string|null $ip
  * @property string|null $user_agent
- * @property \Illuminate\Database\Eloquent\Casts\ArrayObject|null $meta
+ * @property ArrayObject|null $meta
  * @property string|null $previous_hash
- * @property \Illuminate\Support\Carbon $occurred_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon $occurred_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class LicensingAuditLog extends Model implements AuditLog
 {

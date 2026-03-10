@@ -5,10 +5,13 @@ namespace LucaLongo\Licensing\Services;
 use DateTimeImmutable;
 use LucaLongo\Licensing\Contracts\TokenIssuer;
 use LucaLongo\Licensing\Contracts\TokenVerifier;
+use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicensingKey;
 use ParagonIE\Paseto\Builder;
+use ParagonIE\Paseto\Exception\PasetoException;
+use ParagonIE\Paseto\Exception\RuleViolation;
 use ParagonIE\Paseto\Keys\AsymmetricPublicKey;
 use ParagonIE\Paseto\Keys\AsymmetricSecretKey;
 use ParagonIE\Paseto\Parser;
@@ -110,7 +113,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             throw new \RuntimeException('License not found');
         }
 
-        /** @var \LucaLongo\Licensing\Models\LicenseUsage|null $usage */
+        /** @var LicenseUsage|null $usage */
         $usage = $license->usages()
             ->where('usage_fingerprint', $claims['usage_fingerprint'])
             ->first();
@@ -131,7 +134,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
                 throw new \RuntimeException('Signing key not found');
             }
 
-            if ($signingKey->status === \LucaLongo\Licensing\Enums\KeyStatus::Revoked) {
+            if ($signingKey->status === KeyStatus::Revoked) {
                 throw new \RuntimeException('Signing key has been revoked');
             }
 
@@ -189,9 +192,9 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             }
 
             return array_merge($claims, ['footer' => $footer]);
-        } catch (\ParagonIE\Paseto\Exception\RuleViolation $e) {
+        } catch (RuleViolation $e) {
             throw new \RuntimeException('Token verification failed: '.$e->getMessage());
-        } catch (\ParagonIE\Paseto\Exception\PasetoException $e) {
+        } catch (PasetoException $e) {
             throw new \RuntimeException('Token verification failed: '.$e->getMessage());
         } catch (\Exception $e) {
             if ($e instanceof \RuntimeException) {
