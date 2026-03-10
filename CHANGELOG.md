@@ -2,6 +2,31 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 1.0.4 - 2026-03-10
+
+### What's Changed
+
+#### 🐛 Bug Fixes
+
+- **Passphrase resolution**: Fixed passphrase resolution failing after `artisan config:cache`
+- **Ed25519 key handling**: Fixed Ed25519 key handling for Windows CI compatibility
+
+#### 🔧 Improvements
+
+- **Code style**: Applied uniform code styling across models, services, events, and tests
+- **PHPStan**: Fixed all 402 PHPStan errors (from 402 → 0) for full static analysis compliance
+- **Test coverage**: Added regression tests ensuring all API route controller classes exist and `route:list` runs without errors
+
+#### 📦 Dependencies
+
+- Bumped `actions/checkout` from 5 to 6
+- Bumped `dependabot/fetch-metadata` from 2.4.0 to 2.5.0
+- Bumped `stefanzweifel/git-auto-commit-action` from 6 to 7
+
+### Full Changelog
+
+https://github.com/masterix21/laravel-licensing/compare/1.0.3...1.0.4
+
 ## 1.0.3 - 2025-09-18
 
 ### What's Changed
