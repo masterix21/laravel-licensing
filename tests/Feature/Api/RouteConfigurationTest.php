@@ -1,7 +1,12 @@
 <?php
 
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route as RouteFacade;
+use LucaLongo\Licensing\Http\Controllers\Api\HealthController;
+use LucaLongo\Licensing\Http\Controllers\Api\LicenseController;
+use LucaLongo\Licensing\Http\Controllers\Api\TokenController;
+use LucaLongo\Licensing\Http\Controllers\Api\UsageController;
 
 function routeByName(string $name): Route
 {
@@ -47,4 +52,19 @@ test('license API routes expose expected URIs and middleware', function () {
 
     $tokenRoute = routeByName('licensing.token.issue');
     expect($tokenRoute->uri())->toBe($prefix.'/token');
+});
+
+// Regression test for issue #4: controller classes were missing in v1.0.3,
+// causing "Class does not exist" ReflectionException on `php artisan route:list`.
+test('all API route controller classes exist', function () {
+    expect(class_exists(LicenseController::class))->toBeTrue();
+    expect(class_exists(TokenController::class))->toBeTrue();
+    expect(class_exists(UsageController::class))->toBeTrue();
+    expect(class_exists(HealthController::class))->toBeTrue();
+});
+
+test('route:list does not throw when API routes are enabled', function () {
+    $exitCode = Artisan::call('route:list');
+
+    expect($exitCode)->toBe(0);
 });
