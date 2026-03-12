@@ -2,6 +2,29 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 1.1.0 - 2026-03-12
+
+### What's Changed
+
+#### 🔐 Security Improvements
+
+- **Stronger KDF**: Replaced single-round SHA-256 key derivation with `sodium_crypto_pwhash` (Argon2id, INTERACTIVE cost) for private key encryption, providing strong brute-force resistance
+- **Versioned encryption format**: New v2 payload format (`0x02 + salt + nonce + ciphertext`) with full backward compatibility for existing v1-encrypted keys — no migration required
+- **Memory cleanup**: Derived encryption keys are now wiped from memory via `sodium_memzero` immediately after use
+
+#### 🔧 Improvements
+
+- **Octane & Queue compatibility**: Cached passphrase is automatically cleared after each request/job via event listeners on `RequestTerminated`, `TaskTerminated` (Octane) and `JobProcessed`, `JobFailed`, `WorkerStopping` (Queue)
+
+#### 📚 Documentation
+
+- Updated security architecture docs with v2 encryption format details
+- Added Octane/Queue compatibility notes to key management docs
+
+### Full Changelog
+
+https://github.com/masterix21/laravel-licensing/compare/1.0.4...1.1.0
+
 ## 1.0.4 - 2026-03-10
 
 ### What's Changed
