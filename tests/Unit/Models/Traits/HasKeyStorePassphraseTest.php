@@ -9,6 +9,7 @@
 // Fix: config/licensing.php now stores `passphrase => env('LICENSING_KEY_PASSPHRASE')` so the
 // value is resolved once at cache time, and resolvePassphrase() reads only from config().
 
+use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Models\LicensingKey;
 
@@ -83,7 +84,7 @@ test('decrypt v1 legacy format for backward compatibility', function () {
     $key->algorithm = 'Ed25519';
     $key->public_key = base64_encode(random_bytes(32));
     $key->private_key_encrypted = $v1Payload;
-    $key->status = \LucaLongo\Licensing\Enums\KeyStatus::Active;
+    $key->status = KeyStatus::Active;
     $key->valid_from = now();
     $key->save();
 
