@@ -34,6 +34,8 @@ use LucaLongo\Licensing\Services\UsageRegistrarService;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
+use function class_exists;
+
 class LicensingServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
@@ -77,6 +79,7 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->registerTokenService();
         $this->registerLicensing();
         $this->registerObservers();
+        $this->registerPassphraseCleanup();
     }
 
     protected function registerServices(): void
@@ -133,6 +136,24 @@ class LicensingServiceProvider extends PackageServiceProvider
             $app->make(TokenVerifier::class)
         )
         );
+    }
+
+    protected function registerPassphraseCleanup(): void
+    {
+        $cleanup = static function () {
+            LicensingKey::forgetCachedPassphrase();
+        };
+
+        // Octane: clear passphrase after each request
+        if (class_exists(\Laravel\Octane\Events\RequestTerminated::class)) {
+            $this->app['events']->listen(\Laravel\Octane\Events\RequestTerminated::class, $cleanup);
+            $this->app['events']->listen(\Laravel\Octane\Events\TaskTerminated::class, $cleanup);
+        }
+
+        // Queue: clear passphrase when worker stops
+        $this->app['events']->listen(\Illuminate\Queue\Events\WorkerStopping::class, $cleanup);
+        $this->app['events']->listen(\Illuminate\Queue\Events\JobProcessed::class, $cleanup);
+        $this->app['events']->listen(\Illuminate\Queue\Events\JobFailed::class, $cleanup);
     }
 
     protected function registerObservers(): void

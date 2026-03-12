@@ -34,73 +34,27 @@ License Tokens (Client-side)
 
 ### Key Generation
 
-```php
-use LucaLongo\Licensing\Models\LicensingKey;
+Keys are generated using Ed25519 via PASETO v4. The private key is encrypted at rest using `sodium_crypto_pwhash` for key derivation (Argon2id under the hood), providing strong brute-force resistance.
 
-class SecureKeyGenerator
-{
-    /**
-     * Generate cryptographically secure root key
-     */
-    public function generateRootKey(): LicensingKey
-    {
-        // Use Sodium for Ed25519 key generation
-        $keypair = sodium_crypto_sign_keypair();
-        
-        $privateKey = sodium_crypto_sign_secretkey($keypair);
-        $publicKey = sodium_crypto_sign_publickey($keypair);
-        
-        // Encrypt private key with passphrase
-        $passphrase = $this->getPassphrase();
-        $encryptedPrivate = $this->encryptPrivateKey($privateKey, $passphrase);
-        
-        // Store with secure permissions
-        return LicensingKey::create([
-            'kid' => 'root-' . bin2hex(random_bytes(8)),
-            'type' => KeyType::Root,
-            'algorithm' => 'Ed25519',
-            'public_key' => base64_encode($publicKey),
-            'private_key' => $encryptedPrivate,
-            'status' => KeyStatus::Active,
-            'valid_from' => now(),
-            'valid_until' => now()->addYears(10),
-        ]);
-    }
-    
-    /**
-     * Encrypt private key with AES-256-GCM
-     */
-    private function encryptPrivateKey(string $privateKey, string $passphrase): string
-    {
-        $salt = random_bytes(16);
-        $key = hash_pbkdf2('sha256', $passphrase, $salt, 100000, 32, true);
-        $nonce = random_bytes(12);
-        
-        $encrypted = sodium_crypto_aead_aes256gcm_encrypt(
-            $privateKey,
-            '',  // Additional data
-            $nonce,
-            $key
-        );
-        
-        return base64_encode($salt . $nonce . $encrypted);
-    }
-    
-    /**
-     * Get passphrase from secure source
-     */
-    private function getPassphrase(): string
-    {
-        $passphrase = env('LICENSING_KEY_PASSPHRASE');
-        
-        if (empty($passphrase) || strlen($passphrase) < 32) {
-            throw new \Exception('Passphrase must be at least 32 characters');
-        }
-        
-        return $passphrase;
-    }
-}
-```
+### Private Key Encryption (v2 format)
+
+Since v1.1, private keys are encrypted using a two-step process:
+
+1. **Key derivation**: `sodium_crypto_pwhash` with a random 16-byte salt and `INTERACTIVE` cost parameters (Argon2id)
+2. **Encryption**: `sodium_crypto_secretbox` (XSalsa20-Poly1305) with a random nonce
+
+The encrypted payload format is: `base64(0x02 + salt + nonce + ciphertext)`
+
+The leading `0x02` version byte distinguishes v2 payloads from the legacy v1 format (SHA-256 single-round KDF). Existing v1-encrypted keys are automatically decrypted using the legacy path — no migration required.
+
+Derived keys are wiped from memory via `sodium_memzero` immediately after use.
+
+### Octane & Queue Compatibility
+
+In long-running processes (Laravel Octane, queue workers), the cached passphrase is automatically cleared after each request/job via event listeners on:
+
+- `RequestTerminated` / `TaskTerminated` (Octane)
+- `JobProcessed` / `JobFailed` / `WorkerStopping` (Queue)
 
 ### Activation Key Security
 

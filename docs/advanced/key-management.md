@@ -112,7 +112,9 @@ class RotateSigningKeysJob implements ShouldQueue
 }
 ```
 
-> Tip: Configure the passphrase once in `config/licensing.php` (`licensing.crypto.keystore.passphrase` or `passphrase_env`). The framework caches the resolved value for the request lifecycle so repeated encrypt/decrypt operations avoid additional environment lookups.
+> **Tip:** Configure the passphrase once in `config/licensing.php` (`licensing.crypto.keystore.passphrase` or `passphrase_env`). The framework caches the resolved value for the request lifecycle so repeated encrypt/decrypt operations avoid additional environment lookups.
+
+> **Security note (v1.1+):** Private keys are now encrypted using `sodium_crypto_pwhash` (Argon2id) with a dedicated salt, replacing the previous SHA-256 single-round KDF. Existing keys encrypted with the v1 format are transparently decryptable — no migration is needed. In long-running environments (Octane, queue workers), the passphrase cache is automatically cleared after each request or job to prevent stale secrets in memory.
 
 ### Emergency Rotation
 

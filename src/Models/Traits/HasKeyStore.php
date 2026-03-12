@@ -12,6 +12,8 @@ trait HasKeyStore
 {
     protected static ?string $cachedPassphrase = null;
 
+    private const ENCRYPTION_VERSION_V2 = "\x02";
+
     public function generate(array $options = []): self
     {
         $type = $options['type'] ?? KeyType::Signing;
@@ -92,11 +94,23 @@ trait HasKeyStore
     {
         $passphrase = $this->resolvePassphrase();
 
-        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
-        $key = hash('sha256', $passphrase, true);
-        $encrypted = sodium_crypto_secretbox($privateKey, $nonce, $key);
+        $salt = random_bytes(SODIUM_CRYPTO_PWHASH_SALTBYTES);
+        $key = sodium_crypto_pwhash(
+            32,
+            $passphrase,
+            $salt,
+            SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE,
+            SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE
+        );
 
-        return base64_encode($nonce.$encrypted);
+        try {
+            $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+            $encrypted = sodium_crypto_secretbox($privateKey, $nonce, $key);
+
+            return base64_encode(self::ENCRYPTION_VERSION_V2.$salt.$nonce.$encrypted);
+        } finally {
+            sodium_memzero($key);
+        }
     }
 
     protected function decryptPrivateKey(string $encryptedKey): string
@@ -104,17 +118,62 @@ trait HasKeyStore
         $passphrase = $this->resolvePassphrase();
 
         $decoded = base64_decode($encryptedKey);
+        $versionByte = $decoded[0];
+
+        if ($versionByte === self::ENCRYPTION_VERSION_V2) {
+            return $this->decryptV2($decoded, $passphrase);
+        }
+
+        return $this->decryptV1Legacy($decoded, $passphrase);
+    }
+
+    private function decryptV2(string $decoded, string $passphrase): string
+    {
+        $offset = 1; // skip version byte
+        $salt = substr($decoded, $offset, SODIUM_CRYPTO_PWHASH_SALTBYTES);
+        $offset += SODIUM_CRYPTO_PWHASH_SALTBYTES;
+        $nonce = substr($decoded, $offset, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $offset += SODIUM_CRYPTO_SECRETBOX_NONCEBYTES;
+        $ciphertext = substr($decoded, $offset);
+
+        $key = sodium_crypto_pwhash(
+            32,
+            $passphrase,
+            $salt,
+            SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE,
+            SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE
+        );
+
+        try {
+            $decrypted = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
+
+            if ($decrypted === false) {
+                throw new \RuntimeException('Failed to decrypt private key');
+            }
+
+            return $decrypted;
+        } finally {
+            sodium_memzero($key);
+        }
+    }
+
+    private function decryptV1Legacy(string $decoded, string $passphrase): string
+    {
         $nonce = substr($decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $ciphertext = substr($decoded, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $key = hash('sha256', $passphrase, true);
 
-        $decrypted = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
+        try {
+            $decrypted = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
 
-        if ($decrypted === false) {
-            throw new \RuntimeException('Failed to decrypt private key');
+            if ($decrypted === false) {
+                throw new \RuntimeException('Failed to decrypt private key');
+            }
+
+            return $decrypted;
+        } finally {
+            sodium_memzero($key);
         }
-
-        return $decrypted;
     }
 
     protected function resolvePassphrase(): string
