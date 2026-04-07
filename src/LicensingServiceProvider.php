@@ -2,9 +2,11 @@
 
 namespace LucaLongo\Licensing;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\WorkerStopping;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Octane\Events\RequestTerminated;
 use Laravel\Octane\Events\TaskTerminated;
 use LucaLongo\Licensing\Commands\ExportKeysCommand;
@@ -36,8 +38,6 @@ use LucaLongo\Licensing\Services\CertificateAuthorityService;
 use LucaLongo\Licensing\Services\FingerprintResolverService;
 use LucaLongo\Licensing\Services\TemplateService;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 

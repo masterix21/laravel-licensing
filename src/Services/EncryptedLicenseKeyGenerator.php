@@ -2,7 +2,6 @@
 
 namespace LucaLongo\Licensing\Services;
 
-use Illuminate\Support\Str;
 use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
 use LucaLongo\Licensing\Models\License;
 
