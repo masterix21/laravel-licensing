@@ -4,64 +4,54 @@
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/masterix21/laravel-licensing/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/masterix21/laravel-licensing/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/masterix21/laravel-licensing.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing)
 
-Enterprise-grade license management for Laravel applications with offline verification, seat-based licensing, cryptographic security, and multi-product support through License Scopes.
+A licensing package for Laravel with offline verification, seat management, cryptographic key rotation, and multi-product support.
+
+## Features
+
+- **Offline verification** — PASETO v4 tokens signed with Ed25519, verifiable without a server connection
+- **Seat-based licensing** — control how many devices, users, or instances can use a license
+- **Full lifecycle management** — activation, renewal, grace periods, expiration, suspension
+- **Multi-product scopes** — isolate signing keys per product so a compromise doesn't spread
+- **Two-level key hierarchy** — root CA signs short-lived signing keys; rotate without breaking clients
+- **Audit trail** — append-only log of every license, usage, and key event
+- **Polymorphic assignment** — attach a license to any Eloquent model
+- **Flexible key management** — auto-generation, custom keys, encrypted storage with optional retrieval
+
+## Requirements
+
+- PHP 8.3+
+- Laravel 12 or 13
+- `ext-openssl` and `ext-sodium`
 
 ## Installation
-
-Install the package via Composer:
 
 ```bash
 composer require masterix21/laravel-licensing
 ```
 
-Publish the configuration and migrations:
+Publish config and migrations, then migrate:
 
 ```bash
 php artisan vendor:publish --provider="LucaLongo\Licensing\LicensingServiceProvider"
-```
-
-Run the migrations:
-
-```bash
 php artisan migrate
 ```
 
-Generate your root certificate authority key:
+Generate your root key and first signing key:
 
 ```bash
 php artisan licensing:keys:make-root
-```
-
-> **Passphrase required**: The command encrypts keys using a passphrase stored in the `LICENSING_KEY_PASSPHRASE` environment variable (configurable via `licensing.crypto.keystore.passphrase_env`). If the variable is missing, the command will now prompt you to create one unless you run it with `--silent`/`--no-interaction`. Set it ahead of time (for example `export LICENSING_KEY_PASSPHRASE="your-strong-passphrase"`) to enable non-interactive automation.
-
-Issue your first signing key:
-
-```bash
 php artisan licensing:keys:issue-signing --kid signing-key-1
 ```
 
-## Key Features
-
-- **🔐 Offline Verification**: PASETO v4 tokens with Ed25519 signatures
-- **🪑 Seat-Based Licensing**: Control device/user limits per license
-- **🔄 License Lifecycles**: Activation, renewal, grace periods, and expiration
-- **🏢 Multi-Product Support**: License Scopes for product/software isolation
-- **🔑 Two-Level Key Hierarchy**: Root CA → Signing Keys for secure rotation
-- **📊 Comprehensive Audit Trail**: Track all license and usage events
-- **🎯 Flexible Assignment**: Polymorphic relationships for any model
-- **💾 Flexible Key Management**: Auto-generation, custom keys, optional retrieval
-- **🔒 Secure Storage**: Encrypted key storage with configurable retrieval
-- **⚡ High Performance**: Optimized for enterprise workloads
+> The root key is encrypted with the passphrase from the `LICENSING_KEY_PASSPHRASE` env variable. If missing, the command will prompt you to set one (unless running with `--no-interaction`).
 
 ## Quick Start
 
-### 1. Create and activate a license
+### Create and activate a license
 
 ```php
 use LucaLongo\Licensing\Models\License;
-use LucaLongo\Licensing\Models\LicenseScope;
 
-// Method 1: Auto-generate license key
 $license = License::createWithKey([
     'licensable_type' => User::class,
     'licensable_id' => $user->id,
@@ -69,45 +59,27 @@ $license = License::createWithKey([
     'expires_at' => now()->addYear(),
 ]);
 
-// The generated key is available immediately after creation
-$licenseKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
-
-// Method 2: Provide your own license key
-$customKey = 'CUSTOM-KEY-12345';
-$license = License::createWithKey([
-    'licensable_type' => User::class,
-    'licensable_id' => $user->id,
-    'max_usages' => 5,
-    'expires_at' => now()->addYear(),
-], $customKey);
-
-// Method 3: Traditional approach with hash only
-$activationKey = Str::random(32);
-$license = License::create([
-    'key_hash' => License::hashKey($activationKey),
-    'licensable_type' => User::class,
-    'licensable_id' => $user->id,
-    'license_scope_id' => $scope->id ?? null,  // Optional scope
-    'max_usages' => 5,
-    'expires_at' => now()->addYear(),
-]);
+// The plain-text key is available right after creation
+$licenseKey = $license->license_key; // e.g. "LIC-A3F2-B9K1-C4D8-E5H7"
 
 $license->activate();
 ```
 
-### 2. Register a device
+You can also pass your own key as second argument to `createWithKey()`, or use the lower-level `License::create()` with a pre-hashed key via `License::hashKey()`.
+
+### Register a device (seat)
 
 ```php
 use LucaLongo\Licensing\Facades\Licensing;
 
 $usage = Licensing::register(
-    $license, 
-    'device-fingerprint-hash', 
+    $license,
+    'device-fingerprint-hash',
     ['device_name' => 'MacBook Pro']
 );
 ```
 
-### 3. Issue an offline token
+### Issue an offline token
 
 ```php
 $token = Licensing::issueToken($license, $usage, [
@@ -115,7 +87,7 @@ $token = Licensing::issueToken($license, $usage, [
 ]);
 ```
 
-### 4. Verify license
+### Check license status
 
 ```php
 if ($license->isUsable()) {
@@ -124,267 +96,88 @@ if ($license->isUsable()) {
 }
 ```
 
-### 5. Retrieve and manage license keys
+### Key retrieval and regeneration
 
 ```php
-// Retrieve the original license key (if stored encrypted)
-$originalKey = $license->retrieveKey();
-
-// Check if retrieval is available
-if ($license->canRetrieveKey()) {
-    $key = $license->retrieveKey();
-}
-
-// Regenerate a license key
-if ($license->canRegenerateKey()) {
-    $newKey = $license->regenerateKey();
-    // Old key no longer works, new key is returned
-}
-
-// Verify a license key
+$originalKey = $license->retrieveKey();       // if encrypted storage is enabled
+$newKey = $license->regenerateKey();           // old key stops working
 $isValid = $license->verifyKey($providedKey);
-
-// Find license by key
 $license = License::findByKey($licenseKey);
 ```
 
-## License Key Management
+## Multi-Product Scopes
 
-The package provides flexible license key management with three configurable services:
-
-### Configuration
-
-```php
-// config/licensing.php
-
-'services' => [
-    'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
-    'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
-    'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
-],
-
-'key_management' => [
-    'retrieval_enabled' => true,     // Allow retrieving original keys
-    'regeneration_enabled' => true,  // Allow regenerating keys
-    'key_prefix' => 'LIC',          // Prefix for generated keys
-    'key_separator' => '-',         // Separator for key segments
-],
-```
-
-### Custom Key Services
-
-You can implement your own key management services:
-
-```php
-use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
-
-class CustomKeyGenerator implements LicenseKeyGeneratorContract
-{
-    public function generate(?License $license = null): string
-    {
-        // Your custom key generation logic
-        return 'CUSTOM-' . strtoupper(bin2hex(random_bytes(8)));
-    }
-}
-```
-
-Then register it in the config:
-
-```php
-'services' => [
-    'key_generator' => \App\Services\CustomKeyGenerator::class,
-],
-```
-
-### Security Considerations
-
-- **Hashed Storage**: Keys are always stored as salted SHA-256 hashes
-- **Encrypted Retrieval**: Original keys can be stored encrypted (optional)
-- **Regeneration History**: Previous key hashes are maintained for audit
-- **Configurable**: Disable retrieval/regeneration for maximum security
-
-## Multi-Product Licensing with Scopes
-
-License Scopes enable you to manage multiple products/software with isolated signing keys, preventing key compromise in one product from affecting others.
-
-### Create product scopes
+Scopes let you manage multiple products with independent signing keys and rotation schedules.
 
 ```php
 use LucaLongo\Licensing\Models\LicenseScope;
 
-// Create scope for your ERP system
-$erpScope = LicenseScope::create([
+$scope = LicenseScope::create([
     'name' => 'ERP System',
     'slug' => 'erp-system',
     'identifier' => 'com.company.erp',
     'key_rotation_days' => 90,
     'default_max_usages' => 100,
 ]);
-
-// Create scope for your mobile app
-$mobileScope = LicenseScope::create([
-    'name' => 'Mobile App',
-    'slug' => 'mobile-app',
-    'identifier' => 'com.company.mobile',
-    'key_rotation_days' => 30,  // More frequent rotation
-    'default_max_usages' => 3,
-]);
 ```
 
-### Issue scoped signing keys
+Issue a signing key for this scope:
 
 ```bash
-# Issue signing key for ERP system
 php artisan licensing:keys:issue-signing --scope erp-system --kid erp-key-2024
-
-# Issue signing key for mobile app
-php artisan licensing:keys:issue-signing --scope mobile-app --kid mobile-key-2024
 ```
 
-### Create scoped licenses
+When you create a license with a `license_scope_id`, tokens are automatically signed with the scope's key. A compromised key in one scope doesn't affect the others.
+
+## Key Management
+
+Key generation, retrieval, and regeneration are handled by pluggable services:
 
 ```php
-// Create license for ERP system
-$erpLicense = License::create([
-    'key_hash' => License::hashKey($erpActivationKey),
-    'license_scope_id' => $erpScope->id,  // Scoped to ERP
-    'licensable_type' => Company::class,
-    'licensable_id' => $company->id,
-    'max_usages' => 100,
-    'expires_at' => now()->addYear(),
-]);
-
-// Create license for mobile app
-$mobileLicense = License::create([
-    'key_hash' => License::hashKey($mobileActivationKey),
-    'license_scope_id' => $mobileScope->id,  // Scoped to mobile
-    'licensable_type' => User::class,
-    'licensable_id' => $user->id,
-    'max_usages' => 3,
-    'expires_at' => now()->addMonths(6),
-]);
-
-// Tokens are automatically signed with the correct scope-specific key
-$erpToken = Licensing::issueToken($erpLicense, $erpUsage);
-$mobileToken = Licensing::issueToken($mobileLicense, $mobileUsage);
+// config/licensing.php
+'services' => [
+    'key_generator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator::class,
+    'key_retriever' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever::class,
+    'key_regenerator' => \LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator::class,
+],
 ```
 
-### Benefits of License Scopes
-
-- **Key Isolation**: Each product has its own signing keys
-- **Independent Rotation**: Different rotation schedules per product
-- **Blast Radius Limitation**: Key compromise affects only one product
-- **Product-Specific Defaults**: Configure max usages, trial days per scope
-- **Flexible Management**: Programmatic or CLI-based key management
+Implement `LicenseKeyGeneratorContract` (or the retriever/regenerator contracts) to plug in your own logic.
 
 ## Related Packages
 
-### Laravel Licensing Client
-[![Packagist](https://img.shields.io/packagist/v/masterix21/laravel-licensing-client.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing-client)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?style=flat-square&logo=github)](https://github.com/masterix21/laravel-licensing-client)
-
-Client package for Laravel applications that need to validate licenses against a licensing server.
-
-```bash
-composer require masterix21/laravel-licensing-client
-```
-
-**[View on GitHub →](https://github.com/masterix21/laravel-licensing-client)**
-
-Features:
-- Automatic license validation
-- Offline token verification
-- Usage registration and heartbeat
-- Caching for performance
-- Middleware for route protection
-
-### Laravel Licensing Filament Manager
-[![Packagist](https://img.shields.io/packagist/v/masterix21/laravel-licensing-filament-manager.svg?style=flat-square)](https://packagist.org/packages/masterix21/laravel-licensing-filament-manager)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?style=flat-square&logo=github)](https://github.com/masterix21/laravel-licensing-filament-manager)
-
-Complete admin panel for Filament to manage licenses, monitor usage, and handle key rotation.
-
-```bash
-composer require masterix21/laravel-licensing-filament-manager
-```
-
-**[View on GitHub →](https://github.com/masterix21/laravel-licensing-filament-manager)**
-
-Features:
-- License management dashboard
-- Usage analytics and monitoring
-- Key rotation interface
-- Scope management
-- Audit trail viewer
-- Token generation tools
+| Package | Description |
+|---------|-------------|
+| [laravel-licensing-client](https://github.com/masterix21/laravel-licensing-client) | Client package for validating licenses against a server — offline verification, usage registration, route middleware |
+| [laravel-licensing-filament-manager](https://github.com/masterix21/laravel-licensing-filament-manager) | Filament admin panel for license management, usage monitoring, key rotation, and audit trail |
 
 ## Testing
 
-Run the test suite:
-
 ```bash
-composer test
-```
-
-Run tests with coverage:
-
-```bash
-composer test-coverage
-```
-
-Static analysis:
-
-```bash
-composer analyse
+composer test            # run tests
+composer test-coverage   # with coverage
+composer analyse         # static analysis
 ```
 
 ## Documentation
 
-For comprehensive documentation visit the [documentation](docs/README.md).
+Full documentation is available in the [docs](docs/README.md) folder.
 
-### AI Assistant Support
+## Sponsor
 
-This package includes comprehensive guidelines for AI coding assistants. See [AI_GUIDELINES.md](AI_GUIDELINES.md) for:
-- Claude Code integration patterns
-- ChatGPT/Codex usage examples
-- GitHub Copilot autocomplete triggers
-- Junie configuration and patterns
-
-## Requirements
-
-- PHP 8.3+
-- Laravel 12.0+
-- OpenSSL extension
-- Sodium extension (for PASETO tokens and Ed25519 signatures)
-
-## Support This Project
-
-### 💖 Sponsor on GitHub
-
-If you find this package useful and want to support its continued development, please consider sponsoring:
-
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red?style=flat-square)](https://github.com/sponsors/masterix21)
-
-Your sponsorship helps:
-- 🚀 Maintain and improve the package
-- 📚 Keep documentation up-to-date
-- 🐛 Fix bugs and add new features
-- 💬 Provide community support
-- 🔒 Ensure security updates
-
-**[Become a sponsor →](https://github.com/sponsors/masterix21)**
+If this package is useful to you, consider [sponsoring its development](https://github.com/sponsors/masterix21).
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Security
 
-If you discover any security-related issues, please email security@example.com instead of using the issue tracker. All security vulnerabilities will be promptly addressed.
+If you discover a security vulnerability, please email security@example.com instead of using the issue tracker.
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+MIT. See [LICENSE.md](LICENSE.md).
 
 ## Credits
 
