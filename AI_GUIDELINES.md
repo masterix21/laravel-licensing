@@ -13,16 +13,17 @@ This document provides comprehensive guidelines for AI assistants to effectively
 
 ## Overview
 
-Laravel Licensing is an enterprise-grade licensing system for Laravel applications with:
+Laravel Licensing is an enterprise-grade licensing system for Laravel 12/13 (PHP 8.3–8.5) with:
 - **Offline verification** using PASETO v4 tokens
-- **Two-level key hierarchy** (Root CA → Signing Keys)
-- **Seat-based licensing** with usage fingerprints
+- **Two-level key hierarchy** (Root CA → Signing Keys) with cryptographically secure KIDs
+- **Seat-based licensing** with usage fingerprints (max 255 chars, validated on all API inputs)
 - **License Scopes** for multi-product/software key isolation
-- **Trial management** with conversion tracking
+- **Trial management** with HMAC-SHA256 fingerprint hashing and conversion tracking
 - **Template-based licensing** with inheritance and explicit scope linkage (`license_scope_id` on each template; `null` keeps the template global)
 
 Templates can be shared globally or assigned to individual scopes; the `TemplateService` orchestrates retrieval, assignment, and license provisioning while enforcing that a template belongs to at most one scope at a time.
 - **Comprehensive audit logging** with tamper detection
+- **Rate limiting** applied by default on all API endpoints via named middleware
 
 ### Package Namespace
 ```php
@@ -33,10 +34,14 @@ use LucaLongo\Licensing\Services\*;
 ```
 
 ### Key Security Principles
-1. **Never store plain activation keys** - always hash with `License::hashKey()`
-2. **Use constant-time comparison** for key verification
-3. **Private keys are encrypted** with environmental passphrase
+1. **Never store plain activation keys** - always hash with `License::hashKey()` (HMAC-SHA256)
+2. **Use constant-time comparison** for key verification (`hash_equals()`)
+3. **Private keys are encrypted** with Argon2id KDF + XSalsa20-Poly1305
 4. **Tokens are signed, not encrypted** - clients only need public keys
+5. **API errors never expose internals** - generic messages returned, exceptions logged via `report()`
+6. **Rate limiting enforced** on all API endpoints via named middleware
+7. **Fingerprints validated** with `max:255` on all API inputs
+8. **Heartbeat data namespaced** under `client_data` key to prevent meta injection
 
 ---
 
@@ -64,8 +69,8 @@ Key facts:
 use LucaLongo\Licensing\Models\License;
 use Illuminate\Support\Str;
 
-// Generate secure activation key
-$activationKey = Str::random(32); // Store this securely for the customer
+// Generate secure activation key (or use License::createWithKey() for automatic generation)
+$activationKey = strtoupper(bin2hex(random_bytes(16))); // 128-bit entropy
 
 // Create license with hashed key
 $license = License::create([
@@ -209,7 +214,7 @@ $globalTrial = LicenseTemplate::firstOrCreate([
 ```bash
 # Claude Code should suggest CLI commands for key management
 php artisan licensing:keys:make-root
-php artisan licensing:keys:issue-signing --kid signing-2024-q1
+php artisan licensing:keys:issue-signing --kid my-custom-kid   # Or omit --kid for auto-generated secure hex ID
 php artisan licensing:keys:issue-signing --scope erp-system  # Scoped key
 php artisan licensing:keys:rotate --reason routine
 php artisan licensing:keys:export --format json --include-chain
@@ -629,7 +634,7 @@ class Subscription extends Model
 
     public function createLicense(array $features = [])
     {
-        $activationKey = Str::random(32);
+        $activationKey = strtoupper(bin2hex(random_bytes(16)));
 
         $license = License::create([
             'key_hash' => License::hashKey($activationKey),
@@ -685,8 +690,7 @@ Route::post('/api/licenses/activate', function (Request $request) {
 
     } catch (MaxUsagesExceededException $e) {
         return response()->json([
-            'error' => 'Device limit reached',
-            'max_devices' => $license->max_usages
+            'error' => 'Device limit reached'
         ], 403);
     }
 });
@@ -774,7 +778,7 @@ class ProductSuiteSetup
     {
         $scope = LicenseScope::where('slug', $productSlug)->firstOrFail();
 
-        $activationKey = Str::random(32);
+        $activationKey = strtoupper(bin2hex(random_bytes(16)));
 
         return License::create([
             'key_hash' => License::hashKey($activationKey),
@@ -1178,10 +1182,16 @@ $license = $templates->createLicenseForScope($scope, $template->slug, [
 ```
 
 ### Security Checklist
-- ✅ Always hash activation keys with `License::hashKey()`
+- ✅ Always hash activation keys with `License::hashKey()` (HMAC-SHA256)
 - ✅ Use `hash_equals()` for timing-safe comparisons
-- ✅ Store private keys encrypted with passphrase
-- ✅ Implement rate limiting on validation endpoints
+- ✅ Generate keys with `random_bytes()` — never `Str::random()` or `uniqid()`
+- ✅ Store private keys encrypted with Argon2id KDF
+- ✅ Rate limiting applied by default via named middleware on all API routes
+- ✅ API error responses sanitized — no internal exception details exposed
+- ✅ Health endpoint returns only `status: ok/error` — no key details
+- ✅ Fingerprint inputs validated with `max:255`
+- ✅ Heartbeat client data namespaced under `meta.client_data`
+- ✅ Trial fingerprints hashed with HMAC-SHA256 (legacy SHA256 fallback)
 - ✅ Use database transactions for critical operations
 - ✅ Enable audit logging for compliance
 - ✅ Rotate signing keys regularly (30-90 days)
@@ -1197,7 +1207,8 @@ $license = $templates->createLicenseForScope($scope, $template->slug, [
 - **API Reference**: `/docs/api/`
 - **Security Guide**: `/docs/advanced/security.md`
 - **Examples**: `/docs/examples/`
-- **Tests**: `/tests/` (180+ test cases)
+- **Tests**: `/tests/` (249+ test cases)
+- **Upgrade Guide**: `UPGRADE.md`
 
 For AI-specific questions, refer to the appropriate section above or consult the comprehensive documentation in the `/docs` directory.
 

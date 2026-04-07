@@ -10,11 +10,14 @@
 ---
 
 ## Project overview
-Licensing package for Laravel with:
+Licensing package for Laravel 12/13 (PHP 8.3–8.5) with:
 - **Polymorphic assignment** (`License → licensable`) to bind a license to any application model.
-- **Activation keys**, **expirations/renewals**, and seat control via **LicenseUsage** (usage = one seat).
+- **Activation keys** (128-bit entropy, hex format), **expirations/renewals**, and seat control via **LicenseUsage** (usage = one seat).
 - **Offline verification** using public-key–signed tokens and a **two-level key hierarchy** (**root → signing**) for safe rotation & compromise handling.
-- **Out of scope for v1**: multi-tenant isolation, billing/invoicing, advanced entitlement management (hook points only).
+- **License Scopes** for multi-product/software key isolation.
+- **Trial management** with HMAC-SHA256 fingerprint hashing and conversion tracking.
+- **Template-based licensing** with scope linkage.
+- **Out of scope**: multi-tenant isolation, billing/invoicing, advanced entitlement management (hook points only).
 
 ---
 
@@ -90,16 +93,23 @@ All timestamps stored in **UTC**.
 ---
 
 ## Security requirements
-- Activation keys: store **salted hash** only; constant-time comparisons; human-readable format allowed (chunks+checksum).
+- Activation keys: store **HMAC-SHA256 hash** only; constant-time comparisons; 128-bit entropy keys generated with `random_bytes()`.
+- License key format: `PREFIX-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX` (8 hex chars per segment).
 - Offline tokens: signed only; client holds **public** material; no private keys client-side.
 - Two-level hierarchy:
   - **Root (pub/priv)** = trust anchor, **never** signs tokens; used to sign **signing-key certificates**.
   - **Signing key (pub/priv)** = signs offline tokens; short-lived; includes `kid`; distributed with a **chain** up to root.
+  - KIDs generated with `bin2hex(random_bytes(16))` — cryptographically unpredictable.
 - Rotation & compromise:
   - New signing key issued; old marked **revoked**; tokens switch to new `kid`.
   - Clients validating with **root public** continue to work offline (chain validates).
-- Rate limit online endpoints by `license_key` and `usage_fingerprint`.
+- Rate limiting: applied via named middleware (`licensing-validate`, `licensing-register`, `licensing-token`) on all API routes.
 - Concurrency: enforce `max_usages` via **pessimistic locks** during registration.
+- API error sanitization: internal exception messages never exposed to clients; errors logged server-side via `report()`.
+- Health endpoint: returns only `status: ok/error` per check — no KID, validity dates, or error details exposed.
+- Fingerprint validation: `max:255` enforced on all API inputs.
+- Trial fingerprints: stored as **HMAC-SHA256** (with `app.key`); legacy SHA256 fallback for backward compatibility.
+- Heartbeat metadata: client-provided data namespaced under `client_data` key to prevent meta injection.
 - Privacy: `ip`/`user_agent` optional; retention window configurable; avoid PII in fingerprints.
 - Clock skew tolerance ±60s in token validation.
 - Audit trail: append-only records for key lifecycle, license state changes, usage events.
@@ -107,10 +117,10 @@ All timestamps stored in **UTC**.
 ---
 
 ## Fingerprint & usage policy
-- `usage_fingerprint` must be **stable**, **repeatable**, and **non-PII** (e.g., hashed tuple of hardware/app traits).
+- `usage_fingerprint` must be **stable**, **repeatable**, **non-PII**, and **max 255 characters**.
 - Default uniqueness: **per license**; allow **global** uniqueness via config.
 - Over-limit default: **reject**; optional **auto_replace_oldest** (revokes the least recent active usage).
-- Heartbeat updates `last_seen_at`; optional auto-revoke after prolonged inactivity.
+- Heartbeat updates `last_seen_at`; client data stored under `meta.client_data` (not merged at root); optional auto-revoke after prolonged inactivity.
 
 ---
 
@@ -143,11 +153,16 @@ All timestamps stored in **UTC**.
 ---
 
 ## API surface (optional, versioned `/api/licensing/v1`)
-- `POST /validate` → online license check; returns status, remaining days, usage policy.
-- `POST /token` → issues/refreshes offline token (requires valid license & usage).
-- `GET /jwks.json` → public keys (for JWS mode).
-- `POST /licenses/{id}/usages:register|heartbeat|revoke|replace` → manage usages.
-- Errors: JSON with `code`, `type`, `message`, `hint`, `retry_after?`.
+All endpoints rate-limited via named middleware. Error responses never expose internal exception details.
+- `POST /activate` → activate license + register usage; returns token if offline enabled. Middleware: `throttle:licensing-register`.
+- `POST /deactivate` → revoke usage. Middleware: `throttle:licensing-register`.
+- `POST /refresh` → refresh offline token for active usage. Middleware: `throttle:licensing-token`.
+- `POST /validate` → online license + fingerprint check. Middleware: `throttle:licensing-validate`.
+- `POST /heartbeat` → update usage `last_seen_at` + client metadata. Middleware: `throttle:licensing-validate`.
+- `POST /licenses/show` → license details (requires `license_key` + `fingerprint`). Middleware: `throttle:licensing-validate`.
+- `POST /token` → issue offline token. Middleware: `throttle:licensing-token`.
+- `GET /health` → system health (returns only `status: ok/error` per check, no sensitive details).
+- Errors: JSON with `code`, `message`. Generic messages for 500s; specific codes for business errors (`INVALID_KEY`, `USAGE_LIMIT_REACHED`, etc.).
 
 ---
 
@@ -205,12 +220,13 @@ All timestamps stored in **UTC**.
 
 ---
 
-## Deliverables (v1)
+## Deliverables (v2)
 - Overridable models, migrations, and policies per specs.
 - CLI for key lifecycle and offline token issuance.
-- Optional API endpoints; middleware & rate limiters.
-- Documentation: security model, rotation procedure, offline usage, config reference.
-- Test suite covering security and lifecycle.
+- Optional API endpoints with rate limiting middleware applied by default.
+- Documentation: security model, rotation procedure, offline usage, config reference, UPGRADE.md.
+- Test suite: 249+ tests covering security, lifecycle, API, and CLI.
+- Laravel 12/13 support; PHP 8.3–8.5; CI matrix on GitHub Actions.
 
 ---
 
