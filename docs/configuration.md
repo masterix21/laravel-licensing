@@ -1,4 +1,4 @@
-# ⚙️ Configuration Guide
+# Configuration Guide
 
 Comprehensive guide to configuring Laravel Licensing for your application.
 
@@ -334,19 +334,19 @@ Configure offline token generation and validation:
 ```php
 'format' => 'paseto',
 ```
-- ✅ Purpose-built for tokens
-- ✅ Simpler, more secure by default
-- ✅ No algorithm confusion attacks
-- ✅ Smaller token size
+- Purpose-built for tokens
+- Simpler, more secure by default
+- No algorithm confusion attacks
+- Smaller token size
 
 #### JWS (JWT Compatible)
 ```php
 'format' => 'jws',
 ```
-- ✅ Wide library support
-- ✅ Industry standard
-- ⚠️ Requires careful configuration
-- ⚠️ Larger token size
+- Wide library support
+- Industry standard
+- Requires careful configuration
+- Larger token size
 
 ## Cryptographic Configuration
 

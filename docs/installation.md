@@ -1,13 +1,9 @@
-# 📦 Installation Guide
-
-Complete installation and setup instructions for Laravel Licensing.
+# Installation
 
 ## Requirements
 
-Before installing, ensure your environment meets these requirements:
-
-- **PHP** 8.1 or higher
-- **Laravel** 10.0 or higher
+- **PHP** 8.3 or higher
+- **Laravel** 12 or 13
 - **Database** MySQL 8.0+ / PostgreSQL 12+ / SQLite 3.8.8+
 - **Extensions**:
   - OpenSSL (for cryptographic operations)
@@ -20,7 +16,7 @@ Before installing, ensure your environment meets these requirements:
 ### 1. Install via Composer
 
 ```bash
-composer require lucalongo/laravel-licensing
+composer require masterix21/laravel-licensing
 ```
 
 ### 2. Publish Resources
@@ -103,7 +99,7 @@ Generate the root key pair (required for offline verification):
 php artisan licensing:keys:make-root
 ```
 
-⚠️ **Important**: This creates your root certificate authority. Back up the generated keys securely!
+**Important**: This creates your root certificate authority. Back up the generated keys securely.
 
 Generate your first signing key:
 
@@ -197,11 +193,11 @@ php artisan licensing:check
 ```
 
 This verifies:
-- ✅ Tables created correctly
-- ✅ Configuration loaded
-- ✅ Root key exists
-- ✅ Signing key is active
-- ✅ Permissions are correct
+- Tables created correctly
+- Configuration loaded
+- Root key exists
+- Signing key is active
+- Permissions are correct
 
 ### 2. Create Test License
 
@@ -218,7 +214,7 @@ $license = License::create([
 ]);
 
 if ($license->exists) {
-    echo "✅ Installation successful!";
+    echo "Installation successful.";
 }
 ```
 
@@ -356,7 +352,7 @@ aws s3 sync $BACKUP_DIR s3://backups/licensing/
 1. **Backup everything** before upgrading
 2. Update composer dependency:
    ```bash
-   composer require lucalongo/laravel-licensing:^2.0
+   composer require masterix21/laravel-licensing:^2.0
    ```
 3. Publish and run new migrations:
    ```bash
@@ -403,7 +399,7 @@ Error: Call to undefined function sodium_crypto_sign_keypair()
 **Solution**: Install the Sodium PHP extension:
 ```bash
 # Ubuntu/Debian
-sudo apt-get install php8.1-sodium
+sudo apt-get install php8.3-sodium
 
 # macOS with Homebrew
 brew install libsodium

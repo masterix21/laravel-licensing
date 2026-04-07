@@ -1,4 +1,4 @@
-# 🔧 Troubleshooting Guide
+# Troubleshooting Guide
 
 Comprehensive troubleshooting guide for common issues and their solutions.
 

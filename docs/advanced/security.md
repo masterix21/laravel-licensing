@@ -1,4 +1,4 @@
-# 🔒 Security Architecture
+# Security Architecture
 
 Comprehensive security guide for Laravel Licensing implementation.
 

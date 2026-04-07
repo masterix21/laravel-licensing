@@ -1,4 +1,4 @@
-# 📱 Client Library Architecture
+# Client Library Architecture
 
 This guide outlines the architectural principles and design patterns for building client libraries that integrate with Laravel Licensing in various programming languages.
 

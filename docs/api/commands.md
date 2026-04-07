@@ -370,14 +370,14 @@ php artisan licensing:health-check --format=json
 ```
 Laravel Licensing System Health Check
 
-✓ Database connectivity
-✓ Required tables exist
-✓ Root key present and valid
-✓ Active signing key available
-✓ Key permissions correct
-✓ Configuration valid
-⚠ 3 licenses expiring within 7 days
-✓ No revoked keys in use
+[OK] Database connectivity
+[OK] Required tables exist
+[OK] Root key present and valid
+[OK] Active signing key available
+[OK] Key permissions correct
+[OK] Configuration valid
+[WARN] 3 licenses expiring within 7 days
+[OK] No revoked keys in use
 
 Overall Status: HEALTHY (1 warning)
 ```

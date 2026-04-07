@@ -1,4 +1,4 @@
-# 🎯 Basic Usage
+# Basic Usage
 
 Learn the fundamental operations of Laravel Licensing with practical examples.
 
@@ -555,7 +555,7 @@ if ($license->hasFeature('advanced_analytics')) {
 $features = $license->getFeatures();
 foreach ($features as $feature => $enabled) {
     if ($enabled) {
-        echo "✓ {$feature}";
+        echo "[x] {$feature}";
     }
 }
 

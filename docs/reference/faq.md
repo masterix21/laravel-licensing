@@ -1,4 +1,4 @@
-# ❓ Frequently Asked Questions
+# Frequently Asked Questions
 
 Answers to common questions about Laravel Licensing.
 
@@ -47,8 +47,8 @@ Yes. The package includes:
 
 ### What are the system requirements?
 
-- **PHP**: 8.1 or higher
-- **Laravel**: 10.0 or higher
+- **PHP**: 8.3 or higher
+- **Laravel**: 12/13
 - **Database**: MySQL 8.0+, PostgreSQL 12+, or SQLite
 - **Extensions**: OpenSSL, Sodium (for PASETO)
 - **Optional**: Redis for caching

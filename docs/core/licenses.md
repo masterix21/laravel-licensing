@@ -1,4 +1,4 @@
-# 📜 Core Concepts - Licenses
+# Core Concepts - Licenses
 
 Deep dive into the license model and its lifecycle management.
 

@@ -1,4 +1,4 @@
-# 💻 Practical Examples
+# Practical Examples
 
 Real-world implementation examples for common licensing scenarios.
 

@@ -1,4 +1,4 @@
-# 💺 Core Concepts - Usage & Seats
+# Core Concepts - Usage & Seats
 
 Complete guide to managing license usage, device registration, and seat allocation.
 
