@@ -36,6 +36,8 @@ use LucaLongo\Licensing\Services\CertificateAuthorityService;
 use LucaLongo\Licensing\Services\FingerprintResolverService;
 use LucaLongo\Licensing\Services\TemplateService;
 use LucaLongo\Licensing\Services\UsageRegistrarService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -85,6 +87,11 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->registerLicensing();
         $this->registerObservers();
         $this->registerPassphraseCleanup();
+    }
+
+    public function packageBooted(): void
+    {
+        $this->registerRateLimiters();
     }
 
     protected function registerServices(): void
@@ -159,6 +166,24 @@ class LicensingServiceProvider extends PackageServiceProvider
         $this->app['events']->listen(WorkerStopping::class, $cleanup);
         $this->app['events']->listen(JobProcessed::class, $cleanup);
         $this->app['events']->listen(JobFailed::class, $cleanup);
+    }
+
+    protected function registerRateLimiters(): void
+    {
+        RateLimiter::for('licensing-validate', function ($request) {
+            return Limit::perMinute(config('licensing.rate_limit.validate_per_minute', 60))
+                ->by($request->ip());
+        });
+
+        RateLimiter::for('licensing-register', function ($request) {
+            return Limit::perMinute(config('licensing.rate_limit.register_per_minute', 30))
+                ->by($request->ip());
+        });
+
+        RateLimiter::for('licensing-token', function ($request) {
+            return Limit::perMinute(config('licensing.rate_limit.token_per_minute', 20))
+                ->by($request->ip());
+        });
     }
 
     protected function registerObservers(): void

@@ -384,9 +384,12 @@ class HeartbeatService
      */
     public function heartbeat(LicenseUsage $usage, array $metadata = []): void
     {
+        $currentMeta = $usage->meta ?? [];
+        $currentMeta['client_data'] = $metadata;
+
         $usage->update([
             'last_seen_at' => now(),
-            'meta' => array_merge($usage->meta ?? [], $metadata),
+            'meta' => $currentMeta,
         ]);
         
         // Check if was stale

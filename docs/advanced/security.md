@@ -137,14 +137,13 @@ class LicenseActivationRequest extends FormRequest
             'activation_key' => [
                 'required',
                 'string',
-                'regex:/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/',
+                'regex:/^[A-Z]+-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/',
                 new ValidActivationKey(),
             ],
             'device_fingerprint' => [
                 'required',
                 'string',
-                'size:64', // SHA256 hash
-                'regex:/^[a-f0-9]{64}$/i',
+                'max:255',
             ],
             'device_name' => [
                 'required',

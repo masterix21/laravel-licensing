@@ -34,7 +34,7 @@ $license = License::createWithKey([
 ]);
 
 // Get the generated key immediately
-$activationKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+$activationKey = $license->license_key; // e.g., "LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4"
 
 // Give the activation key to your customer
 echo "Activation Key: {$activationKey}";
@@ -67,8 +67,8 @@ echo "Enterprise Key: {$customKey}";
 use Illuminate\Support\Str;
 
 // Traditional hash-only approach for maximum security
-$activationKey = strtoupper(Str::random(20));
-$formattedKey = implode('-', str_split($activationKey, 4)); // XXXX-XXXX-XXXX-XXXX-XXXX
+$activationKey = strtoupper(bin2hex(random_bytes(16)));
+$formattedKey = implode('-', str_split($activationKey, 8)); // XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX
 
 $license = License::create([
     'key_hash' => License::hashKey($activationKey),
@@ -365,7 +365,7 @@ if ($license->canRegenerateKey()) {
 }
 
 // Verify a provided key
-$userInputKey = 'LIC-A3F2-B9K1-C4D8-E5H7';
+$userInputKey = 'LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4';
 if ($license->verifyKey($userInputKey)) {
     echo "Valid license key!";
 } else {
@@ -801,11 +801,11 @@ class LicenseKeyGenerator
 {
     public static function generate(): string
     {
-        // Format: XXXX-XXXX-XXXX-XXXX
+        // Format: XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX (128-bit entropy)
         $segments = [];
         
         for ($i = 0; $i < 4; $i++) {
-            $segments[] = strtoupper(Str::random(4));
+            $segments[] = strtoupper(bin2hex(random_bytes(4)));
         }
         
         return implode('-', $segments);

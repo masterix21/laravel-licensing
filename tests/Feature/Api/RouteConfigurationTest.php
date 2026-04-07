@@ -45,7 +45,7 @@ test('license API routes expose expected URIs and middleware', function () {
     expect($heartbeatRoute->uri())->toBe($prefix.'/heartbeat');
 
     $licenseShowRoute = routeByName('licensing.licenses.show');
-    expect($licenseShowRoute->uri())->toBe($prefix.'/licenses/{licenseKey}');
+    expect($licenseShowRoute->uri())->toBe($prefix.'/licenses/show');
 
     $healthRoute = routeByName('licensing.health');
     expect($healthRoute->uri())->toBe($prefix.'/health');

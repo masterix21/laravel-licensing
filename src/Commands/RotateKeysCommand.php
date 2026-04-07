@@ -47,7 +47,7 @@ class RotateKeysCommand extends Command
 
         $this->line('Generating new signing key...');
 
-        $newKid = 'signing-'.uniqid();
+        $newKid = 'signing-'.bin2hex(random_bytes(16));
         $newSigningKey = LicensingKey::generateSigningKey($newKid);
         $newSigningKey->valid_from = now();
         $newSigningKey->valid_until = now()->addDays(30);

@@ -28,7 +28,7 @@ class LicenseController extends ApiController
     {
         $payload = $this->validate($request, [
             'license_key' => ['required', 'string'],
-            'fingerprint' => ['required', 'string'],
+            'fingerprint' => ['required', 'string', 'max:255'],
             'metadata' => ['nullable', 'array'],
         ]);
 
@@ -59,7 +59,9 @@ class LicenseController extends ApiController
             try {
                 $token = $this->licensing->issueToken($license, $usage);
             } catch (\Throwable $exception) {
-                return $this->error('TOKEN_ISSUE_FAILED', $exception->getMessage(), 500);
+                report($exception);
+
+                return $this->error('TOKEN_ISSUE_FAILED', 'An internal error occurred while issuing the token', 500);
             }
         }
 
@@ -70,7 +72,7 @@ class LicenseController extends ApiController
     {
         $payload = $this->validate($request, [
             'license_key' => ['required', 'string'],
-            'fingerprint' => ['required', 'string'],
+            'fingerprint' => ['required', 'string', 'max:255'],
             'reason' => ['nullable', 'string'],
         ]);
 
@@ -97,7 +99,7 @@ class LicenseController extends ApiController
     {
         $payload = $this->validate($request, [
             'license_key' => ['required', 'string'],
-            'fingerprint' => ['required', 'string'],
+            'fingerprint' => ['required', 'string', 'max:255'],
         ]);
 
         $license = $this->findLicense($payload['license_key']);
@@ -124,7 +126,9 @@ class LicenseController extends ApiController
         try {
             $token = $this->licensing->issueToken($license, $usage);
         } catch (\Throwable $exception) {
-            return $this->error('TOKEN_REFRESH_FAILED', $exception->getMessage(), 500);
+            report($exception);
+
+            return $this->error('TOKEN_REFRESH_FAILED', 'An internal error occurred while refreshing the token', 500);
         }
 
         return $this->success($this->buildLicenseResponse($license->fresh(), $usage->fresh(), $token));
@@ -134,7 +138,7 @@ class LicenseController extends ApiController
     {
         $payload = $this->validate($request, [
             'license_key' => ['required', 'string'],
-            'fingerprint' => ['required', 'string'],
+            'fingerprint' => ['required', 'string', 'max:255'],
         ]);
 
         $license = $this->findLicense($payload['license_key']);
@@ -158,12 +162,23 @@ class LicenseController extends ApiController
         ]);
     }
 
-    public function show(string $licenseKey): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $license = $this->findLicense($licenseKey);
+        $payload = $this->validate($request, [
+            'license_key' => ['required', 'string'],
+            'fingerprint' => ['required', 'string', 'max:255'],
+        ]);
+
+        $license = $this->findLicense($payload['license_key']);
 
         if (! $license) {
             return $this->error('INVALID_KEY', 'License key is invalid or not found', 404);
+        }
+
+        $usage = $this->usageRegistrar->findByFingerprint($license, $payload['fingerprint']);
+
+        if (! $usage || ! $usage->isActive()) {
+            return $this->error('FINGERPRINT_MISMATCH', 'Fingerprint does not match an active usage for this license', 403);
         }
 
         return $this->success([
@@ -209,9 +224,9 @@ class LicenseController extends ApiController
         try {
             $claims = $this->tokenVerifier->extractClaims($token);
         } catch (\Throwable $exception) {
-            return [
-                'token_error' => $exception->getMessage(),
-            ];
+            report($exception);
+
+            return [];
         }
 
         $expiresAt = isset($claims['exp']) ? Carbon::parse($claims['exp']) : null;
@@ -322,9 +337,9 @@ class LicenseController extends ApiController
         }
 
         if (str_contains(strtolower($message), 'fingerprint')) {
-            return $this->error('FINGERPRINT_CONFLICT', $message, 409);
+            return $this->error('FINGERPRINT_CONFLICT', 'Fingerprint is already in use', 409);
         }
 
-        return $this->error('USAGE_REGISTRATION_FAILED', $message, 400);
+        return $this->error('USAGE_REGISTRATION_FAILED', 'Failed to register usage', 400);
     }
 }

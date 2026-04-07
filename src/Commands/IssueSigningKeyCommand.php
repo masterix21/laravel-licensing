@@ -34,7 +34,7 @@ class IssueSigningKeyCommand extends Command
             return self::FAILURE;
         }
 
-        $kid = $this->option('kid') ?? 'signing-'.uniqid();
+        $kid = $this->option('kid') ?? 'signing-'.bin2hex(random_bytes(16));
 
         $licenseScope = null;
         if ($scopeOption = $this->option('scope')) {

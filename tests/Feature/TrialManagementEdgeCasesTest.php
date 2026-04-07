@@ -104,13 +104,39 @@ it('handles null values in trial metadata', function () {
 
 it('verifies fingerprint hashing is consistent', function () {
     $plainFingerprint = 'test-device-123';
-    $hashedFingerprint = hash('sha256', $plainFingerprint);
+    $hashedFingerprint = LicenseTrial::hashFingerprint($plainFingerprint);
 
     $trial = $this->trialService->startTrial($this->license, $plainFingerprint);
 
     expect($trial->trial_fingerprint)->toBe($hashedFingerprint)
         ->and($trial->checkFingerprint($plainFingerprint))->toBeTrue()
         ->and($trial->checkFingerprint('wrong-fingerprint'))->toBeFalse();
+});
+
+it('can verify legacy SHA256 fingerprints from older versions', function () {
+    $plainFingerprint = 'legacy-device-456';
+    $legacyHash = hash('sha256', $plainFingerprint);
+
+    // Simulate a trial created with the old SHA256 format
+    $trial = $this->license->trials()->create([
+        'trial_fingerprint' => $legacyHash,
+        'status' => TrialStatus::Active,
+        'started_at' => now(),
+        'expires_at' => now()->addDays(14),
+        'duration_days' => 14,
+    ]);
+
+    // Verification should work via legacy fallback
+    expect($trial->checkFingerprint($plainFingerprint))->toBeTrue()
+        ->and($trial->checkFingerprint('wrong-fingerprint'))->toBeFalse();
+
+    // Lookup should find the legacy trial
+    $found = LicenseTrial::findByFingerprint($plainFingerprint);
+    expect($found)->not->toBeNull()
+        ->and($found->id)->toBe($trial->id);
+
+    // Active check should work
+    expect(LicenseTrial::hasActiveTrialForFingerprint($plainFingerprint))->toBeTrue();
 });
 
 it('handles trial expiration at exact boundary', function () {

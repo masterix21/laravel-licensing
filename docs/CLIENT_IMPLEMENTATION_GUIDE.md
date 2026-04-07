@@ -140,7 +140,7 @@ POST /api/licensing/v1/activate
 Content-Type: application/json
 
 {
-    "license_key": "XXXX-XXXX-XXXX-XXXX",
+    "license_key": "LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4",
     "fingerprint": "sha256_hash",
     "metadata": {
         "client_type": "desktop",

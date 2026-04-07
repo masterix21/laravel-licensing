@@ -110,7 +110,7 @@ $license = License::createWithKey([
 ]);
 
 // The key is available immediately after creation
-$licenseKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+$licenseKey = $license->license_key; // e.g., "LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4"
 
 // Key is automatically:
 // - Generated with configurable format
@@ -255,13 +255,13 @@ $this->app->singleton(
 
 ### Key Format Examples
 
-Default format: `LIC-XXXX-XXXX-XXXX-XXXX`
+Default format: `LIC-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX` (8 hex characters per segment, 128-bit entropy)
 
 ```php
 // Examples of generated keys
-LIC-A3F2-B9K1-C4D8-E5H7
-LIC-9D2E-K8F3-L6A9-M1B4
-LIC-7H5J-N2C8-P9G1-R4E6
+LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4
+LIC-1E4F7A2C-8B3D6E9F-0A5C2D7E-3F8B1A4D
+LIC-7H5J2C8E-9G1R4E6F-B3D8A5C7-1F2E9D4B
 ```
 
 Custom formats:

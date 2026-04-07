@@ -30,9 +30,10 @@ class HealthController extends ApiController
 
             return ['status' => 'ok'];
         } catch (\Throwable $exception) {
+            report($exception);
+
             return [
                 'status' => 'error',
-                'message' => $exception->getMessage(),
             ];
         }
     }
@@ -42,17 +43,10 @@ class HealthController extends ApiController
         $rootKey = LicensingKey::findActiveRoot();
 
         if (! $rootKey) {
-            return [
-                'status' => 'error',
-                'message' => 'No active root key found',
-            ];
+            return ['status' => 'error'];
         }
 
-        return [
-            'status' => 'ok',
-            'kid' => $rootKey->kid,
-            'valid_until' => $rootKey->valid_until?->toIso8601String(),
-        ];
+        return ['status' => 'ok'];
     }
 
     protected function checkSigningKey(): array
@@ -60,16 +54,9 @@ class HealthController extends ApiController
         $signingKey = LicensingKey::findActiveSigning();
 
         if (! $signingKey) {
-            return [
-                'status' => 'error',
-                'message' => 'No active signing key found',
-            ];
+            return ['status' => 'error'];
         }
 
-        return [
-            'status' => 'ok',
-            'kid' => $signingKey->kid,
-            'valid_until' => $signingKey->valid_until?->toIso8601String(),
-        ];
+        return ['status' => 'ok'];
     }
 }

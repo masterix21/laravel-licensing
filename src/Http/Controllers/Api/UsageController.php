@@ -20,7 +20,7 @@ class UsageController extends ApiController
     {
         $payload = $this->validate($request, [
             'license_key' => ['required', 'string'],
-            'fingerprint' => ['required', 'string'],
+            'fingerprint' => ['required', 'string', 'max:255'],
             'data' => ['nullable', 'array'],
         ]);
 
@@ -37,8 +37,9 @@ class UsageController extends ApiController
         $this->licensing->heartbeat($usage);
 
         if (! empty($payload['data'])) {
-            $merged = array_merge((array) ($usage->meta ?? []), $payload['data']);
-            $usage->fill(['meta' => $merged]);
+            $currentMeta = (array) ($usage->meta ?? []);
+            $currentMeta['client_data'] = $payload['data'];
+            $usage->fill(['meta' => $currentMeta]);
             $usage->save();
         }
 

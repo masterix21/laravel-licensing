@@ -145,8 +145,8 @@ Configure in `config/licensing.php`:
 ### How are activation keys stored?
 
 Activation keys are **never** stored in plain text:
-1. Generated key: `XXXX-XXXX-XXXX-XXXX`
-2. Salted hash stored: `SHA256(salt + key)`
+1. Generated key: `LIC-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX` (128-bit entropy)
+2. Salted hash stored: `HMAC-SHA256(key, salt)`
 3. Constant-time comparison during verification
 
 ### What is the two-level key hierarchy?

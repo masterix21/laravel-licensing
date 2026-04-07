@@ -75,9 +75,9 @@ ls -la config/licensing.php
 
 **Diagnosis**:
 ```php
-// Check key format
-$key = 'XXXX-XXXX-XXXX-XXXX';
-$pattern = '/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/';
+// Check key format (default: PREFIX-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX)
+$key = 'LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4';
+$pattern = '/^[A-Z0-9]+-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/';
 
 if (!preg_match($pattern, $key)) {
     echo "Invalid format";

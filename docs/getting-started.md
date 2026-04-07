@@ -60,7 +60,7 @@ $license = License::createWithKey([
 ]);
 
 // Get the generated key immediately
-$activationKey = $license->license_key; // e.g., "LIC-A3F2-B9K1-C4D8-E5H7"
+$activationKey = $license->license_key; // e.g., "LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4"
 
 // Give the activation key to your customer
 echo "Your activation key: {$activationKey}";
@@ -104,7 +104,7 @@ echo "Your activation key: {$activationKey}";
 
 ```php
 // Customer provides their activation key
-$providedKey = 'LIC-A3F2-B9K1-C4D8-E5H7';
+$providedKey = 'LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4';
 
 // Find and activate the license
 $license = License::findByKey($providedKey);
@@ -170,7 +170,7 @@ if ($license->canRegenerateKey()) {
 }
 
 // Verify any provided key
-$userProvidedKey = 'LIC-A3F2-B9K1-C4D8-E5H7';
+$userProvidedKey = 'LIC-A3F2B9K1-C4D8E5H7-9D2EK8F3-L6A9M1B4';
 $isValid = $license->verifyKey($userProvidedKey);
 
 // Find license by UID (alternative to key-based lookup)

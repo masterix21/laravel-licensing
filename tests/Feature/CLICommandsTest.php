@@ -361,6 +361,35 @@ test('handles compromised key rotation', function () {
     expect($signingKey->revocation_reason)->toBe('compromised');
 });
 
+test('auto-generated KID uses cryptographically secure random hex', function () {
+    $this->createRootKey();
+
+    $tester = runCommand(IssueSigningKeyCommand::class);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    preg_match('/Key ID: (signing-[a-f0-9]+)/', $display, $matches);
+
+    expect($matches)->toHaveCount(2)
+        ->and($matches[1])->toMatch('/^signing-[a-f0-9]{32}$/');
+});
+
+test('rotate command generates cryptographically secure KID', function () {
+    $this->createRootKey();
+    $this->createSigningKey();
+
+    $tester = runCommand(RotateKeysCommand::class, ['--reason' => 'routine']);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $display = $tester->getDisplay();
+    preg_match('/Key ID: (signing-[a-f0-9]+)/', $display, $matches);
+
+    expect($matches)->toHaveCount(2)
+        ->and($matches[1])->toMatch('/^signing-[a-f0-9]{32}$/');
+});
+
 test('respects verbose output flag', function () {
     $this->createRootKey();
 

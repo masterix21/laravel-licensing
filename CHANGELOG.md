@@ -2,6 +2,43 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 2.0.0 - 2026-04-07
+
+### What's Changed
+
+See [UPGRADE.md](UPGRADE.md) for migration instructions.
+
+#### Breaking Changes
+
+- **License detail endpoint** changed from `GET /licenses/{licenseKey}` to `POST /licenses/show` requiring `license_key` and `fingerprint` in the request body
+- **Heartbeat metadata** now stored under `client_data` key in usage meta instead of merging at root level
+- **Health endpoint** no longer exposes `kid`, `valid_until`, or database error messages
+
+#### Security Improvements
+
+- **License key entropy**: Increased from ~95-bit to 128-bit using `random_bytes()` instead of `Str::random()`
+- **KID generation**: Replaced predictable `uniqid()` with `bin2hex(random_bytes(16))` for signing key identifiers
+- **API error sanitization**: Internal exception messages no longer leaked to clients; errors are logged server-side via `report()`
+- **Rate limiting**: Applied `throttle` middleware to all API endpoints using configurable limits from `config/licensing.php`
+- **Fingerprint validation**: Added `max:255` length constraint to all API fingerprint inputs
+- **Trial fingerprint hashing**: Upgraded from plain SHA256 to HMAC-SHA256 with automatic legacy fallback for existing trials
+- **Heartbeat meta injection**: Client data namespaced under `client_data` key to prevent overwriting internal metadata
+
+#### Framework Support
+
+- Added Laravel 13 support while maintaining Laravel 12 compatibility
+- Updated `orchestra/testbench` to support `^10.5 || ^11.0`
+- Updated `symfony/uid` to support `^7.0 || ^8.0`
+- Updated `spatie/laravel-sluggable` to support `^3.7 || ^3.8`
+- GitHub Actions CI matrix now tests against both Laravel 12 and 13
+
+#### Documentation
+
+- Updated all key format examples to reflect new 128-bit hex format
+- Added rate limiting section with endpoint/limiter mapping to configuration docs
+- Updated security docs with new validation patterns
+- Added UPGRADE.md with migration guide for breaking changes
+
 ## 1.1.0 - 2026-03-12
 
 ### What's Changed

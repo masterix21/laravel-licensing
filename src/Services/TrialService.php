@@ -26,7 +26,7 @@ class TrialService
         return DB::transaction(function () use ($license, $fingerprint, $durationDays, $limitations, $featureRestrictions) {
             $this->checkTrialEligibility($license, $fingerprint);
 
-            $hashedFingerprint = hash('sha256', $fingerprint);
+            $hashedFingerprint = LicenseTrial::hashFingerprint($fingerprint);
 
             /** @var LicenseTrial $trial */
             $trial = $license->trials()->create([
@@ -49,11 +49,15 @@ class TrialService
 
     public function checkTrialEligibility(License $license, string $fingerprint): void
     {
-        $hashedFingerprint = hash('sha256', $fingerprint);
+        $hmacHash = LicenseTrial::hashFingerprint($fingerprint);
+        $legacyHash = LicenseTrial::legacyHashFingerprint($fingerprint);
 
         // Check if fingerprint has already been used for a trial on this license
         $existingTrial = $license->trials()
-            ->where('trial_fingerprint', $hashedFingerprint)
+            ->where(function ($query) use ($hmacHash, $legacyHash) {
+                $query->where('trial_fingerprint', $hmacHash)
+                    ->orWhere('trial_fingerprint', $legacyHash);
+            })
             ->first();
 
         if ($existingTrial) {
@@ -63,18 +67,21 @@ class TrialService
         }
 
         // Check for trial reset attempts (same fingerprint on different licenses)
-        if ($this->isTrialResetAttempt($hashedFingerprint)) {
+        if ($this->isTrialResetAttempt($hmacHash, $legacyHash)) {
             throw new TrialResetAttemptException(
                 'Trial reset attempt detected for fingerprint'
             );
         }
     }
 
-    protected function isTrialResetAttempt(string $hashedFingerprint): bool
+    protected function isTrialResetAttempt(string $hmacHash, string $legacyHash): bool
     {
         // Check if this fingerprint has been used in any completed/expired trials
-        return LicenseTrial::where('trial_fingerprint', $hashedFingerprint)
-            ->whereIn('status', [TrialStatus::Expired, TrialStatus::Converted, TrialStatus::Cancelled])
+        return LicenseTrial::whereIn('status', [TrialStatus::Expired, TrialStatus::Converted, TrialStatus::Cancelled])
+            ->where(function ($query) use ($hmacHash, $legacyHash) {
+                $query->where('trial_fingerprint', $hmacHash)
+                    ->orWhere('trial_fingerprint', $legacyHash);
+            })
             ->exists();
     }
 

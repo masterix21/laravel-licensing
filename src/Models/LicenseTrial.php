@@ -215,20 +215,39 @@ class LicenseTrial extends Model
         return in_array($feature, $this->feature_restrictions ?? [], true);
     }
 
+    public static function hashFingerprint(string $fingerprint): string
+    {
+        return hash_hmac('sha256', $fingerprint, config('app.key'));
+    }
+
+    public static function legacyHashFingerprint(string $fingerprint): string
+    {
+        return hash('sha256', $fingerprint);
+    }
+
     public function checkFingerprint(string $fingerprint): bool
     {
-        return hash_equals($this->trial_fingerprint, hash('sha256', $fingerprint));
+        if (hash_equals($this->trial_fingerprint, static::hashFingerprint($fingerprint))) {
+            return true;
+        }
+
+        return hash_equals($this->trial_fingerprint, static::legacyHashFingerprint($fingerprint));
     }
 
     public static function findByFingerprint(string $fingerprint): ?self
     {
-        return static::where('trial_fingerprint', hash('sha256', $fingerprint))->first();
+        return static::where('trial_fingerprint', static::hashFingerprint($fingerprint))
+            ->orWhere('trial_fingerprint', static::legacyHashFingerprint($fingerprint))
+            ->first();
     }
 
     public static function hasActiveTrialForFingerprint(string $fingerprint): bool
     {
-        return static::where('trial_fingerprint', hash('sha256', $fingerprint))
-            ->where('status', TrialStatus::Active)
+        return static::where('status', TrialStatus::Active)
+            ->where(function ($query) use ($fingerprint) {
+                $query->where('trial_fingerprint', static::hashFingerprint($fingerprint))
+                    ->orWhere('trial_fingerprint', static::legacyHashFingerprint($fingerprint));
+            })
             ->exists();
     }
 }

@@ -451,29 +451,34 @@ Configure how public keys are distributed:
 
 ### API Rate Limits
 
-Configure rate limiting for API endpoints:
+Rate limiting is applied by default to all API endpoints. The package registers three named rate limiters (`licensing-validate`, `licensing-register`, `licensing-token`) that are automatically applied via middleware.
+
+Configure the limits in `config/licensing.php`:
 
 ```php
 'rate_limit' => [
-    // Validation endpoint (per minute per license)
+    // Validation and heartbeat endpoints (per minute per IP)
     'validate_per_minute' => 60,
     
-    // Token issuance (per minute per license)
+    // Token issuance and refresh (per minute per IP)
     'token_per_minute' => 20,
     
-    // Usage registration (per minute per license)
+    // Activation and deactivation (per minute per IP)
     'register_per_minute' => 30,
-    
-    // Heartbeat updates (per minute per usage)
-    'heartbeat_per_minute' => 120,
-    
-    // Admin endpoints (per minute per user)
-    'admin_per_minute' => 100,
-    
-    // Global rate limit (per minute per IP)
-    'global_per_minute' => 1000,
 ],
 ```
+
+Endpoints and their rate limiters:
+
+| Endpoint | Rate Limiter |
+|----------|-------------|
+| `POST /activate` | `licensing-register` |
+| `POST /deactivate` | `licensing-register` |
+| `POST /refresh` | `licensing-token` |
+| `POST /validate` | `licensing-validate` |
+| `POST /heartbeat` | `licensing-validate` |
+| `GET /licenses/{key}` | `licensing-validate` |
+| `POST /token` | `licensing-token` |
 
 ### Custom Rate Limiting
 
@@ -799,8 +804,8 @@ class ValidActivationKey implements Rule
             return false;
         }
         
-        // Check format (XXXX-XXXX-XXXX-XXXX)
-        if (!preg_match('/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/', $value)) {
+        // Check format (XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX)
+        if (!preg_match('/^[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/', $value)) {
             return false;
         }
         

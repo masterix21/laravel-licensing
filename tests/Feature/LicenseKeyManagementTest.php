@@ -10,7 +10,7 @@ it('can generate a license key', function () {
 
     expect($key)->toBeString()
         ->toStartWith('LIC-')
-        ->toMatch('/^LIC-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/');
+        ->toMatch('/^LIC-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/');
 });
 
 it('can create a license with key', function () {
@@ -148,7 +148,7 @@ it('respects custom key prefix and separator', function () {
     $key = $generator->generate();
 
     expect($key)->toStartWith('TEST_')
-        ->toMatch('/^TEST_[A-Z0-9]{4}_[A-Z0-9]{4}_[A-Z0-9]{4}_[A-Z0-9]{4}$/');
+        ->toMatch('/^TEST_[A-F0-9]{8}_[A-F0-9]{8}_[A-F0-9]{8}_[A-F0-9]{8}$/');
 });
 
 it('can create license with provided key', function () {
