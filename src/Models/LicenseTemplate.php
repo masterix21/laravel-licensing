@@ -106,7 +106,7 @@ class LicenseTemplate extends Model
 
     public function licenses(): HasMany
     {
-        return $this->hasMany(config('licensing.models.license'));
+        return $this->hasMany(config('licensing.models.license'), 'template_id');
     }
 
     public function resolveConfiguration(): array
