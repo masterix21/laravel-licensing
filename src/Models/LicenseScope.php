@@ -20,9 +20,9 @@ use InvalidArgumentException;
  * @property int $key_rotation_days
  * @property Carbon|null $last_key_rotation_at
  * @property Carbon|null $next_key_rotation_at
- * @property int $default_max_usages
+ * @property int|null $default_max_usages
  * @property int|null $default_duration_days
- * @property int $default_grace_days
+ * @property int|null $default_grace_days
  * @property ArrayObject|null $meta
  */
 class LicenseScope extends Model
@@ -56,8 +56,6 @@ class LicenseScope extends Model
     protected $attributes = [
         'is_active' => true,
         'key_rotation_days' => 90,
-        'default_max_usages' => 1,
-        'default_grace_days' => 14,
     ];
 
     protected static function booted(): void
@@ -249,7 +247,7 @@ class LicenseScope extends Model
      */
     public function getDefaultLicenseAttributes(): array
     {
-        return [
+        return array_filter([
             'max_usages' => $this->default_max_usages,
             'expires_at' => $this->default_duration_days
                 ? now()->addDays($this->default_duration_days)
@@ -261,7 +259,7 @@ class LicenseScope extends Model
                     'scope_name' => $this->name,
                 ]
             ),
-        ];
+        ], fn ($value) => $value !== null);
     }
 
     /**

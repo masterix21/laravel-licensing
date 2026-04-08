@@ -24,9 +24,9 @@ return new class extends Migration
             $table->timestamp('next_key_rotation_at')->nullable();
 
             // Default license settings for this scope
-            $table->integer('default_max_usages')->default(1);
+            $table->integer('default_max_usages')->nullable();
             $table->integer('default_duration_days')->nullable();
-            $table->integer('default_grace_days')->default(14);
+            $table->integer('default_grace_days')->nullable();
 
             // Metadata
             $table->json('meta')->nullable()
