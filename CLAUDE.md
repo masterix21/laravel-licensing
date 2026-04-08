@@ -225,7 +225,7 @@ All endpoints rate-limited via named middleware. Error responses never expose in
 - CLI for key lifecycle and offline token issuance.
 - Optional API endpoints with rate limiting middleware applied by default.
 - Documentation: security model, rotation procedure, offline usage, config reference, UPGRADE.md.
-- Test suite: 249+ tests covering security, lifecycle, API, and CLI.
+- Test suite: 251+ tests covering security, lifecycle, API, and CLI.
 - Laravel 12/13 support; PHP 8.3–8.5; CI matrix on GitHub Actions.
 
 ---

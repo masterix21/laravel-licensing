@@ -22,8 +22,10 @@ Laravel Licensing is an enterprise-grade licensing system for Laravel 12/13 (PHP
 - **Template-based licensing** with inheritance and explicit scope linkage (`license_scope_id` on each template; `null` keeps the template global)
 
 Templates can be shared globally or assigned to individual scopes; the `TemplateService` orchestrates retrieval, assignment, and license provisioning while enforcing that a template belongs to at most one scope at a time.
-- **Comprehensive audit logging** with tamper detection
+- **License transfers** with approval workflows, fraud detection, and cooling periods
+- **Comprehensive audit logging** with tamper detection and hash chaining
 - **Rate limiting** applied by default on all API endpoints via named middleware
+- **Encrypted key management** with key generation, retrieval, and regeneration
 
 ### Package Namespace
 ```php
@@ -42,6 +44,7 @@ use LucaLongo\Licensing\Services\*;
 6. **Rate limiting enforced** on all API endpoints via named middleware
 7. **Fingerprints validated** with `max:255` on all API inputs
 8. **Heartbeat data namespaced** under `client_data` key to prevent meta injection
+9. **Transfer fraud detection** - cooling periods, frequency thresholds, and high-value review
 
 ---
 
@@ -107,11 +110,9 @@ try {
             'ip' => request()->ip()
         ]
     );
-} catch (MaxUsagesExceededException $e) {
-    // Handle over-limit scenario
-    if (config('licensing.policies.over_limit') === 'auto_replace_oldest') {
-        $usage = $registrar->replaceOldest($license, $deviceFingerprint);
-    }
+} catch (\RuntimeException $e) {
+    // Over-limit: "License usage limit reached" when policy is 'reject'
+    // With 'auto_replace_oldest' policy, oldest usage is auto-revoked instead
 }
 ```
 
@@ -217,7 +218,6 @@ php artisan licensing:keys:make-root
 php artisan licensing:keys:issue-signing --kid my-custom-kid   # Or omit --kid for auto-generated secure hex ID
 php artisan licensing:keys:issue-signing --scope erp-system  # Scoped key
 php artisan licensing:keys:rotate --reason routine
-php artisan licensing:keys:export --format json --include-chain
 ```
 
 ### Claude Code Best Practices
@@ -382,36 +382,44 @@ $crmToken = $tokenService->issue($crmLicense, $usage);
 ```php
 // ChatGPT appreciates comprehensive error handling
 use LucaLongo\Licensing\Exceptions\{
-    LicenseExpiredException,
-    MaxUsagesExceededException,
-    InvalidActivationKeyException
+    TrialAlreadyExistsException,
+    TrialResetAttemptException,
+    TransferNotAllowedException,
+    TransferValidationException
 };
 
+// License activation validation
+$license = License::findByKey($providedKey);
+
+if (!$license || !$license->verifyKey($providedKey)) {
+    return response()->json(['error' => 'Invalid activation key'], 400);
+}
+
+if (!$license->isUsable()) {
+    return response()->json([
+        'error' => 'License not usable',
+        'status' => $license->status->value,
+    ], 403);
+}
+
+$license->activate();
+
+// Trial error handling
 try {
-    // Verify and activate
-    $license = License::findByKey($providedKey);
+    $trial = $trialService->createTrial($user, [...]);
+} catch (TrialAlreadyExistsException $e) {
+    // User already has an active trial
+} catch (TrialResetAttemptException $e) {
+    // Prevented trial reset attempt (fraud prevention)
+}
 
-    if (!$license) {
-        throw new InvalidActivationKeyException('License not found');
-    }
-
-    if (!$license->verifyKey($providedKey)) {
-        throw new InvalidActivationKeyException('Invalid key');
-    }
-
-    $license->activate();
-
-} catch (LicenseExpiredException $e) {
-    return response()->json([
-        'error' => 'License has expired',
-        'expired_at' => $e->license->expires_at
-    ], 403);
-
-} catch (MaxUsagesExceededException $e) {
-    return response()->json([
-        'error' => 'Maximum devices reached',
-        'limit' => $e->license->max_usages
-    ], 403);
+// Transfer error handling
+try {
+    $transfer = $transferService->initiateTransfer($license, $sender, $recipient, [...]);
+} catch (TransferNotAllowedException $e) {
+    // Transfer not permitted (cooling period, ownership, etc.)
+} catch (TransferValidationException $e) {
+    // Validation failure (recipient limit reached, etc.)
 }
 ```
 
@@ -688,7 +696,7 @@ Route::post('/api/licenses/activate', function (Request $request) {
             'features' => $license->meta['features'] ?? []
         ]);
 
-    } catch (MaxUsagesExceededException $e) {
+    } catch (\RuntimeException $e) {
         return response()->json([
             'error' => 'Device limit reached'
         ], 403);
@@ -1012,7 +1020,7 @@ public function validateLicense(string $key, string $fingerprint): array
     if (!$usage) {
         try {
             $usage = app(UsageRegistrarService::class)->register($license, $fingerprint);
-        } catch (MaxUsagesExceededException $e) {
+        } catch (\RuntimeException $e) {
             return ['valid' => false, 'error' => 'Device limit exceeded'];
         }
     }
@@ -1054,7 +1062,37 @@ public function verifyOfflineToken(string $token, string $publicKeyBundle): bool
 }
 ```
 
-### 5. Renewal Pattern
+### 5. License Transfer Pattern
+```php
+use LucaLongo\Licensing\Services\LicenseTransferService;
+use LucaLongo\Licensing\Contracts\CanInitiateLicenseTransfers;
+use LucaLongo\Licensing\Contracts\CanReceiveLicenseTransfers;
+
+$transferService = app(LicenseTransferService::class);
+
+// Initiate a transfer (sender must implement CanInitiateLicenseTransfers)
+$transfer = $transferService->initiateTransfer(
+    $license,
+    $sender,      // Model implementing CanInitiateLicenseTransfers
+    $recipient,   // Model implementing CanReceiveLicenseTransfers
+    [
+        'type' => TransferType::UserToUser,
+        'reason' => 'Account migration',
+    ]
+);
+
+// Approve/reject a transfer
+$transferService->approveTransfer($transfer, $approver);
+$transferService->rejectTransfer($transfer, $rejector, 'Reason for rejection');
+
+// Cancel a pending transfer
+$transferService->cancelTransfer($transfer, $canceller);
+
+// Auto-expire stale transfers
+$expired = $transferService->expireStaleTransfers();
+```
+
+### 7. Renewal Pattern
 ```php
 // License renewal with audit trail
 public function renewLicense(License $license, int $months = 12): LicenseRenewal
@@ -1090,48 +1128,112 @@ public function renewLicense(License $license, int $months = 12): LicenseRenewal
 php artisan licensing:keys:make-root                      # Create root CA
 php artisan licensing:keys:issue-signing                  # Issue global signing key
 php artisan licensing:keys:issue-signing --scope <slug>   # Issue scoped signing key
-php artisan licensing:keys:rotate                         # Rotate keys
-php artisan licensing:keys:export --format json           # Export public keys
-
-# Token Operations
-php artisan licensing:offline:issue --license <id> --fingerprint <fp>
-
-# Maintenance
-php artisan licensing:cleanup:expired             # Clean expired licenses
-php artisan licensing:notify:expiring             # Send expiration notices
+php artisan licensing:keys:rotate --reason routine        # Rotate keys
 ```
 
 ### Key Classes & Namespaces
 ```php
 // Models
 use LucaLongo\Licensing\Models\License;
-use LucaLongo\Licensing\Models\LicenseScope;       // Product/software scopes
+use LucaLongo\Licensing\Models\LicenseScope;          // Product/software scopes
 use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicenseRenewal;
 use LucaLongo\Licensing\Models\LicenseTemplate;
+use LucaLongo\Licensing\Models\LicenseTrial;
+use LucaLongo\Licensing\Models\LicenseTransfer;
+use LucaLongo\Licensing\Models\LicenseTransferApproval;
+use LucaLongo\Licensing\Models\LicenseTransferHistory;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Models\LicensingAuditLog;
 
 // Services
 use LucaLongo\Licensing\Services\UsageRegistrarService;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Services\TrialService;
 use LucaLongo\Licensing\Services\LicenseTransferService;
+use LucaLongo\Licensing\Services\TransferApprovalService;
+use LucaLongo\Licensing\Services\TransferValidationService;
 use LucaLongo\Licensing\Services\TemplateService;
+use LucaLongo\Licensing\Services\AuditLoggerService;
+use LucaLongo\Licensing\Services\CertificateAuthorityService;
+use LucaLongo\Licensing\Services\FingerprintResolverService;
+use LucaLongo\Licensing\Services\EncryptedLicenseKeyGenerator;
+use LucaLongo\Licensing\Services\EncryptedLicenseKeyRegenerator;
+use LucaLongo\Licensing\Services\EncryptedLicenseKeyRetriever;
+
+// Contracts (interfaces for custom implementations)
+use LucaLongo\Licensing\Contracts\AuditLog;
+use LucaLongo\Licensing\Contracts\AuditLogger;
+use LucaLongo\Licensing\Contracts\CertificateAuthority;
+use LucaLongo\Licensing\Contracts\FingerprintResolver;
+use LucaLongo\Licensing\Contracts\KeyStore;
+use LucaLongo\Licensing\Contracts\TokenIssuer;
+use LucaLongo\Licensing\Contracts\TokenVerifier;
+use LucaLongo\Licensing\Contracts\UsageRegistrar;
+use LucaLongo\Licensing\Contracts\LicenseKeyGeneratorContract;
+use LucaLongo\Licensing\Contracts\LicenseKeyRegeneratorContract;
+use LucaLongo\Licensing\Contracts\LicenseKeyRetrieverContract;
+use LucaLongo\Licensing\Contracts\CanInitiateLicenseTransfers;
+use LucaLongo\Licensing\Contracts\CanReceiveLicenseTransfers;
 
 // Enums
-use LucaLongo\Licensing\Enums\LicenseStatus;
-use LucaLongo\Licensing\Enums\KeyType;
-use LucaLongo\Licensing\Enums\KeyStatus;
+use LucaLongo\Licensing\Enums\LicenseStatus;     // Pending, Active, Grace, Expired, Suspended, Cancelled
+use LucaLongo\Licensing\Enums\KeyType;            // Root, Signing
+use LucaLongo\Licensing\Enums\KeyStatus;          // Active, Revoked, Expired
+use LucaLongo\Licensing\Enums\UsageStatus;        // Active, Revoked
+use LucaLongo\Licensing\Enums\TrialStatus;        // Active, Expired, Converted, Cancelled
+use LucaLongo\Licensing\Enums\TransferStatus;     // Pending, Approved, Rejected, Expired, Completed, Cancelled, RolledBack
+use LucaLongo\Licensing\Enums\TransferType;       // UserToUser, UserToOrg, OrgToUser, OrgToOrg, Recovery, Migration
+use LucaLongo\Licensing\Enums\ApprovalStatus;     // Pending, Approved, Rejected, Expired
+use LucaLongo\Licensing\Enums\OverLimitPolicy;    // Reject, AutoReplaceOldest
+use LucaLongo\Licensing\Enums\TokenFormat;        // Paseto, Jws
+use LucaLongo\Licensing\Enums\AuditEventType;     // License/Usage/Key/Token/Transfer/Api events
 
 // Exceptions
-use LucaLongo\Licensing\Exceptions\MaxUsagesExceededException;
-use LucaLongo\Licensing\Exceptions\LicenseExpiredException;
-use LucaLongo\Licensing\Exceptions\InvalidActivationKeyException;
+use LucaLongo\Licensing\Exceptions\TrialAlreadyExistsException;
+use LucaLongo\Licensing\Exceptions\TrialResetAttemptException;
+use LucaLongo\Licensing\Exceptions\TransferNotAllowedException;
+use LucaLongo\Licensing\Exceptions\TransferValidationException;
 
-// Events
+// Events - License lifecycle
 use LucaLongo\Licensing\Events\LicenseActivated;
 use LucaLongo\Licensing\Events\LicenseExpired;
+use LucaLongo\Licensing\Events\LicenseExpiringSoon;
+use LucaLongo\Licensing\Events\LicenseRenewed;
+
+// Events - Usage
 use LucaLongo\Licensing\Events\UsageRegistered;
+use LucaLongo\Licensing\Events\UsageRevoked;
+use LucaLongo\Licensing\Events\UsageLimitReached;
+
+// Events - Transfer
+use LucaLongo\Licensing\Events\LicenseTransferInitiated;
+use LucaLongo\Licensing\Events\LicenseTransferCompleted;
+use LucaLongo\Licensing\Events\LicenseTransferRejected;
+
+// Events - Trial
+use LucaLongo\Licensing\Events\TrialStarted;
+use LucaLongo\Licensing\Events\TrialExpired;
+use LucaLongo\Licensing\Events\TrialExtended;
+use LucaLongo\Licensing\Events\TrialConverted;
+
+// HTTP Controllers (API)
+use LucaLongo\Licensing\Http\Controllers\Api\HealthController;
+use LucaLongo\Licensing\Http\Controllers\Api\LicenseController;
+use LucaLongo\Licensing\Http\Controllers\Api\UsageController;
+use LucaLongo\Licensing\Http\Controllers\Api\TokenController;
+
+// Jobs
+use LucaLongo\Licensing\Jobs\CheckExpiredTrialsJob;
+
+// Observers
+use LucaLongo\Licensing\Observers\LicenseObserver;
+use LucaLongo\Licensing\Observers\LicenseUsageObserver;
+use LucaLongo\Licensing\Observers\LicensingAuditLogObserver;
+use LucaLongo\Licensing\Observers\LicensingKeyObserver;
+
+// Facade
+use LucaLongo\Licensing\Facades\Licensing;
 ```
 
 ### Template Helpers
@@ -1158,28 +1260,97 @@ $license = $templates->createLicenseForScope($scope, $template->slug, [
 ### Configuration Keys
 ```php
 // config/licensing.php
+'key_salt' => env('LICENSING_KEY_SALT', env('APP_KEY')),
+
 'models' => [
+    'license_scope' => LicenseScope::class,
     'license' => License::class,
     'license_usage' => LicenseUsage::class,
+    'license_renewal' => LicenseRenewal::class,
+    'license_template' => LicenseTemplate::class,
+    'licensing_key' => LicensingKey::class,
+    'audit_log' => LicensingAuditLog::class,
 ],
+
+'services' => [
+    'key_generator' => EncryptedLicenseKeyGenerator::class,
+    'key_retriever' => EncryptedLicenseKeyRetriever::class,
+    'key_regenerator' => EncryptedLicenseKeyRegenerator::class,
+],
+
+'key_management' => [
+    'retrieval_enabled' => true,
+    'regeneration_enabled' => true,
+    'key_prefix' => 'LIC',
+    'key_separator' => '-',
+],
+
 'policies' => [
     'over_limit' => 'reject', // or 'auto_replace_oldest'
     'grace_days' => 14,
+    'usage_inactivity_auto_revoke_days' => null,
     'unique_usage_scope' => 'license', // or 'global'
 ],
+
+'templates' => ['enabled' => true, 'allow_inheritance' => true, 'default_group' => 'default'],
+
+'trials' => [
+    'enabled' => true,
+    'default_duration_days' => 14,
+    'allow_extensions' => true,
+    'max_extension_days' => 7,
+    'prevent_reset_attempts' => true,
+],
+
 'offline_token' => [
     'enabled' => true,
-    'format' => 'paseto', // or 'jws'
+    'service' => PasetoTokenService::class,
+    'issuer' => 'laravel-licensing',
     'ttl_days' => 7,
+    'force_online_after_days' => 14,
+    'clock_skew_seconds' => 60,
 ],
+
 'crypto' => [
     'algorithm' => 'ed25519',
     'keystore' => [
         'driver' => 'files',
         'path' => storage_path('app/licensing/keys'),
+        'passphrase' => env('LICENSING_KEY_PASSPHRASE'),
     ],
 ],
+
+'transfer' => [
+    'cooling_period_days' => 30,
+    'suspicious_pattern_requires_review' => true,
+    'frequent_transfer_window_days' => 90,
+    'frequent_transfer_threshold' => 3,
+    'high_value_threshold' => 10000,
+],
+
+'api' => ['enabled' => true, 'prefix' => 'api/licensing/v1', 'middleware' => ['api', 'throttle:api']],
+'rate_limit' => ['validate_per_minute' => 60, 'token_per_minute' => 20, 'register_per_minute' => 30],
+'audit' => ['enabled' => true, 'store' => 'database', 'retention_days' => 90, 'hash_chain' => true],
+
+'scheduler' => [
+    'check_expirations' => ['enabled' => true, 'time' => '02:00'],
+    'cleanup_inactive_usages' => ['enabled' => false, 'time' => '03:00'],
+    'notify_expiring' => ['enabled' => true, 'time' => '09:00', 'days_before' => [30, 14, 7, 3, 1]],
+],
 ```
+
+### API Routes
+```
+GET  {prefix}/health           → HealthController::show        (licensing.health)
+POST {prefix}/activate         → LicenseController::activate   (licensing.activate)        throttle:licensing-register
+POST {prefix}/deactivate       → LicenseController::deactivate (licensing.deactivate)      throttle:licensing-register
+POST {prefix}/refresh          → LicenseController::refresh    (licensing.refresh)          throttle:licensing-token
+POST {prefix}/validate         → LicenseController::validate   (licensing.validate)         throttle:licensing-validate
+POST {prefix}/heartbeat        → UsageController::heartbeat    (licensing.heartbeat)        throttle:licensing-validate
+POST {prefix}/licenses/show    → LicenseController::show       (licensing.licenses.show)    throttle:licensing-validate
+POST {prefix}/token            → TokenController::issue        (licensing.token.issue)      throttle:licensing-token
+```
+Default prefix: `api/licensing/v1` (configurable via `config('licensing.api.prefix')`).
 
 ### Security Checklist
 - ✅ Always hash activation keys with `License::hashKey()` (HMAC-SHA256)
@@ -1207,7 +1378,7 @@ $license = $templates->createLicenseForScope($scope, $template->slug, [
 - **API Reference**: `/docs/api/`
 - **Security Guide**: `/docs/advanced/security.md`
 - **Examples**: `/docs/examples/`
-- **Tests**: `/tests/` (249+ test cases)
+- **Tests**: `/tests/` (251+ test cases)
 - **Upgrade Guide**: `UPGRADE.md`
 
 For AI-specific questions, refer to the appropriate section above or consult the comprehensive documentation in the `/docs` directory.
