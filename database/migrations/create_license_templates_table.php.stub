@@ -25,6 +25,7 @@ return new class extends Migration
             $table->boolean('has_grace_period')->nullable();
             $table->unsignedInteger('grace_period_days')->nullable();
             $table->unsignedInteger('license_duration_days')->nullable();
+            $table->unsignedInteger('default_max_usages')->nullable();
             $table->json('meta')->nullable();
             $table->timestamps();
             

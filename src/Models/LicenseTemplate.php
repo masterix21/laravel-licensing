@@ -33,6 +33,7 @@ use Spatie\Sluggable\SlugOptions;
  * @property bool $has_grace_period
  * @property int|null $grace_period_days
  * @property int|null $license_duration_days
+ * @property int|null $default_max_usages
  */
 class LicenseTemplate extends Model
 {
@@ -53,6 +54,7 @@ class LicenseTemplate extends Model
         'has_grace_period',
         'grace_period_days',
         'license_duration_days',
+        'default_max_usages',
     ];
 
     protected $casts = [
@@ -67,6 +69,7 @@ class LicenseTemplate extends Model
         'has_grace_period' => 'boolean',
         'grace_period_days' => 'integer',
         'license_duration_days' => 'integer',
+        'default_max_usages' => 'integer',
     ];
 
     public function uniqueIds(): array
