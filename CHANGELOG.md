@@ -2,7 +2,7 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
-## 2.0.0 - 2026-04-07
+## 2.0.0 - 2026-04-08
 
 ### What's Changed
 
@@ -24,9 +24,21 @@ See [UPGRADE.md](UPGRADE.md) for migration instructions.
 - **Trial fingerprint hashing**: Upgraded from plain SHA256 to HMAC-SHA256 with automatic legacy fallback for existing trials
 - **Heartbeat meta injection**: Client data namespaced under `client_data` key to prevent overwriting internal metadata
 
+#### Bug Fixes
+
+- Fixed Ed25519 key generation on PHP 8.5 (sodium_memzero buffer corruption)
+- Fixed `LicenseTemplate::licenses()` relationship missing explicit foreign key
+- Fixed PHPStan configuration for cross-version compatibility
+
+#### Improvements
+
+- Made `LicenseScope` default settings (`default_max_usages`, `default_grace_days`) nullable so scopes inherit from config
+- Added `default_max_usages` field to `LicenseTemplate`
+
 #### Framework Support
 
 - Added Laravel 13 support while maintaining Laravel 12 compatibility
+- Added PHP 8.5 support
 - Updated `orchestra/testbench` to support `^10.5 || ^11.0`
 - Updated `symfony/uid` to support `^7.0 || ^8.0`
 - Updated `spatie/laravel-sluggable` to support `^3.7 || ^3.8`
