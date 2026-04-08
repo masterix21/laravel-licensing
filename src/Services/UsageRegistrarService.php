@@ -99,8 +99,7 @@ class UsageRegistrarService implements UsageRegistrar
                 return $usage;
             });
         } catch (\Exception $e) {
-            // @phpstan-ignore booleanAnd.leftAlwaysFalse, booleanAnd.alwaysFalse
-            if ($shouldLogLimitReached && isset($auditData['license_class']) && config('licensing.audit.enabled', true)) {
+            if ($shouldLogLimitReached && isset($auditData['license_class']) && config('licensing.audit.enabled', true)) { // @phpstan-ignore booleanAnd.leftAlwaysFalse, booleanAnd.alwaysFalse
                 LicensingAuditLog::create([
                     'event_type' => AuditEventType::UsageLimitReached,
                     'auditable_type' => $auditData['license_class'],

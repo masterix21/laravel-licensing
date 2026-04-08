@@ -19,15 +19,18 @@ trait HasKeyStore
         $type = $options['type'] ?? KeyType::Signing;
 
         // Generate Ed25519 key pair for PASETO v4
+        // Copy raw bytes immediately to avoid PHP 8.5 sodium_memzero interference
         $secretKey = AsymmetricSecretKey::generate(new Version4);
-        $publicKey = $secretKey->getPublicKey();
+        $rawPrivateKey = $secretKey->raw();
+        $rawPublicKey = $secretKey->getPublicKey()->raw();
+        unset($secretKey);
 
         // Use existing kid if set, otherwise generate new one
         $this->kid = $this->kid ?? 'kid_'.Str::random(32);
         $this->type = $type;
         $this->algorithm = 'Ed25519';
-        $this->public_key = base64_encode($publicKey->raw());
-        $this->private_key_encrypted = $this->encryptPrivateKey(base64_encode($secretKey->raw()));
+        $this->public_key = base64_encode($rawPublicKey);
+        $this->private_key_encrypted = $this->encryptPrivateKey(base64_encode($rawPrivateKey));
         $this->valid_from = $this->valid_from ?? ($options['valid_from'] ?? now());
         $this->valid_until = $this->valid_until ?? ($options['valid_until'] ?? null);
         $this->status = KeyStatus::Active;
