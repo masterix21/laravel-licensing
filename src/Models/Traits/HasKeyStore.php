@@ -5,8 +5,6 @@ namespace LucaLongo\Licensing\Models\Traits;
 use Illuminate\Support\Str;
 use LucaLongo\Licensing\Enums\KeyStatus;
 use LucaLongo\Licensing\Enums\KeyType;
-use ParagonIE\Paseto\Keys\AsymmetricSecretKey;
-use ParagonIE\Paseto\Protocol\Version4;
 
 trait HasKeyStore
 {
@@ -18,12 +16,12 @@ trait HasKeyStore
     {
         $type = $options['type'] ?? KeyType::Signing;
 
-        // Generate Ed25519 key pair for PASETO v4
-        // Copy raw bytes immediately to avoid PHP 8.5 sodium_memzero interference
-        $secretKey = AsymmetricSecretKey::generate(new Version4);
-        $rawPrivateKey = $secretKey->raw();
-        $rawPublicKey = $secretKey->getPublicKey()->raw();
-        unset($secretKey);
+        // Generate Ed25519 key pair via sodium directly to avoid
+        // PASETO destructor corrupting key bytes via sodium_memzero on PHP 8.5
+        $keyPair = sodium_crypto_sign_keypair();
+        $rawPrivateKey = sodium_crypto_sign_secretkey($keyPair);
+        $rawPublicKey = sodium_crypto_sign_publickey($keyPair);
+        sodium_memzero($keyPair);
 
         // Use existing kid if set, otherwise generate new one
         $this->kid = $this->kid ?? 'kid_'.Str::random(32);

@@ -7,8 +7,6 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Support\Facades\RateLimiter;
-use Laravel\Octane\Events\RequestTerminated;
-use Laravel\Octane\Events\TaskTerminated;
 use LucaLongo\Licensing\Commands\ExportKeysCommand;
 use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
 use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
@@ -157,9 +155,9 @@ class LicensingServiceProvider extends PackageServiceProvider
         };
 
         // Octane: clear passphrase after each request
-        if (class_exists(RequestTerminated::class)) {
-            $this->app['events']->listen(RequestTerminated::class, $cleanup);
-            $this->app['events']->listen(TaskTerminated::class, $cleanup);
+        if (class_exists('Laravel\Octane\Events\RequestTerminated')) {
+            $this->app['events']->listen('Laravel\Octane\Events\RequestTerminated', $cleanup);
+            $this->app['events']->listen('Laravel\Octane\Events\TaskTerminated', $cleanup);
         }
 
         // Queue: clear passphrase when worker stops
