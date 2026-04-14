@@ -17,6 +17,7 @@ use LucaLongo\Licensing\Observers\LicenseUsageObserver;
 use LucaLongo\Licensing\Observers\LicensingAuditLogObserver;
 use LucaLongo\Licensing\Observers\LicensingKeyObserver;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Spatie\LaravelPackageTools\Package;
 
 class TestCase extends Orchestra
 {
@@ -156,7 +157,7 @@ class TestCase extends Orchestra
      */
     protected function packageMigrationFileNames(): array
     {
-        $package = new \Spatie\LaravelPackageTools\Package;
+        $package = new Package;
         $package->setBasePath(__DIR__.'/..');
         $package->name('laravel-licensing');
 
