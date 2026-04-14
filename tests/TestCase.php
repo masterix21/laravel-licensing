@@ -124,28 +124,17 @@ class TestCase extends Orchestra
      * gated by RefreshDatabaseState::$migrated). Including the published
      * stubs and calling up() here is safe on both SQLite in-memory and
      * persistent drivers like MySQL/MariaDB — no "table already exists".
+     *
+     * The execution order is pulled directly from the service provider's
+     * Package configuration (the same list hasMigrations() consumes at
+     * vendor:publish time), so the test suite cannot silently drift away
+     * from the real install order.
      */
     protected function defineDatabaseMigrationsAfterDatabaseRefreshed()
     {
-        // Order matters: FK parents before children. SQLite tolerates forward
-        // references at DDL time, MySQL does not.
-        $stubOrder = [
-            'create_license_scopes_table',
-            'create_license_templates_table',
-            'create_licenses_table',
-            'create_license_usages_table',
-            'create_license_renewals_table',
-            'create_license_trials_table',
-            'create_license_transfers_table',
-            'create_license_transfer_histories_table',
-            'create_license_transfer_approvals_table',
-            'create_licensing_keys_table',
-            'create_licensing_audit_logs_table',
-        ];
-
         $sourceDir = __DIR__.'/../database/migrations';
 
-        foreach ($stubOrder as $name) {
+        foreach ($this->packageMigrationFileNames() as $name) {
             $stub = $sourceDir.'/'.$name.'.php.stub';
             if (! file_exists($stub)) {
                 continue;
@@ -157,5 +146,22 @@ class TestCase extends Orchestra
         if (file_exists($usersTable)) {
             (include $usersTable)->up();
         }
+    }
+
+    /**
+     * Ask the service provider for the authoritative migration order by
+     * letting it configure a throwaway Package instance.
+     *
+     * @return array<int, string>
+     */
+    protected function packageMigrationFileNames(): array
+    {
+        $package = new \Spatie\LaravelPackageTools\Package;
+        $package->setBasePath(__DIR__.'/..');
+        $package->name('laravel-licensing');
+
+        (new LicensingServiceProvider($this->app))->configurePackage($package);
+
+        return $package->migrationFileNames;
     }
 }
