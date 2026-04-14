@@ -159,28 +159,14 @@ class LicenseTransferHistory extends Model
             $executedAt = Carbon::parse($rawExecutedAt);
         }
 
-        $previousSnapshot = $this->getRawOriginal('previous_snapshot');
-        if ($previousSnapshot === null) {
-            $previousSnapshot = $this->previous_snapshot;
-        } elseif (! is_string($previousSnapshot)) {
-            $previousSnapshot = json_encode($previousSnapshot);
-        }
-
-        $newSnapshot = $this->getRawOriginal('new_snapshot');
-        if ($newSnapshot === null) {
-            $newSnapshot = $this->new_snapshot;
-        } elseif (! is_string($newSnapshot)) {
-            $newSnapshot = json_encode($newSnapshot);
-        }
-
         // Don't include the ID in the hash calculation since it doesn't exist during creation
         $data = [
             'license_id' => $this->license_id,
             'transfer_id' => $this->transfer_id,
             'previous_licensable' => $this->previous_licensable_type.':'.$this->previous_licensable_id,
             'new_licensable' => $this->new_licensable_type.':'.$this->new_licensable_id,
-            'previous_snapshot' => is_string($previousSnapshot) ? $previousSnapshot : json_encode($previousSnapshot),
-            'new_snapshot' => is_string($newSnapshot) ? $newSnapshot : json_encode($newSnapshot),
+            'previous_snapshot' => static::canonicalJson($this->previous_snapshot),
+            'new_snapshot' => static::canonicalJson($this->new_snapshot),
             'transfer_type' => $this->transfer_type,
             'executed_by' => $this->executed_by_type.':'.$this->executed_by_id,
             'usages_preserved' => (bool) $this->usages_preserved,
@@ -192,6 +178,50 @@ class LicenseTransferHistory extends Model
         ];
 
         return hash('sha256', json_encode($data));
+    }
+
+    /**
+     * Serialize a snapshot into a canonical JSON form that survives round-trips
+     * through databases that normalise JSON columns (MySQL re-orders keys and
+     * strips whitespace on write). Both creation and verification use this so
+     * the integrity hash stays stable regardless of driver.
+     */
+    protected static function canonicalJson(mixed $value): string
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $value = $decoded;
+            }
+        }
+
+        if (is_array($value)) {
+            $value = static::recursiveKsort($value);
+        }
+
+        return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * @param  array<mixed>  $array
+     * @return array<mixed>
+     */
+    protected static function recursiveKsort(array $array): array
+    {
+        foreach ($array as &$value) {
+            if (is_array($value)) {
+                $value = static::recursiveKsort($value);
+            }
+        }
+        unset($value);
+
+        if (array_is_list($array)) {
+            return $array;
+        }
+
+        ksort($array);
+
+        return $array;
     }
 
     public function getDiffSummary(): array

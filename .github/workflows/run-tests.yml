@@ -66,8 +66,13 @@ jobs:
       fail-fast: false
       matrix:
         db:
-          - { image: 'mysql:8.0', driver: 'mysql', port: 3306 }
-          - { image: 'mariadb:11', driver: 'mariadb', port: 3306 }
+          - image: 'mysql:8.0'
+            driver: 'mysql'
+            health_cmd: 'mysqladmin ping -h 127.0.0.1 --silent'
+          - image: 'mariadb:11'
+            driver: 'mariadb'
+            # MariaDB 11 removed the mysqladmin symlink; use its own helper.
+            health_cmd: 'healthcheck.sh --connect --innodb_initialized'
 
     name: MySQL - ${{ matrix.db.image }}
 
@@ -80,7 +85,7 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-cmd="${{ matrix.db.health_cmd }}"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
