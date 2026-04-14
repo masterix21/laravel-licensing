@@ -49,12 +49,13 @@ class LicensingServiceProvider extends PackageServiceProvider
             ->name('laravel-licensing')
             ->hasConfigFile('licensing')
             ->hasMigrations([
+                // Order matters: parents before children, FK targets before FK holders.
                 'create_license_scopes_table',
+                'create_license_templates_table',
                 'create_licenses_table',
                 'create_license_usages_table',
                 'create_license_renewals_table',
                 'create_license_trials_table',
-                'create_license_templates_table',
                 'add_trial_and_duration_columns_to_license_templates_table',
                 'create_license_transfers_table',
                 'create_license_transfer_histories_table',

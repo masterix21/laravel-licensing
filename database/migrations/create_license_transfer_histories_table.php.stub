@@ -13,12 +13,12 @@ return new class extends Migration
             $table->foreignId('license_id')->constrained()->cascadeOnDelete();
             $table->foreignId('transfer_id')->constrained('license_transfers')->cascadeOnDelete();
             
-            $table->nullableMorphs('previous_licensable');
-            $table->nullableMorphs('new_licensable');
-            
+            $table->nullableMorphs('previous_licensable', 'lth_prev_lic_idx');
+            $table->nullableMorphs('new_licensable', 'lth_new_lic_idx');
+
             $table->json('previous_snapshot');
             $table->json('new_snapshot');
-            
+
             $table->string('transfer_type');
             $table->nullableMorphs('executed_by');
             

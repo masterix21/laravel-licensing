@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamp('occurred_at')->nullable();
             $table->timestamps();
             
-            $table->index(['auditable_type', 'auditable_id', 'event_type']);
+            $table->index(['auditable_type', 'auditable_id', 'event_type'], 'audit_event_idx');
             $table->index('created_at');
             $table->index('occurred_at');
         });

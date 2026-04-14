@@ -84,12 +84,31 @@ class TestCase extends Orchestra
     public function getEnvironmentSetUp($app)
     {
         config()->set('database.default', 'testing');
-        config()->set('database.connections.testing', [
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-            'foreign_key_constraints' => true,
-        ]);
+
+        $driver = env('DB_CONNECTION', 'sqlite');
+
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            config()->set('database.connections.testing', [
+                'driver' => $driver,
+                'host' => env('DB_HOST', '127.0.0.1'),
+                'port' => (int) env('DB_PORT', 3306),
+                'database' => env('DB_DATABASE', 'licensing_test'),
+                'username' => env('DB_USERNAME', 'root'),
+                'password' => env('DB_PASSWORD', ''),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => true,
+                'engine' => 'InnoDB',
+            ]);
+        } else {
+            config()->set('database.connections.testing', [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ]);
+        }
 
         config()->set('cache.default', 'array');
 
@@ -101,13 +120,16 @@ class TestCase extends Orchestra
 
     protected function defineDatabaseMigrations()
     {
+        // Order must match LicensingServiceProvider::hasMigrations() — FK
+        // parents before children. SQLite tolerates reverse order, but MySQL
+        // in CI does not.
         $migrationStubs = [
             'create_license_scopes_table.php.stub',
+            'create_license_templates_table.php.stub',
             'create_licenses_table.php.stub',
             'create_license_usages_table.php.stub',
             'create_license_renewals_table.php.stub',
             'create_license_trials_table.php.stub',
-            'create_license_templates_table.php.stub',
             'create_license_transfers_table.php.stub',
             'create_license_transfer_histories_table.php.stub',
             'create_license_transfer_approvals_table.php.stub',

@@ -45,6 +45,13 @@ php artisan licensing:keys:issue-signing --kid signing-key-1
 
 > The root key is encrypted with the passphrase from the `LICENSING_KEY_PASSPHRASE` env variable. If missing, the command will prompt you to set one (unless running with `--no-interaction`).
 
+### MySQL / MariaDB notes
+
+Migrations are tested against MySQL 8 and MariaDB 11 in CI. Two points worth knowing if you run into errors on older setups:
+
+- **Identifier 1059 errors** (`Identifier name '…' is too long`): the package already ships explicit short names for the only composite indexes that would exceed MySQL's 64-char limit. If you add custom migrations on top, remember to pass a short alias to `morphs()` / `index()` when the auto-generated name would overflow.
+- **Key length 1071 errors** (`Specified key was too long`): only relevant on MySQL < 5.7 or MariaDB < 10.2 with InnoDB's old row format. Add `Schema::defaultStringLength(191);` in your `AppServiceProvider::boot()` as per the [Laravel docs](https://laravel.com/docs/migrations#index-lengths-mysql-mariadb). This is unrelated to identifier length — it caps the indexed VARCHAR prefix, not the index name.
+
 ## Quick Start
 
 ### Create and activate a license
