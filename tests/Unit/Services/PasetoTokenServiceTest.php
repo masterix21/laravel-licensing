@@ -1,5 +1,6 @@
 <?php
 
+use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\PasetoTokenService;
@@ -212,7 +213,7 @@ test('generated signing keys never contain CRLF bytes that break paseto', functi
     // them; verify the invariant holds on freshly generated keys.
     for ($i = 0; $i < 10; $i++) {
         $key = new LicensingKey;
-        $key->generate(['type' => \LucaLongo\Licensing\Enums\KeyType::Signing]);
+        $key->generate(['type' => KeyType::Signing]);
 
         $rawPrivate = base64_decode($key->getPrivateKey(), true);
 
