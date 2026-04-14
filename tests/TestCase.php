@@ -116,40 +116,74 @@ class TestCase extends Orchestra
         config()->set('app.key', 'base64:'.base64_encode('32characterslong1234567890123456'));
 
         config()->set('licensing.crypto.keystore.passphrase', 'test-passphrase-for-testing');
+
+        // Register the package migrations with Laravel's migrator so
+        // RefreshDatabase can run them via migrate:fresh and wrap each test
+        // in its own transaction. The package ships stubs as .php.stub so
+        // vendor:publish can timestamp them at install time; at test time we
+        // materialise them once per process into a temp directory with real
+        // timestamps.
+        $path = static::prepareMigrationFixtures();
+
+        $app->afterResolving('migrator', function ($migrator) use ($path) {
+            $migrator->path($path);
+        });
     }
 
-    protected function defineDatabaseMigrations()
+    protected static ?string $migrationFixturePath = null;
+
+    protected static function prepareMigrationFixtures(): string
     {
-        // Order must match LicensingServiceProvider::hasMigrations() — FK
-        // parents before children. SQLite tolerates reverse order, but MySQL
-        // in CI does not.
-        $migrationStubs = [
-            'create_license_scopes_table.php.stub',
-            'create_license_templates_table.php.stub',
-            'create_licenses_table.php.stub',
-            'create_license_usages_table.php.stub',
-            'create_license_renewals_table.php.stub',
-            'create_license_trials_table.php.stub',
-            'create_license_transfers_table.php.stub',
-            'create_license_transfer_histories_table.php.stub',
-            'create_license_transfer_approvals_table.php.stub',
-            'create_licensing_keys_table.php.stub',
-            'create_licensing_audit_logs_table.php.stub',
+        if (static::$migrationFixturePath !== null && is_dir(static::$migrationFixturePath)) {
+            return static::$migrationFixturePath;
+        }
+
+        $path = sys_get_temp_dir().'/laravel-licensing-migrations-'.getmypid();
+        File::ensureDirectoryExists($path);
+
+        foreach (File::files($path) as $file) {
+            File::delete($file->getPathname());
+        }
+
+        // Order matters: FK parents before children. SQLite tolerates forward
+        // references at DDL time, MySQL does not.
+        $stubOrder = [
+            'create_license_scopes_table',
+            'create_license_templates_table',
+            'create_licenses_table',
+            'create_license_usages_table',
+            'create_license_renewals_table',
+            'create_license_trials_table',
+            'create_license_transfers_table',
+            'create_license_transfer_histories_table',
+            'create_license_transfer_approvals_table',
+            'create_licensing_keys_table',
+            'create_licensing_audit_logs_table',
         ];
 
-        foreach ($migrationStubs as $stub) {
-            $path = __DIR__.'/../database/migrations/'.$stub;
-            if (file_exists($path)) {
-                $migration = include $path;
-                $migration->up();
+        $sourceDir = __DIR__.'/../database/migrations';
+        $counter = 0;
+
+        foreach ($stubOrder as $name) {
+            $stub = $sourceDir.'/'.$name.'.php.stub';
+            if (! file_exists($stub)) {
+                continue;
             }
+            $counter++;
+            $filename = sprintf('2024_01_01_%06d_%s.php', $counter, $name);
+            File::copy($stub, $path.'/'.$filename);
         }
 
-        // Create users table for testing
-        $usersTablePath = __DIR__.'/database/migrations/create_users_table.php';
-        if (file_exists($usersTablePath)) {
-            $migration = include $usersTablePath;
-            $migration->up();
+        // Test-only users table, also materialised with a timestamp.
+        $usersSrc = __DIR__.'/database/migrations/create_users_table.php';
+        if (file_exists($usersSrc)) {
+            $counter++;
+            $filename = sprintf('2024_01_01_%06d_create_users_table.php', $counter);
+            File::copy($usersSrc, $path.'/'.$filename);
         }
+
+        static::$migrationFixturePath = $path;
+
+        return $path;
     }
 }
