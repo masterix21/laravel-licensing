@@ -2,6 +2,21 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 2.0.1 - 2026-04-14
+
+### Bug Fixes
+
+- **Paseto signing reliability**: regenerate signing keys whose raw Ed25519 bytes contain the `\r\n` sequence. Paseto v4's `AsymmetricSecretKey::raw()` pipes the key through `str_replace("\r\n", "\n", …)`, silently dropping a byte on ~0.1% of randomly generated keys and making `sodium_crypto_sign_detached()` fail with "Signing failed". `HasKeyStore::generate()` now rejects such keys before they reach storage.
+- **Paseto pinning**: pinned `paragonie/paseto` to `^3.5` and fed the signer a seed-derived secret key so the v4 misuse-resistance check succeeds regardless of how the key was originally stored.
+- **Transfer history integrity hash**: stabilised the hash computation on MySQL so the value no longer depends on column ordering or collation.
+- **MySQL migrations**: fixed failures caused by long index names and foreign key ordering.
+- **`extension_reason` column**: stored as `TEXT` to accommodate longer justifications.
+
+### Improvements
+
+- **Test schema lifecycle**: let Laravel manage the test schema through the `afterDatabaseRefreshed` hook, with migration order derived from the service provider to keep CI runs deterministic.
+- **Docs**: aligned `AI_GUIDELINES.md` and `CLAUDE.md` with the current codebase.
+
 ## 2.0.0 - 2026-04-08
 
 ### What's Changed
