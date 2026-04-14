@@ -16,11 +16,11 @@ trait HasKeyStore
     {
         $type = $options['type'] ?? KeyType::Signing;
 
-        // Generate Ed25519 key pair via sodium directly to avoid
-        // PASETO destructor corrupting key bytes via sodium_memzero on PHP 8.5
-        $keyPair = sodium_crypto_sign_keypair();
-        $rawPrivateKey = sodium_crypto_sign_secretkey($keyPair);
-        $rawPublicKey = sodium_crypto_sign_publickey($keyPair);
+        $seed = random_bytes(SODIUM_CRYPTO_SIGN_SEEDBYTES);
+        $keyPair = sodium_crypto_sign_seed_keypair($seed);
+        $rawPrivateKey = substr($keyPair, 0, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
+        $rawPublicKey = substr($keyPair, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
+        sodium_memzero($seed);
         sodium_memzero($keyPair);
 
         // Use existing kid if set, otherwise generate new one

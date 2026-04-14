@@ -45,8 +45,7 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             throw new \RuntimeException('Private key not available');
         }
 
-        // Reconstruct PASETO AsymmetricSecretKey from raw bytes
-        $privateKey = new AsymmetricSecretKey(base64_decode($privateKeyBase64), new Version4);
+        $privateKey = $this->buildSecretKey($privateKeyBase64);
 
         $ttlDays = $options['ttl_days'] ?? $license->getTokenTtlDays();
 
@@ -305,5 +304,26 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
         }
 
         return (int) config('licensing.offline_token.clock_skew_seconds', 60);
+    }
+
+    private function buildSecretKey(string $base64): AsymmetricSecretKey
+    {
+        $raw = base64_decode($base64, true);
+
+        if ($raw === false || strlen($raw) < SODIUM_CRYPTO_SIGN_SEEDBYTES) {
+            throw new \RuntimeException('Invalid signing key material');
+        }
+
+        $seed = substr($raw, 0, SODIUM_CRYPTO_SIGN_SEEDBYTES);
+
+        try {
+            // Handing paseto the 32-byte seed forces it to re-derive the
+            // canonical Ed25519 keypair via sodium_crypto_sign_seed_keypair(),
+            // so the v4 misuse-resistance check in AsymmetricSecretKey always
+            // succeeds regardless of how the key was originally stored.
+            return AsymmetricSecretKey::v4($seed);
+        } finally {
+            sodium_memzero($seed);
+        }
     }
 }

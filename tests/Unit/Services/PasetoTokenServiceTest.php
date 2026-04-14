@@ -203,3 +203,13 @@ test('custom issuer is included in token', function () {
 
     expect($claims['iss'])->toBe($customIssuer);
 });
+
+test('signing key passes paseto misuse resistance on repeated issue calls', function () {
+    $first = $this->tokenService->issue($this->license, $this->usage);
+    $second = $this->tokenService->issue($this->license, $this->usage);
+    $third = $this->tokenService->issue($this->license, $this->usage);
+
+    expect($first)->toStartWith('v4.public.')
+        ->and($second)->toStartWith('v4.public.')
+        ->and($third)->toStartWith('v4.public.');
+});
