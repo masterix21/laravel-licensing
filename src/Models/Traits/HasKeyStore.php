@@ -16,10 +16,17 @@ trait HasKeyStore
     {
         $type = $options['type'] ?? KeyType::Signing;
 
-        $seed = random_bytes(SODIUM_CRYPTO_SIGN_SEEDBYTES);
-        $keyPair = sodium_crypto_sign_seed_keypair($seed);
-        $rawPrivateKey = substr($keyPair, 0, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
-        $rawPublicKey = substr($keyPair, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
+        // Paseto v4 pipes the raw Ed25519 secret key through
+        // str_replace("\r\n", "\n", …) inside raw(), which silently drops a
+        // byte when the 64-byte key happens to contain that sequence and
+        // makes sodium_crypto_sign_detached() fail. Reject such keys up
+        // front so they never reach the token signer.
+        do {
+            $seed = random_bytes(SODIUM_CRYPTO_SIGN_SEEDBYTES);
+            $keyPair = sodium_crypto_sign_seed_keypair($seed);
+            $rawPrivateKey = substr($keyPair, 0, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
+            $rawPublicKey = substr($keyPair, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
+        } while (strpos($rawPrivateKey, "\r\n") !== false);
         sodium_memzero($seed);
         sodium_memzero($keyPair);
 

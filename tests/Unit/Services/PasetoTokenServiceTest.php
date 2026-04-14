@@ -204,6 +204,22 @@ test('custom issuer is included in token', function () {
     expect($claims['iss'])->toBe($customIssuer);
 });
 
+test('generated signing keys never contain CRLF bytes that break paseto', function () {
+    // Paseto Util::dos2unix() pipes the raw Ed25519 secret key through
+    // str_replace("\r\n", "\n", …) inside raw(), dropping a byte for ~0.1%
+    // of randomly generated keys and making sodium_crypto_sign_detached()
+    // fail. HasKeyStore::generate() filters bad keys before persisting
+    // them; verify the invariant holds on freshly generated keys.
+    for ($i = 0; $i < 10; $i++) {
+        $key = new LicensingKey;
+        $key->generate(['type' => \LucaLongo\Licensing\Enums\KeyType::Signing]);
+
+        $rawPrivate = base64_decode($key->getPrivateKey(), true);
+
+        expect(strpos($rawPrivate, "\r\n"))->toBeFalse();
+    }
+});
+
 test('signing key passes paseto misuse resistance on repeated issue calls', function () {
     $first = $this->tokenService->issue($this->license, $this->usage);
     $second = $this->tokenService->issue($this->license, $this->usage);
