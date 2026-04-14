@@ -116,35 +116,17 @@ class TestCase extends Orchestra
         config()->set('app.key', 'base64:'.base64_encode('32characterslong1234567890123456'));
 
         config()->set('licensing.crypto.keystore.passphrase', 'test-passphrase-for-testing');
-
-        // Register the package migrations with Laravel's migrator so
-        // RefreshDatabase can run them via migrate:fresh and wrap each test
-        // in its own transaction. The package ships stubs as .php.stub so
-        // vendor:publish can timestamp them at install time; at test time we
-        // materialise them once per process into a temp directory with real
-        // timestamps.
-        $path = static::prepareMigrationFixtures();
-
-        $app->afterResolving('migrator', function ($migrator) use ($path) {
-            $migrator->path($path);
-        });
     }
 
-    protected static ?string $migrationFixturePath = null;
-
-    protected static function prepareMigrationFixtures(): string
+    /**
+     * Runs after RefreshDatabase's migrate:fresh has dropped every table, and
+     * only once per process (the DatabaseRefreshed event fires exactly once,
+     * gated by RefreshDatabaseState::$migrated). Including the published
+     * stubs and calling up() here is safe on both SQLite in-memory and
+     * persistent drivers like MySQL/MariaDB — no "table already exists".
+     */
+    protected function defineDatabaseMigrationsAfterDatabaseRefreshed()
     {
-        if (static::$migrationFixturePath !== null && is_dir(static::$migrationFixturePath)) {
-            return static::$migrationFixturePath;
-        }
-
-        $path = sys_get_temp_dir().'/laravel-licensing-migrations-'.getmypid();
-        File::ensureDirectoryExists($path);
-
-        foreach (File::files($path) as $file) {
-            File::delete($file->getPathname());
-        }
-
         // Order matters: FK parents before children. SQLite tolerates forward
         // references at DDL time, MySQL does not.
         $stubOrder = [
@@ -162,28 +144,18 @@ class TestCase extends Orchestra
         ];
 
         $sourceDir = __DIR__.'/../database/migrations';
-        $counter = 0;
 
         foreach ($stubOrder as $name) {
             $stub = $sourceDir.'/'.$name.'.php.stub';
             if (! file_exists($stub)) {
                 continue;
             }
-            $counter++;
-            $filename = sprintf('2024_01_01_%06d_%s.php', $counter, $name);
-            File::copy($stub, $path.'/'.$filename);
+            (include $stub)->up();
         }
 
-        // Test-only users table, also materialised with a timestamp.
-        $usersSrc = __DIR__.'/database/migrations/create_users_table.php';
-        if (file_exists($usersSrc)) {
-            $counter++;
-            $filename = sprintf('2024_01_01_%06d_create_users_table.php', $counter);
-            File::copy($usersSrc, $path.'/'.$filename);
+        $usersTable = __DIR__.'/database/migrations/create_users_table.php';
+        if (file_exists($usersTable)) {
+            (include $usersTable)->up();
         }
-
-        static::$migrationFixturePath = $path;
-
-        return $path;
     }
 }
