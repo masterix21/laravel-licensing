@@ -20,7 +20,7 @@ return new class extends Migration
             $table->integer('duration_days');
             $table->boolean('is_extended')->default(false);
             $table->integer('extension_days')->default(0);
-            $table->string('extension_reason')->nullable();
+            $table->text('extension_reason')->nullable();
             $table->json('limitations')->nullable();
             $table->json('feature_restrictions')->nullable();
             $table->string('conversion_trigger')->nullable();
