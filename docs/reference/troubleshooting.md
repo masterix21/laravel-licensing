@@ -387,11 +387,11 @@ chmod 600 storage/app/licensing/keys/root-private.pem
 
 **Diagnosis**:
 ```bash
-# Check current keys
-php artisan licensing:keys:list --show-revoked
+# Check current keys (active + revoked)
+php artisan licensing:keys:list
 
-# Verify root key
-php artisan licensing:keys:verify-root
+# Verify installation (root key, signing key, schema)
+php artisan licensing:check
 ```
 
 **Solution**:
@@ -707,30 +707,21 @@ foreach ($legacyLicenses as $old) {
 
 ### Enable Debug Mode
 
-```php
-// .env
-LICENSING_DEBUG=true
-LICENSING_LOG_LEVEL=debug
-
-// config/licensing.php
-'debug' => env('LICENSING_DEBUG', false),
-'log_channel' => 'licensing',
-```
+The package does not ship a dedicated debug flag. Use Laravel's built-in
+`APP_DEBUG=true` and `LOG_LEVEL=debug` (or define a `licensing` log channel in
+`config/logging.php`) to surface package events through the standard logger.
 
 ### Debug Commands
 
 ```bash
-# Verify system health
-php artisan licensing:health-check --verbose
+# Verify installation (config, tables, root/signing keys)
+php artisan licensing:check
 
-# Test token generation
-php artisan licensing:debug:token --license=XXX --fingerprint=test
+# List signing/root keys and their status
+php artisan licensing:keys:list
 
-# Validate configuration
-php artisan licensing:validate-config
-
-# Check database schema
-php artisan licensing:check-schema
+# Issue an offline token for manual inspection
+php artisan licensing:offline:issue --license=XXX --fingerprint=test
 ```
 
 ### Logging

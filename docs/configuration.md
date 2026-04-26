@@ -367,8 +367,7 @@ Configure how cryptographic keys are stored:
         // File storage path (if using files driver)
         'path' => storage_path('app/licensing/keys'),
         
-        // Provide passphrase directly or via environment and it will be cached at runtime
-        'passphrase' => env('LICENSING_KEYSTORE_PASSPHRASE'),
+        // Passphrase is read from the env var named by passphrase_env
         'passphrase_env' => 'LICENSING_KEY_PASSPHRASE',
 
         // Key rotation settings
@@ -566,14 +565,6 @@ Configure how notifications are sent:
         'transfer_completed' => ['mail', 'webhook'],
         'trial_expiring' => ['mail'],
         'key_rotated' => ['slack'],
-    ],
-    
-    // Webhook configuration
-    'webhook' => [
-        'url' => env('LICENSING_WEBHOOK_URL'),
-        'secret' => env('LICENSING_WEBHOOK_SECRET'),
-        'timeout' => 30,
-        'retry' => 3,
     ],
     
     // Slack configuration

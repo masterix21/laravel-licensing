@@ -24,19 +24,18 @@ php artisan licensing:keys:make-root [options]
 ```
 
 **Options:**
-- `--algorithm=ed25519` - Key algorithm (ed25519, ES256)
-- `--passphrase=SECRET` - Passphrase for private key encryption
-- `--force` - Overwrite existing root key
-- `--output-format=json` - Output format (json, text)
+- `--force` - Overwrite an existing root key
+- `--silent` - Do not prompt for a missing passphrase
+
+The keystore passphrase is read from the env var configured by
+`licensing.crypto.keystore.passphrase_env` (default `LICENSING_KEY_PASSPHRASE`).
+The signing algorithm comes from `licensing.crypto.algorithm`.
 
 **Example:**
 
 ```bash
-# Create root key with default settings
+# Create root key
 php artisan licensing:keys:make-root
-
-# Create with custom algorithm and passphrase
-php artisan licensing:keys:make-root --algorithm=ES256 --passphrase=mypassphrase
 
 # Force overwrite existing root key
 php artisan licensing:keys:make-root --force
@@ -64,26 +63,28 @@ php artisan licensing:keys:issue-signing [options]
 ```
 
 **Options:**
-- `--kid=KEY_ID` - Custom key identifier
-- `--nbf=DATETIME` - Valid from (ISO 8601 format)
-- `--exp=DATETIME` - Valid until (ISO 8601 format)
-- `--algorithm=ed25519` - Key algorithm
-- `--auto-activate` - Automatically activate the new key
+- `--kid=KEY_ID` - Custom key identifier (auto-generated when omitted)
+- `--scope=SLUG` - Scope slug or identifier for the signing key
+- `--days=N` - Validity window in days (shortcut for `--nbf=now --exp=now+N`)
+- `--nbf=DATETIME` - Valid from (ISO 8601)
+- `--exp=DATETIME` - Valid until (ISO 8601)
+
+The new key is activated immediately.
 
 **Example:**
 
 ```bash
-# Issue signing key with auto-generated ID
+# Issue signing key with auto-generated kid
 php artisan licensing:keys:issue-signing
 
-# Issue with custom validity period
+# Issue with explicit kid and validity window
 php artisan licensing:keys:issue-signing \
   --kid=signing-2024-q1 \
   --nbf=2024-01-01T00:00:00Z \
   --exp=2024-04-01T00:00:00Z
 
-# Issue and activate immediately
-php artisan licensing:keys:issue-signing --auto-activate
+# Issue scoped to a specific product
+php artisan licensing:keys:issue-signing --scope=erp-system --days=90
 ```
 
 ### licensing:keys:rotate
@@ -95,24 +96,17 @@ php artisan licensing:keys:rotate [options]
 ```
 
 **Options:**
-- `--reason=REASON` - Rotation reason (routine, compromised, security)
-- `--revoke-at=DATETIME` - When to revoke old key (defaults to now)
-- `--validity-days=90` - Validity period for new key
-- `--force` - Skip confirmation prompt
+- `--reason=routine|compromised` - Rotation reason (defaults to `routine`)
+- `--immediate` - Immediately revoke the old key (required for `compromised`)
 
 **Example:**
 
 ```bash
-# Routine rotation with confirmation
+# Routine rotation
 php artisan licensing:keys:rotate --reason=routine
 
 # Emergency rotation for compromised key
-php artisan licensing:keys:rotate --reason=compromised --force
-
-# Schedule future revocation
-php artisan licensing:keys:rotate \
-  --reason=planned \
-  --revoke-at=2024-02-01T00:00:00Z
+php artisan licensing:keys:rotate --reason=compromised --immediate
 ```
 
 ### licensing:keys:revoke
@@ -127,9 +121,8 @@ php artisan licensing:keys:revoke {kid} [options]
 - `kid` - Key identifier to revoke
 
 **Options:**
-- `--at=DATETIME` - When to revoke (defaults to now)
-- `--reason=REASON` - Revocation reason
-- `--force` - Skip confirmation
+- `--reason=manual` - Revocation reason (defaults to `manual`)
+- `--at=DATETIME` - When to revoke (ISO 8601, defaults to now)
 
 **Example:**
 
@@ -137,10 +130,10 @@ php artisan licensing:keys:revoke {kid} [options]
 # Revoke immediately
 php artisan licensing:keys:revoke signing-2024-01
 
-# Schedule future revocation
+# Backdate revocation
 php artisan licensing:keys:revoke signing-2024-01 \
   --at=2024-02-01T00:00:00Z \
-  --reason="Key rotation"
+  --reason=key-rotation
 ```
 
 ### licensing:keys:list
@@ -151,23 +144,13 @@ Lists all keys with their status and validity.
 php artisan licensing:keys:list [options]
 ```
 
-**Options:**
-- `--format=table` - Output format (table, json, csv)
-- `--status=active` - Filter by status (active, revoked, expired, all)
-- `--type=signing` - Filter by type (root, signing, all)
-- `--show-revoked` - Include revoked keys in output
+Lists every root and signing key (active, revoked, and expired) in a table.
+Has no options.
 
 **Example:**
 
 ```bash
-# List all active keys
 php artisan licensing:keys:list
-
-# List all keys including revoked
-php artisan licensing:keys:list --status=all
-
-# JSON output for scripting
-php artisan licensing:keys:list --format=json
 ```
 
 **Sample Output:**
@@ -191,22 +174,19 @@ php artisan licensing:keys:export [options]
 ```
 
 **Options:**
-- `--format=jwks` - Export format (jwks, pem, json)
-- `--include-chain` - Include certificate chain
-- `--output=FILE` - Output file path
-- `--active-only` - Export only active keys
+- `--format=json|jwks|pem` - Export format (defaults to `json`)
+- `--include-chain` - Include certificate chain in the bundle
+
+The bundle is written to the path configured by `licensing.publishing.public_bundle_path`.
 
 **Example:**
 
 ```bash
-# Export as JWKS format
-php artisan licensing:keys:export --format=jwks --output=public/jwks.json
+# Export as JWKS
+php artisan licensing:keys:export --format=jwks
 
-# Export as PEM bundle
+# Export PEM bundle with chain
 php artisan licensing:keys:export --format=pem --include-chain
-
-# Export active keys only
-php artisan licensing:keys:export --active-only
 ```
 
 ## Token Commands
@@ -222,27 +202,17 @@ php artisan licensing:offline:issue [options]
 ```
 
 **Options:**
-- `--license=ID` - License ID or key
-- `--fingerprint=FP` - Usage fingerprint
-- `--ttl=7d` - Token time-to-live (7d, 168h, 10080m)
-- `--claims=JSON` - Additional claims as JSON
-- `--output=FILE` - Save token to file
+- `--license=ID` - License ID or activation key (required)
+- `--fingerprint=FP` - Usage fingerprint (required)
+- `--ttl=7d` - Token time-to-live (defaults to `7d`)
 
 **Example:**
 
 ```bash
-# Issue token for specific license and fingerprint
 php artisan licensing:offline:issue \
   --license=LIC-ABC123-XYZ789 \
   --fingerprint=device-unique-id \
   --ttl=14d
-
-# Issue with custom claims
-php artisan licensing:offline:issue \
-  --license=01HZQM5... \
-  --fingerprint=mobile-app-123 \
-  --claims='{"app_version":"2.1.0","platform":"ios"}' \
-  --output=token.txt
 ```
 
 **Output:**
@@ -259,34 +229,11 @@ Token: v4.public.eyJ0eXAiOiJQQVNFVE8iLCJhbGc...
 Token saved to: token.txt
 ```
 
-### licensing:offline:verify
+### Verifying Offline Tokens
 
-Verifies offline tokens (for testing).
-
-```bash
-php artisan licensing:offline:verify {token} [options]
-```
-
-**Arguments:**
-- `token` - Token to verify (or file path)
-
-**Options:**
-- `--show-claims` - Display decoded claims
-- `--validate-license` - Also validate against current license state
-- `--format=json` - Output format
-
-**Example:**
-
-```bash
-# Verify token
-php artisan licensing:offline:verify "v4.public.eyJ0eXAiOi..."
-
-# Verify from file with full validation
-php artisan licensing:offline:verify token.txt \
-  --show-claims \
-  --validate-license \
-  --format=json
-```
+There is no CLI verifier. Verify tokens programmatically through the `TokenVerifier`
+contract (resolved via `app(\LucaLongo\Licensing\Contracts\TokenVerifier::class)`),
+which validates signature, chain, expiry, and clock skew.
 
 ## Maintenance Commands
 
@@ -294,17 +241,16 @@ Commands for system maintenance and monitoring.
 
 ### licensing:check-expirations
 
-Checks for expired licenses and processes state transitions.
+Transitions licenses across grace and expired states based on `expires_at`.
 
 ```bash
 php artisan licensing:check-expirations [options]
 ```
 
 **Options:**
-- `--dry-run` - Show what would be done without making changes
-- `--notify` - Send expiration notifications
-- `--grace-period` - Process grace period transitions
-- `--batch-size=100` - Process in batches of specified size
+- `--dry-run` - Report transitions without applying them
+- `--notify` - Dispatch `LicenseExpiringSoon` events for licenses near expiration
+- `--expiring-within=7` - Days threshold for expiring-soon notifications
 
 **Example:**
 
@@ -312,75 +258,45 @@ php artisan licensing:check-expirations [options]
 # Dry run to see what licenses would be affected
 php artisan licensing:check-expirations --dry-run
 
-# Process expirations with notifications
-php artisan licensing:check-expirations --notify --grace-period
+# Apply transitions and notify upcoming expirations
+php artisan licensing:check-expirations --notify --expiring-within=14
 ```
 
-### licensing:cleanup-inactive-usages
+### licensing:cleanup-usages
 
-Removes inactive usage records based on inactivity policies.
+Revokes license usages whose `last_seen_at` exceeds the configured inactivity
+threshold (`licensing.policies.usage_inactivity_auto_revoke_days`).
 
 ```bash
-php artisan licensing:cleanup-inactive-usages [options]
+php artisan licensing:cleanup-usages [options]
 ```
 
 **Options:**
-- `--days=30` - Inactivity threshold in days
-- `--dry-run` - Show what would be cleaned without making changes
-- `--batch-size=100` - Process in batches
+- `--dry-run` - Report revocations without applying them
+
+If `usage_inactivity_auto_revoke_days` is `null`, the command exits as a no-op.
 
 **Example:**
 
 ```bash
-# Clean up usages inactive for 30+ days
-php artisan licensing:cleanup-inactive-usages --days=30
+# Apply revocations
+php artisan licensing:cleanup-usages
 
-# Dry run to see what would be cleaned
-php artisan licensing:cleanup-inactive-usages --dry-run
+# Preview without applying
+php artisan licensing:cleanup-usages --dry-run
 ```
 
-### licensing:health-check
+### licensing:check
 
-Performs comprehensive system health checks.
+Verifies installation: configuration, schema, root key, and active signing key.
 
 ```bash
-php artisan licensing:health-check [options]
+php artisan licensing:check
 ```
 
-**Options:**
-- `--component=keys` - Check specific component (keys, database, tokens)
-- `--format=table` - Output format (table, json)
-- `--fail-fast` - Stop on first failure
-
-**Example:**
-
-```bash
-# Complete health check
-php artisan licensing:health-check
-
-# Check only cryptographic keys
-php artisan licensing:health-check --component=keys
-
-# JSON output for monitoring
-php artisan licensing:health-check --format=json
-```
-
-**Sample Output:**
-
-```
-Laravel Licensing System Health Check
-
-[OK] Database connectivity
-[OK] Required tables exist
-[OK] Root key present and valid
-[OK] Active signing key available
-[OK] Key permissions correct
-[OK] Configuration valid
-[WARN] 3 licenses expiring within 7 days
-[OK] No revoked keys in use
-
-Overall Status: HEALTHY (1 warning)
-```
+Exit code is `0` when every check passes and `1` otherwise. Output is a table
+with one row per check (Configuration, each licensing table, Root key, Signing
+key) and a remediation hint for failing rows.
 
 ## Command Options
 
@@ -462,13 +378,13 @@ protected function schedule(Schedule $schedule)
              ->environments(['production']);
     
     // Clean up inactive usages weekly
-    $schedule->command('licensing:cleanup-inactive-usages --days=60')
+    $schedule->command('licensing:cleanup-usages')
              ->weeklyOn(1, '03:00'); // Mondays at 3 AM
-    
-    // Health check hourly
-    $schedule->command('licensing:health-check --format=json')
-             ->hourly()
-             ->sendOutputTo('/var/log/licensing-health.log');
+
+    // Installation sanity check daily
+    $schedule->command('licensing:check')
+             ->daily()
+             ->sendOutputTo('/var/log/licensing-check.log');
 }
 ```
 
@@ -478,41 +394,11 @@ protected function schedule(Schedule $schedule)
 # .github/workflows/deploy.yml
 - name: Setup License Keys
   run: |
-    php artisan licensing:keys:make-root --force --no-interaction
-    php artisan licensing:keys:issue-signing --auto-activate --no-interaction
+    php artisan licensing:keys:make-root --force --silent
+    php artisan licensing:keys:issue-signing --no-interaction
 
-- name: Health Check
-  run: |
-    php artisan licensing:health-check --fail-fast
-    if [ $? -ne 0 ]; then
-      echo "Health check failed"
-      exit 1
-    fi
-```
-
-### Monitoring Scripts
-
-```bash
-#!/bin/bash
-# monitoring/check-licensing-health.sh
-
-# Run health check and capture output
-OUTPUT=$(php artisan licensing:health-check --format=json)
-EXIT_CODE=$?
-
-# Parse JSON output
-WARNINGS=$(echo $OUTPUT | jq '.warnings | length')
-ERRORS=$(echo $OUTPUT | jq '.errors | length')
-
-# Alert if issues found
-if [ $WARNINGS -gt 0 ] || [ $ERRORS -gt 0 ]; then
-    # Send alert to monitoring system
-    curl -X POST https://monitoring.example.com/alert \
-         -H "Content-Type: application/json" \
-         -d "{\"service\":\"licensing\",\"warnings\":$WARNINGS,\"errors\":$ERRORS}"
-fi
-
-exit $EXIT_CODE
+- name: Installation Check
+  run: php artisan licensing:check
 ```
 
 ### Key Rotation Automation
@@ -525,26 +411,26 @@ class AutoRotateKeys extends Command
     
     public function handle()
     {
-        $activeKey = app(CertificateAuthorityService::class)->getActiveSigningKey();
-        
-        if (!$activeKey) {
+        $activeKey = LucaLongo\Licensing\Models\LicensingKey::findActiveSigning();
+
+        if (! $activeKey) {
             $this->error('No active signing key found');
+
             return 1;
         }
-        
-        // Rotate if key is older than 60 days
-        if ($activeKey->created_at->diffInDays() > 60) {
+
+        if ($activeKey->created_at->diffInDays(now()) > 60) {
             $this->info('Rotating signing key (60+ days old)');
-            
+
             $this->call('licensing:keys:rotate', [
-                '--reason' => 'automatic',
-                '--force' => true,
+                '--reason' => 'routine',
             ]);
-            
+
             return 0;
         }
-        
+
         $this->info('Key rotation not needed');
+
         return 0;
     }
 }
@@ -559,8 +445,8 @@ php artisan licensing:keys:export --format=json --include-chain > keys-backup.js
 # Backup database
 php artisan db:dump --database=licensing
 
-# Verify backup integrity
-php artisan licensing:health-check --format=json > health-before-backup.json
+# Verify installation before backup
+php artisan licensing:check
 ```
 
 This comprehensive command reference provides all the tools needed for managing a Laravel Licensing installation through the command line, including automation and monitoring capabilities.

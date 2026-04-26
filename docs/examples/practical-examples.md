@@ -984,7 +984,7 @@ class LicenseManager {
             "device_info": deviceInfo
         ] as [String: Any]
         
-        APIClient.shared.post("/api/licensing/v1/mobile/activate", body: payload) { result in
+        APIClient.shared.post("/api/licensing/v1/activate", body: payload) { result in
             switch result {
             case .success(let data):
                 if let license = try? JSONDecoder().decode(License.self, from: data) {
@@ -1011,7 +1011,7 @@ class LicenseManager {
         }
         
         // Validate with server
-        APIClient.shared.post("/api/licensing/v1/mobile/validate", 
+        APIClient.shared.post("/api/licensing/v1/validate", 
                               headers: ["X-Device-ID": deviceId]) { result in
             switch result {
             case .success(_):
@@ -1052,29 +1052,10 @@ class LicenseManager {
     
     // MARK: - Device Management
     
-    func getRegisteredDevices(completion: @escaping ([Device]) -> Void) {
-        APIClient.shared.get("/api/licensing/v1/mobile/devices") { result in
-            switch result {
-            case .success(let data):
-                if let devices = try? JSONDecoder().decode([Device].self, from: data) {
-                    completion(devices)
-                }
-            case .failure(_):
-                completion([])
-            }
-        }
-    }
-    
-    func removeDevice(_ deviceId: String, completion: @escaping (Bool) -> Void) {
-        APIClient.shared.delete("/api/licensing/v1/mobile/devices/\(deviceId)") { result in
-            switch result {
-            case .success(_):
-                completion(true)
-            case .failure(_):
-                completion(false)
-            }
-        }
-    }
+    // Device listing and removal must be implemented as a custom application
+    // route — the package exposes /deactivate but no built-in device listing
+    // endpoint. Wire it up against your own controller backed by the
+    // LicenseUsage model.
     
     // MARK: - Storage
     

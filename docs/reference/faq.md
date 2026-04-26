@@ -425,16 +425,17 @@ AND expires_at > NOW();
 ### How do I debug key rotation issues?
 
 ```bash
-# Check key status
-php artisan licensing:keys:list --show-revoked
+# Check key status (active and revoked)
+php artisan licensing:keys:list
 
-# Verify chain
-php artisan licensing:keys:verify-chain
+# Verify installation (root, signing, schema)
+php artisan licensing:check
 
-# Test token with new key
-php artisan licensing:offline:issue --test
-php artisan licensing:offline:verify <token>
+# Issue a test token to confirm the active signing key works
+php artisan licensing:offline:issue --license=<id> --fingerprint=<fp>
 ```
+
+Verify tokens programmatically with the `TokenVerifier` contract; there is no CLI verifier.
 
 ### Memory usage is high
 

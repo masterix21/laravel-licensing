@@ -7,6 +7,9 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Support\Facades\RateLimiter;
+use LucaLongo\Licensing\Commands\CheckExpirationsCommand;
+use LucaLongo\Licensing\Commands\CheckInstallationCommand;
+use LucaLongo\Licensing\Commands\CleanupUsagesCommand;
 use LucaLongo\Licensing\Commands\ExportKeysCommand;
 use LucaLongo\Licensing\Commands\IssueOfflineTokenCommand;
 use LucaLongo\Licensing\Commands\IssueSigningKeyCommand;
@@ -71,6 +74,9 @@ class LicensingServiceProvider extends PackageServiceProvider
                 RevokeKeyCommand::class,
                 ExportKeysCommand::class,
                 IssueOfflineTokenCommand::class,
+                CheckInstallationCommand::class,
+                CheckExpirationsCommand::class,
+                CleanupUsagesCommand::class,
             ]);
 
         if (config('licensing.api.enabled')) {

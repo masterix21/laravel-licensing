@@ -111,23 +111,8 @@ class CachedTokenVerifier implements TokenVerifier
 
 ## Connection Pooling
 
-```php
-// Database connection optimization
-config([
-    'database.connections.licensing' => [
-        'driver' => 'mysql',
-        'host' => env('LICENSING_DB_HOST'),
-        'port' => env('LICENSING_DB_PORT', 3306),
-        'database' => env('LICENSING_DB_DATABASE'),
-        'username' => env('LICENSING_DB_USERNAME'),
-        'password' => env('LICENSING_DB_PASSWORD'),
-        'options' => [
-            PDO::ATTR_PERSISTENT => true, // Connection pooling
-            PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false,
-        ],
-    ],
-]);
-```
+The package uses the default database connection. To pool connections, configure
+`PDO::ATTR_PERSISTENT` on your existing connection in `config/database.php`.
 
 ## Load Testing
 

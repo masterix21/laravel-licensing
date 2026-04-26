@@ -32,10 +32,9 @@ Root Key (Long-lived, 2+ years)
 ### Root Key Creation
 
 ```bash
-# Generate root key with strong passphrase
-php artisan licensing:keys:make-root \
-  --algorithm=ed25519 \
-  --passphrase="${LICENSING_ROOT_PASSPHRASE}"
+# Generate root key. The passphrase is read from the env var configured by
+# licensing.crypto.keystore.passphrase_env (default: LICENSING_KEY_PASSPHRASE).
+php artisan licensing:keys:make-root
 ```
 
 ```php
