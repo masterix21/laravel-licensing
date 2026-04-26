@@ -2,6 +2,42 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 2.0.2 - 2026-04-26
+
+### Bug Fixes
+
+- **Missing `licensing:check` command** (#11): the documented installation
+  verification command was never implemented. Running `php artisan licensing:check`
+  on a fresh install failed with "Command not defined".
+- **Orphan command duplicates**: removed unused duplicate command classes under
+  `src/Console/Commands/` that were never registered with the service provider.
+
+### New Commands
+
+- `licensing:check` — verifies configuration, schema, root key, and active
+  signing key, returning a non-zero exit code on failure.
+- `licensing:check-expirations` — transitions licenses across `active → grace →
+  expired` based on `expires_at`. Supports `--dry-run`, `--notify`, and
+  `--expiring-within=N`.
+- `licensing:cleanup-usages` — revokes usages whose `last_seen_at` exceeds
+  `licensing.policies.usage_inactivity_auto_revoke_days`. Supports `--dry-run`
+  and exits as a no-op when the policy is disabled.
+
+### Documentation
+
+- Realigned the docs with the actual CLI surface: removed references to
+  non-existent commands (`licensing:health-check`, `licensing:offline:verify`,
+  `licensing:keys:verify-root`, `licensing:keys:verify-chain`,
+  `licensing:check-schema`, `licensing:cleanup-inactive-usages`,
+  `licensing:debug:token`, `licensing:validate-config`) and corrected option
+  lists for the real commands.
+- Replaced fictional `/api/licensing/v1/mobile/*` endpoints in the iOS example
+  with the real `/activate` and `/validate` routes.
+- Removed environment variables that were documented but never read by the
+  package (`LICENSING_DEBUG`, `LICENSING_LOG_LEVEL`, `LICENSING_DB_*`,
+  `LICENSING_WEBHOOK_*`, `LICENSING_ROOT_PASSPHRASE`,
+  `LICENSING_KEYSTORE_PASSPHRASE`).
+
 ## 2.0.1 - 2026-04-14
 
 ### Bug Fixes
