@@ -18,6 +18,7 @@ use LucaLongo\Licensing\Observers\LicensingAuditLogObserver;
 use LucaLongo\Licensing\Observers\LicensingKeyObserver;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Spatie\LaravelPackageTools\Package;
+use Spatie\Sluggable\SluggableServiceProvider;
 
 class TestCase extends Orchestra
 {
@@ -79,6 +80,7 @@ class TestCase extends Orchestra
     {
         return [
             LicensingServiceProvider::class,
+            SluggableServiceProvider::class,
         ];
     }
 
