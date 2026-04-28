@@ -91,4 +91,3 @@ test('licensing:cleanup-usages revokes inactive usages', function () {
     expect($stale->fresh()->status)->toBe(UsageStatus::Revoked)
         ->and($fresh->fresh()->status)->toBe(UsageStatus::Active);
 });
-

@@ -27,7 +27,7 @@
         "paragonie/paseto": "^3.5",
         "spatie/crypto": "^2.0",
         "spatie/laravel-package-tools": "^1.16",
-        "spatie/laravel-sluggable": "^3.7 || ^3.8",
+        "spatie/laravel-sluggable": "^4.0.0",
         "symfony/uid": "^7.0 || ^8.0"
     },
     "require-dev": {
