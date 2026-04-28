@@ -2,6 +2,20 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## 2.1.0 - 2026-04-28
+
+### Changed
+
+- Bumped `spatie/laravel-sluggable` requirement to `^4.0` (#12). Public API is
+  unchanged. v4 requires PHP 8.3+ and Laravel 12+, both already floors for this
+  package, and the closure-typed slug options in `LicenseTemplate` are already
+  v4-compatible.
+
+### Internal
+
+- `tests/TestCase.php` registers `SluggableServiceProvider` explicitly so
+  Testbench merges the new `config/sluggable.php` action map introduced in v4.
+
 ## 2.0.2 - 2026-04-26
 
 ### Bug Fixes
