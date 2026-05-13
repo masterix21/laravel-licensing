@@ -168,7 +168,7 @@ composer analyse         # static analysis
 
 ## Laravel Boost integration
 
-This package ships AI guidelines under `resources/boost/guidelines/laravel-licensing/`. Apps using [Laravel Boost](https://github.com/laravel/boost) auto-discover them:
+This package ships AI guidelines under `resources/boost/guidelines/laravel-licensing/core.blade.php`. Apps using [Laravel Boost](https://github.com/laravel/boost) auto-discover them:
 
 ```bash
 php artisan boost:install            # first time, or
@@ -176,6 +176,18 @@ php artisan boost:update --discover  # to pick up after adding the package
 ```
 
 The guidelines cover: core concepts, licenses, usages/seats, scopes & templates, trials, offline tokens, CLI, and API/security. AI assistants (Claude Code, Copilot, Cursor, …) will follow them when generating code against `laravel-licensing`.
+
+> **Heads up:** `boost:update --discover` uses an interactive multi-select. On a TTY, select `masterix21/laravel-licensing` when prompted. In non-interactive environments (CI, automation), the prompt is silently skipped and the package is **not** added — append it manually to `boost.json`:
+>
+> ```json
+> {
+>     "packages": ["masterix21/laravel-licensing"]
+> }
+> ```
+>
+> then re-run `php artisan boost:update --no-interaction`.
+
+To verify the integration end-to-end against a throwaway Laravel app, run `scripts/test-boost-e2e.sh` from the package root.
 
 ## Documentation
 
