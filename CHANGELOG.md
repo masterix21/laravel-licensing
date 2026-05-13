@@ -2,10 +2,40 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
-## [Unreleased]
+## 2.1.1 - 2026-05-13
 
 ### Added
-- Laravel Boost AI guidelines under `resources/boost/guidelines/laravel-licensing/` (auto-discovered by `boost:install` / `boost:update --discover`).
+
+- **Laravel Boost integration.** The package now ships a consolidated AI
+  guideline at `resources/boost/guidelines/laravel-licensing/core.blade.php`,
+  auto-discovered by [Laravel Boost](https://github.com/laravel/boost) on
+  `boost:install` / `boost:update --discover`. The guideline covers core
+  concepts, license lifecycle, usages/seats, scopes & templates, trials,
+  offline tokens (PASETO + key rotation), CLI surface, and API/security rules.
+  Snippets reference the real package API (`License::createWithKey`,
+  `License::createFromTemplate`, `UsageRegistrar::register`,
+  `TrialService::startTrial`, `LicenseTrial::convert`,
+  `LicenseTrial::hasActiveTrialForFingerprint`).
+- `scripts/test-boost-e2e.sh` — end-to-end smoke test that scaffolds a
+  throwaway Laravel app under `.sandbox/boost-test`, installs the package via
+  a path repository plus `laravel/boost`, and verifies that every expected
+  section ends up in the generated `CLAUDE.md`.
+
+### Internal
+
+- `tests/Unit/BoostGuidelinesTest.php` — Blade compile-smoke plus
+  consolidated-file check (Boost's `GuidelineComposer` keeps only one
+  guideline per third-party package).
+- `tests/Unit/BoostGuidelinesApiContractTest.php` — reflection-based contract
+  test that pins the public method signatures referenced by the Boost
+  guideline; any drift fails CI so the snippets get updated in lockstep.
+
+### Documentation
+
+- README gains a **Laravel Boost integration** section with usage instructions
+  and a caveat for non-interactive (CI) flows, where `boost:update --discover`
+  silently skips the package and consumers must append it to `boost.json`
+  manually.
 
 ## 2.1.0 - 2026-04-28
 
