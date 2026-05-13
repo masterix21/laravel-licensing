@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer install:*)",
+      "Bash(./vendor/bin/pest --filter=\"can issue PASETO token\" --stop-on-error)",
+      "Bash(./vendor/bin/pest --filter=\"can create usage with auto timestamps\" --stop-on-error)",
+      "Bash(./vendor/bin/pest --stop-on-error)",
+      "Bash(./vendor/bin/pest:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(find:*)",
+      "Bash(composer test:*)",
+      "Bash(for i in 1 2 3)",
+      "Bash(do echo \"=== Run $i ===\")",
+      "Bash(done)",
+      "Bash(for i in 1 2 3 4 5)",
+      "Bash(do echo \"Run $i:\")",
+      "Bash(for i in {1..10})",
+      "Bash(cut:*)",
+      "Bash(do:*)",
+      "Bash(awk:*)",
+      "Bash(for i in {1..5})",
+      "Bash(wc -l /Users/luca/Dev/Packages/laravel-licensing/src/**/*.php | tail -1)",
+      "Bash(php artisan:*)",
+      "Bash(vendor/bin/pest --filter=HasKeyStore 2>&1)",
+      "Bash(vendor/bin/pest 2>&1)",
+      "Bash(git commit:*)",
+      "Bash(php -r \"echo SODIUM_CRYPTO_PWHASH_SALTBYTES;\")",
+      "Bash(git push:*)",
+      "Bash(gh release:*)",
+      "Bash(grep -r 'mass.assignment\\\\|fillable\\\\|$guarded' /Users/luca/Dev/Packages/laravel-licensing/src/Models/ '--include=*.php')",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(php vendor/bin/pest --ci)",
+      "Bash(./vendor/bin/phpstan --error-format=table)",
+      "Bash(vendor/bin/pest tests/Feature/LicenseTransferTest.php --ci --colors=never)",
+      "Bash(vendor/bin/pest tests/Unit/Services/PasetoTokenServiceTest.php)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
