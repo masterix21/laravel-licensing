@@ -2,6 +2,11 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Laravel Boost AI guidelines under `resources/boost/guidelines/laravel-licensing/` (auto-discovered by `boost:install` / `boost:update --discover`).
+
 ## 2.1.0 - 2026-04-28
 
 ### Changed
