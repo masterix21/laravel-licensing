@@ -166,6 +166,17 @@ composer test-coverage   # with coverage
 composer analyse         # static analysis
 ```
 
+## Laravel Boost integration
+
+This package ships AI guidelines under `resources/boost/guidelines/laravel-licensing/`. Apps using [Laravel Boost](https://github.com/laravel/boost) auto-discover them:
+
+```bash
+php artisan boost:install            # first time, or
+php artisan boost:update --discover  # to pick up after adding the package
+```
+
+The guidelines cover: core concepts, licenses, usages/seats, scopes & templates, trials, offline tokens, CLI, and API/security. AI assistants (Claude Code, Copilot, Cursor, …) will follow them when generating code against `laravel-licensing`.
+
 ## Documentation
 
 Full documentation is available in the [docs](docs/README.md) folder.
