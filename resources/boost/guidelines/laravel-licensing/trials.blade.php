@@ -2,13 +2,14 @@
 
 ## Start a trial
 ```php
-use LucaLongo\Licensing\Models\LicenseTrial;
+use LucaLongo\Licensing\Services\TrialService;
 
-$trial = LicenseTrial::start(
-    licensable: $user,
+// TrialService::startTrial() requires a License to attach the trial to.
+// Create or retrieve the license first, then start the trial.
+$trial = app(TrialService::class)->startTrial(
+    license: $license,
     fingerprint: $fingerprint,
     durationDays: 14,
-    scope: $scope,                            // optional
 );
 ```
 
@@ -19,11 +20,13 @@ $trial = LicenseTrial::start(
 
 ## Conversion
 ```php
-$license = $trial->convertTo($template);      // links trial to issued license
+// convert() issues a License from the trial's existing license template,
+// marks the trial as Converted, and fires TrialConverted.
+$license = $trial->convert(trigger: 'checkout', value: 99.0);
 ```
 The trial row is preserved (audit), `converted_at` is set.
 
 ## Rules
 - DON'T reuse the same fingerprint across scopes unless you explicitly want shared trial limits.
-- DO check `LicenseTrial::hasActiveTrial($fingerprint, $scope)` before offering a new trial.
+- DO check `LicenseTrial::hasActiveTrialForFingerprint($fingerprint)` before offering a new trial.
 - DON'T store raw fingerprints anywhere — only HMAC.
