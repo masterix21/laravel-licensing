@@ -2,6 +2,9 @@
 composer.lock
 /vendor
 
+# Local sandbox for end-to-end testing (Laravel Boost discovery, etc.)
+/.sandbox
+
 # Frontend Assets
 /node_modules
 
