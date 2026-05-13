@@ -12,7 +12,9 @@
 ```php
 use LucaLongo\Licensing\Models\License;
 
-$license = License::create([
+// createWithKey() generates a key, stores only the hash, and sets
+// $license->license_key to the plaintext for one-time display.
+$license = License::createWithKey([
     'licensable_type' => 'app-user',          // morph map alias
     'licensable_id'   => $user->id,
     'max_usages'      => 3,
@@ -20,13 +22,13 @@ $license = License::create([
     'meta'            => ['plan' => 'pro'],
 ]);
 
-$plainKey = $license->generateKey();          // returns plaintext ONCE
+$plainKey = $license->license_key;            // plaintext available ONCE after createWithKey()
 $license->activate();                         // pending → active
 ```
 
 ## Renew
 ```php
-$license->renew(periodStart: now(), periodEnd: now()->addYear());
+$license->renew(expiresAt: now()->addYear()); // extends expires_at, writes a LicenseRenewal row
 ```
 Extends `expires_at` and writes a `LicenseRenewal` row.
 
