@@ -15,6 +15,7 @@ Use a scope when shipping multiple products from one Laravel app — a compromis
 ## LicenseTemplate
 Prebuilt license configuration bound to a scope. Uses `spatie/laravel-sluggable` v4 for slug generation.
 ```php
+use LucaLongo\Licensing\Models\License;
 use LucaLongo\Licensing\Models\LicenseTemplate;
 
 $template = LicenseTemplate::create([
@@ -25,7 +26,10 @@ $template = LicenseTemplate::create([
     'meta'             => ['plan' => 'pro'],
 ]);
 
-$license = $template->issue(licensable: $user);
+$license = License::createFromTemplate($template, [
+    'licensable_type' => 'app-user',
+    'licensable_id'   => $user->id,
+]);
 ```
 
 ## Rules
