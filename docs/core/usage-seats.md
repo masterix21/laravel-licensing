@@ -212,6 +212,13 @@ class PrivacyFingerprintService
 
 ## Usage Registration
 
+> **Re-registering a revoked fingerprint.** The uniqueness constraint is
+> `(license_id, usage_fingerprint)` and revoked rows are kept for audit history. When
+> a previously revoked fingerprint registers again (e.g. a device is deactivated and
+> later reactivated), `register()` **re-activates the existing row in place** rather
+> than inserting a duplicate — so the same device can reclaim its seat without hitting
+> a `FINGERPRINT_CONFLICT`.
+
 ### The UsageRegistrarService
 
 ```php

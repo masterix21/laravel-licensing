@@ -208,6 +208,14 @@ class KeyRotationService
 
 ## Client-Side Verification
 
+> **⚠️ Security — bind the certificate to the signing key.** Verifying that the
+> signing certificate is root-signed is **not enough**. You must also confirm that
+> the certificate vouches for the *exact* signing key you then use to verify the
+> token, comparing the two in constant time. Otherwise an attacker can pair a
+> genuine (root-signed) certificate with their own key in the token footer and sign
+> a forged token that still verifies. The package's `PasetoTokenService::verifyOffline()`
+> performs this cross-check; any custom client below must do the same.
+
 ### PHP Client Implementation
 
 ```php
@@ -278,14 +286,27 @@ class OfflineVerifier
     {
         $certificate = json_decode($signingKey['certificate'], true);
         
-        // Verify signature with root key
+        // 1) The certificate must be signed by the trusted root key
         $rootKey = $this->publicKeys['root'];
         
-        return sodium_crypto_sign_verify_detached(
+        $rootSigned = sodium_crypto_sign_verify_detached(
             base64_decode($certificate['signature']),
             $certificate['payload'],
             base64_decode($rootKey['public_key'])
         );
+        
+        if (! $rootSigned) {
+            return false;
+        }
+        
+        // 2) SECURITY: the certificate must bind the EXACT key we verify the token
+        // with. Without this check a genuine certificate can be paired with an
+        // attacker-controlled key and a forged token is accepted. Compare in
+        // constant time.
+        $boundKey = json_decode($certificate['payload'], true)['public_key'] ?? null;
+        
+        return is_string($boundKey)
+            && hash_equals($boundKey, $signingKey['public_key']);
     }
     
     /**
@@ -368,6 +389,16 @@ class OfflineVerifier {
             // Verify certificate chain
             if (!await this.verifyCertificateChain(signingKey)) {
                 throw new Error('Invalid certificate chain');
+            }
+            
+            // SECURITY: the certificate must vouch for THIS signing key, not just be
+            // root-signed. Confirm the bound key matches before using it, otherwise a
+            // genuine certificate can be paired with an attacker key and a forged token
+            // is accepted.
+            const certificate = JSON.parse(signingKey.certificate);
+            const boundKey = JSON.parse(certificate.payload).public_key;
+            if (boundKey !== signingKey.public_key) {
+                throw new Error('Signing key not bound by its certificate');
             }
             
             // Verify token
