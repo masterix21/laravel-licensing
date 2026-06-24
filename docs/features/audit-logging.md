@@ -86,6 +86,18 @@ class AuditLogVerifier
 }
 ```
 
+### What the chain hash covers
+
+`calculateHash()` digests the event identity (`id`, `event_type`, `auditable_type`,
+`auditable_id`, `meta`, `created_at`) **and the forensic attribution columns**:
+`actor`, `actor_type`, `actor_id`, `ip`, `user_agent` and `occurred_at`. These are
+included so a raw `UPDATE` cannot rewrite *who* performed an action and *when* while
+`verifyChain()` still reports the chain intact.
+
+> **Upgrade note:** including the attribution columns changes the hash formula. A
+> chain written before this change will not verify against entries written after it
+> — treat the upgrade as a chain boundary. See [UPGRADE.md](../../UPGRADE.md).
+
 ## Configuration
 
 ```php

@@ -98,6 +98,7 @@ The service wraps registration in a pessimistic lock so `max_usages` cannot be e
 - Stable across restarts, non-PII, `max:255`.
 - Default uniqueness: per-license (unique on `license_id` + `usage_fingerprint`).
 - Switch to global: `config('licensing.policies.unique_usage_scope') = 'global'`.
+- Re-registering a revoked fingerprint re-activates the existing row in place (no duplicate, no `FINGERPRINT_CONFLICT`).
 
 ## Over-limit
 `config('licensing.policies.over_limit')`:
@@ -230,6 +231,7 @@ Publish updated bundle / JWKS so clients reject revoked `kid`.
 ## Rules
 - DON'T ship private keys to clients. Ever.
 - DON'T rely solely on offline tokens for high-value seats — combine with `force_online_after_days`.
+- DON'T hand-roll offline verification. Use `PasetoTokenService::verifyOffline()`, which cross-checks (constant-time) that the certificate binds the signing key it verifies with — a root-signed cert alone is NOT proof the key is legitimate.
 - DO use short TTLs (≤ 7d) to limit blast radius of revocation lag.
 # laravel-licensing — CLI
 

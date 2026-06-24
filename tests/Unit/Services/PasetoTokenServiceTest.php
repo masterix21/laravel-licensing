@@ -5,6 +5,10 @@ use LucaLongo\Licensing\Enums\LicenseStatus;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
+use ParagonIE\Paseto\Builder;
+use ParagonIE\Paseto\Keys\AsymmetricSecretKey;
+use ParagonIE\Paseto\Parser;
+use ParagonIE\Paseto\Protocol\Version4;
 
 use function Spatie\PestPluginTestTime\testTime;
 
@@ -193,6 +197,49 @@ test('offline verification fails with wrong public key', function () {
 
     $this->tokenService->verifyOffline($token, $wrongBundle);
 })->throws(RuntimeException::class);
+
+test('offline verification rejects a token whose signing key is not the one its certificate vouches for', function () {
+    // Lift a real, root-signed certificate + the root public key from a legit token.
+    $legitToken = $this->tokenService->issue($this->license, $this->usage);
+    $footer = json_decode(Parser::extractFooter($legitToken), true);
+    $legitCert = $footer['chain']['signing']['certificate'];
+    $rootPub = $footer['chain']['root']['public_key'];
+
+    // Attacker's own Ed25519 keypair.
+    $seed = random_bytes(SODIUM_CRYPTO_SIGN_SEEDBYTES);
+    $keypair = sodium_crypto_sign_seed_keypair($seed);
+    $roguePublic = substr($keypair, SODIUM_CRYPTO_SIGN_SECRETKEYBYTES);
+    $rogueSecret = AsymmetricSecretKey::v4($seed);
+
+    // Forge: sign with the rogue key, attach the LEGIT (root-signed) certificate,
+    // and swap the footer's signing public_key to the rogue key. verifyCertificate
+    // passes (the cert is genuinely root-signed); the cross-check must catch it.
+    $forgedFooter = json_encode([
+        'kid' => $footer['kid'] ?? 'forged',
+        'chain' => [
+            'signing' => [
+                'public_key' => base64_encode($roguePublic),
+                'certificate' => $legitCert,
+            ],
+            'root' => ['public_key' => $rootPub],
+        ],
+    ]);
+
+    $forged = Builder::getPublic($rogueSecret, new Version4)
+        ->setIssuedAt(now()->toImmutable())
+        ->setNotBefore(now()->toImmutable())
+        ->setExpiration(now()->addDay()->toImmutable())
+        ->setClaims([
+            'status' => 'active',
+            'usage_fingerprint' => $this->usage->usage_fingerprint,
+        ])
+        ->setFooter($forgedFooter)
+        ->toString();
+
+    $bundle = json_encode(['root' => ['public_key' => $rootPub]]);
+
+    $this->tokenService->verifyOffline($forged, $bundle);
+})->throws(RuntimeException::class, 'Signing key does not match its certificate');
 
 test('custom issuer is included in token', function () {
     $customIssuer = 'my-app-licensing';
