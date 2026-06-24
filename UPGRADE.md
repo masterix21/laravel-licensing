@@ -1,5 +1,30 @@
 # Upgrade Guide
 
+## Upgrading within 2.1.x
+
+### Audit chain hash formula changed
+
+The tamper-evident audit log now includes the forensic attribution columns
+(`actor`, `actor_type`, `actor_id`, `ip`, `user_agent`, `occurred_at`) in
+`calculateHash()`. Previously these columns were stored but left out of the hash,
+so a raw `UPDATE` could rewrite who performed an action and when without breaking
+`verifyChain()`.
+
+**Impact:** the hash value for any given record changes. Records written before
+this upgrade will no longer verify against records written after it — the chain
+effectively re-bases from the deploy point forward.
+
+**Action required:**
+
+- If you have **no persisted audit history** (fresh install, or audit logs you do
+  not need to retain), no action is needed.
+- If you **rely on an existing chain**, treat the upgrade as a chain boundary:
+  archive the pre-upgrade segment (its internal links remain valid under the old
+  formula) and start a new chain from the first record written after the upgrade.
+  Do not attempt to re-verify across the boundary.
+
+---
+
 ## Upgrading to 2.0 from 1.x
 
 ### Breaking Changes

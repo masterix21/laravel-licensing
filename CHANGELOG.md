@@ -2,6 +2,36 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## Unreleased
+
+### Security
+
+- **Offline token forgery via certificate/key substitution.** `verifyOffline()`
+  verified the signing certificate was root-signed, then verified the token using
+  the signing public key embedded in the footer — without cross-checking that the
+  certificate actually bound that key. An attacker could pair a legitimate
+  (root-signed) certificate with their own signing key and have a forged token
+  accepted. The verifier now constant-time compares the certificate's bound public
+  key against the key used for verification and rejects on mismatch.
+- **Audit chain now protects forensic attribution.** `calculateHash()` omitted the
+  `actor`, `actor_type`, `actor_id`, `ip`, `user_agent` and `occurred_at` columns,
+  so a raw `UPDATE` could rewrite *who* performed an action and *when* while
+  `verifyChain()` still reported the chain intact. These columns are now included
+  in the hash. **This changes the hash formula — see UPGRADE.md.**
+
+### Fixed
+
+- **Re-activating a deactivated device failed with `FINGERPRINT_CONFLICT` (409).**
+  Because the unique index is `(license_id, usage_fingerprint)` with no status
+  column, a revoked usage row persisted and a subsequent registration of the same
+  fingerprint tried to insert a duplicate. `register()` now re-activates the
+  existing revoked row in place instead of inserting a colliding one.
+
+### Credits
+
+- Thanks to [Codexlabstudio](https://github.com/Codexlabstudio) for reporting and
+  prototyping the offline-token, usage re-activation and audit-chain fixes.
+
 ## 2.1.1 - 2026-05-13
 
 ### Added
