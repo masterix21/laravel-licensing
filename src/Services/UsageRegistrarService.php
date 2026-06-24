@@ -81,18 +81,35 @@ class UsageRegistrarService implements UsageRegistrar
                     $this->revokeOldestUsage($lockedLicense);
                 }
 
-                /** @var LicenseUsage $usage */
-                $usage = $lockedLicense->usages()->create([
+                // Re-activate a previously-revoked seat for the same fingerprint instead of
+                // inserting a duplicate: the unique index is (license_id, usage_fingerprint)
+                // with no status column, so a fresh insert would collide and a deactivate ->
+                // re-activate of the same device would be permanently rejected.
+                /** @var LicenseUsage|null $reusable */
+                $reusable = $lockedLicense->usages()
+                    ->where('usage_fingerprint', $fingerprint)
+                    ->first();
+
+                $attributes = [
                     'usage_fingerprint' => $fingerprint,
                     'status' => UsageStatus::Active->value,
                     'registered_at' => now(),
                     'last_seen_at' => now(),
+                    'revoked_at' => null,
                     'client_type' => $metadata['client_type'] ?? null,
                     'name' => $metadata['name'] ?? null,
                     'ip' => $this->contextValue('ip', $metadata),
                     'user_agent' => $this->contextValue('user_agent', $metadata),
                     'meta' => $metadata['meta'] ?? null,
-                ]);
+                ];
+
+                if ($reusable) {
+                    $reusable->forceFill($attributes)->save();
+                    $usage = $reusable;
+                } else {
+                    /** @var LicenseUsage $usage */
+                    $usage = $lockedLicense->usages()->create($attributes);
+                }
 
                 event(new UsageRegistered($usage));
 
