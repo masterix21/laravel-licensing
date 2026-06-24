@@ -93,6 +93,35 @@ test('decrypt v1 legacy format for backward compatibility', function () {
     expect($decrypted)->toBe($plaintext);
 });
 
+test('decrypt v1 legacy format whose nonce starts with the v2 version byte', function () {
+    // A v1 payload has no version marker, so its first byte is a random nonce byte.
+    // When that byte equals the v2 marker ("\x02") the decryptor must still recover
+    // the key by falling back to v1 instead of misreading it as v2.
+    $passphrase = 'test-passphrase-for-testing';
+    $plaintext = base64_encode(random_bytes(32));
+
+    $nonce = "\x02".random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES - 1);
+    $derivedKey = hash('sha256', $passphrase, true);
+    $encrypted = sodium_crypto_secretbox($plaintext, $nonce, $derivedKey);
+    $v1Payload = base64_encode($nonce.$encrypted);
+
+    sodium_memzero($derivedKey);
+
+    expect(base64_decode($v1Payload)[0])->toBe("\x02");
+
+    $key = new LicensingKey;
+    $key->kid = 'test_v1_v2byte_'.now()->timestamp;
+    $key->type = KeyType::Root;
+    $key->algorithm = 'Ed25519';
+    $key->public_key = base64_encode(random_bytes(32));
+    $key->private_key_encrypted = $v1Payload;
+    $key->status = KeyStatus::Active;
+    $key->valid_from = now();
+    $key->save();
+
+    expect($key->getPrivateKey())->toBe($plaintext);
+});
+
 test('decrypt fails with wrong passphrase', function () {
     $key = (new LicensingKey)->generate(['type' => KeyType::Root]);
 

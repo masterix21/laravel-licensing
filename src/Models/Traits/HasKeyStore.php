@@ -128,8 +128,16 @@ trait HasKeyStore
         $decoded = base64_decode($encryptedKey);
         $versionByte = $decoded[0];
 
+        // Legacy v1 payloads carry no version marker — their first byte is a random
+        // nonce byte — so a v1 payload can coincidentally start with the v2 marker
+        // (~1/256). In that case the v2 attempt fails authentication; fall back to v1
+        // before giving up so those legacy keys still decrypt.
         if ($versionByte === self::ENCRYPTION_VERSION_V2) {
-            return $this->decryptV2($decoded, $passphrase);
+            try {
+                return $this->decryptV2($decoded, $passphrase);
+            } catch (\RuntimeException) {
+                return $this->decryptV1Legacy($decoded, $passphrase);
+            }
         }
 
         return $this->decryptV1Legacy($decoded, $passphrase);
