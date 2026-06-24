@@ -41,21 +41,21 @@ test('license key verification uses constant time comparison', function () {
     $key = 'TEST-KEY-456';
     $license = $this->createLicense(['key_hash' => License::hashKey($key)]);
 
-    $startCorrect = microtime(true);
-    for ($i = 0; $i < 1000; $i++) {
-        $license->verifyKey($key);
-    }
-    $timeCorrect = microtime(true) - $startCorrect;
+    // Functional correctness: only the exact key verifies.
+    expect($license->verifyKey($key))->toBeTrue()
+        ->and($license->verifyKey('WRONG-KEY-999'))->toBeFalse();
 
-    $startWrong = microtime(true);
-    for ($i = 0; $i < 1000; $i++) {
-        $license->verifyKey('WRONG-KEY-999');
-    }
-    $timeWrong = microtime(true) - $startWrong;
+    // The comparison must be constant-time. Assert the implementation relies on
+    // hash_equals() rather than measuring wall-clock timing, which is inherently
+    // flaky under CI load and gives no reliable signal.
+    $reflection = new ReflectionMethod(License::class, 'verifyKey');
+    $body = implode('', array_slice(
+        file($reflection->getFileName()),
+        $reflection->getStartLine() - 1,
+        $reflection->getEndLine() - $reflection->getStartLine() + 1
+    ));
 
-    // Times should be similar (within 50% variance)
-    $ratio = $timeCorrect / $timeWrong;
-    expect($ratio)->toBeBetween(0.5, 1.5);
+    expect($body)->toContain('hash_equals');
 });
 
 test('fingerprints do not contain PII', function () {

@@ -2,7 +2,7 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
-## Unreleased
+## 2.2.0 - 2026-06-24
 
 ### Security
 
@@ -26,6 +26,17 @@ All notable changes to `laravel-licensing` will be documented in this file.
   column, a revoked usage row persisted and a subsequent registration of the same
   fingerprint tried to insert a duplicate. `register()` now re-activates the
   existing revoked row in place instead of inserting a colliding one.
+- **Legacy v1 keys whose nonce started with the v2 marker byte failed to decrypt.**
+  `decryptPrivateKey()` selected the v1/v2 path from the first byte only, but a v1
+  payload has no version marker, so ~1/256 of legacy keys were misread as v2. The
+  decryptor now falls back to v1 when the v2 attempt fails.
+
+### Internal
+
+- Stabilized two non-deterministic tests that intermittently failed CI: the
+  constant-time key-comparison test now asserts the `hash_equals()` invariant by
+  reflection instead of wall-clock timing, and the legacy-key decryption test gained
+  a deterministic case for the v2-marker nonce collision.
 
 ### Credits
 
