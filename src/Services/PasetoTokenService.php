@@ -232,6 +232,17 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
 
         $signingPublicKey = $footer['chain']['signing']['public_key'];
 
+        // SECURITY: the certificate must vouch for the EXACT key used to verify
+        // the token. Without this cross-check, an attacker can pair a legitimate
+        // (root-signed) certificate with their OWN signing key in the footer and
+        // sign a forged token with it — the certificate verifies, the token then
+        // verifies under the attacker's key, and the forgery is accepted.
+        $certData = json_decode((string) $signingCert, true);
+        $certBoundKey = $certData['certificate']['public_key'] ?? null;
+        if (! is_string($certBoundKey) || ! hash_equals($certBoundKey, (string) $signingPublicKey)) {
+            throw new \RuntimeException('Signing key does not match its certificate');
+        }
+
         try {
             $publicKey = new AsymmetricPublicKey(base64_decode($signingPublicKey), new Version4);
         } catch (\Exception $e) {

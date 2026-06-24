@@ -97,8 +97,12 @@ v2.public.<payload>.<footer>
 1. Parse token into parts
 2. Extract footer (contains kid and certificate chain)
 3. Verify certificate chain against root public key
-4. Verify token signature using signing public key
-5. Check token claims
+4. **Confirm the certificate binds the signing public key** — constant-time compare
+   the key vouched for by the certificate against the signing key in the footer, and
+   reject on mismatch (prevents a genuine certificate being paired with an attacker
+   key to forge a token)
+5. Verify token signature using the signing public key
+6. Check token claims
 
 **Required Claim Validations**:
 ```json

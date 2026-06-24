@@ -22,7 +22,7 @@ use LucaLongo\Licensing\Models\Traits\HasAuditLog;
  * @property string|null $user_agent
  * @property ArrayObject|null $meta
  * @property string|null $previous_hash
- * @property Carbon $occurred_at
+ * @property Carbon|null $occurred_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */

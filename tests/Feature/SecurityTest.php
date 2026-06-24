@@ -289,3 +289,28 @@ test('audit logs are tamper-evident', function () {
     // Chain verification should fail
     expect($log2->verifyChain($log1))->toBeFalse();
 });
+
+test('audit chain detects tampering with the actor (who)', function () {
+    $log1 = LicensingAuditLog::create([
+        'event_type' => AuditEventType::LicenseCreated,
+        'auditable_type' => 'App\\Models\\License',
+        'auditable_id' => 1,
+        'actor' => 'admin',
+        'meta' => ['test' => 'data1'],
+    ]);
+
+    $log2 = LicensingAuditLog::create([
+        'event_type' => AuditEventType::LicenseActivated,
+        'auditable_type' => 'App\\Models\\License',
+        'auditable_id' => 1,
+        'meta' => ['test' => 'data2'],
+        'previous_hash' => $log1->calculateHash(),
+    ]);
+
+    expect($log2->verifyChain($log1))->toBeTrue();
+
+    // Rewrite WHO performed the action — the forensic attribution must be chain-protected.
+    $log1->actor = 'mallory';
+
+    expect($log2->verifyChain($log1))->toBeFalse();
+});

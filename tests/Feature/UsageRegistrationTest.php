@@ -44,6 +44,25 @@ test('returns existing usage for same fingerprint', function () {
         ->and($this->license->usages()->count())->toBe(1);
 });
 
+test('re-registers a previously revoked fingerprint by reusing the same row', function () {
+    $fingerprint = $this->generateFingerprint();
+
+    $usage = $this->registrar->register($this->license, $fingerprint);
+    $this->registrar->revoke($usage, 'deactivated');
+
+    expect($usage->fresh()->isActive())->toBeFalse()
+        ->and($this->license->activeUsages()->count())->toBe(0);
+
+    // Re-activating the same device must succeed by reusing the revoked row, not by
+    // inserting a duplicate that collides on the (license_id, usage_fingerprint) index.
+    $reactivated = $this->registrar->register($this->license, $fingerprint);
+
+    expect($reactivated->id)->toBe($usage->id)
+        ->and($reactivated->isActive())->toBeTrue()
+        ->and($this->license->usages()->count())->toBe(1)
+        ->and($this->license->activeUsages()->count())->toBe(1);
+});
+
 test('updates heartbeat for existing usage', function () {
     testTime()->freeze();
     $fingerprint = $this->generateFingerprint();
