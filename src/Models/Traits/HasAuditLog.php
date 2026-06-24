@@ -82,12 +82,21 @@ trait HasAuditLog
 
     public function calculateHash(): string
     {
+        // Cover the forensic attribution fields too (actor/ip/user_agent/occurred_at):
+        // they are stored as dedicated columns, so omitting them let a raw UPDATE rewrite
+        // WHO performed an action and WHEN while the chain still verified intact.
         $data = [
             'id' => $this->id,
             'event_type' => $this->event_type->value,
             'auditable_type' => $this->auditable_type,
             'auditable_id' => $this->auditable_id,
+            'actor' => $this->getAttributeValue('actor'),
+            'actor_type' => $this->actor_type,
+            'actor_id' => $this->actor_id,
+            'ip' => $this->ip,
+            'user_agent' => $this->user_agent,
             'meta' => json_encode($this->meta),
+            'occurred_at' => $this->occurred_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
 
