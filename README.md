@@ -56,6 +56,11 @@ Migrations are tested against MySQL 8 and MariaDB 11 in CI. Two points worth kno
 
 See [UPGRADE.md](UPGRADE.md) for version-specific upgrade notes.
 
+**2.2.1** fixes the key lifecycle CLI (#16):
+
+- **Public key bundle now actually written** — `licensing:keys:make-root`, `issue-signing`, `rotate` and `revoke` keep the bundle at `licensing.publishing.public_bundle_path` up to date. Previously the "exported to" message was printed but no file was ever created.
+- **`make-root --force --no-interaction` works** — it no longer exits `0` silently without rotating the root key.
+
 **2.2.0** ships security and correctness fixes:
 
 - **Offline token forgery fixed** — `verifyOffline()` now cross-checks (constant-time) that the certificate binds the exact signing key used to verify the token, rejecting forged tokens that paired a genuine certificate with an attacker key.

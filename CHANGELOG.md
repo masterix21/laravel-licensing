@@ -2,7 +2,7 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
-## Unreleased
+## 2.2.1 - 2026-07-18
 
 ### Fixed
 
@@ -18,6 +18,11 @@ All notable changes to `laravel-licensing` will be documented in this file.
   The confirmation prompt returned `false` in non-interactive mode, so the command
   exited `0` without rotating the root key. The prompt is now skipped when the
   input is non-interactive; `--force` proceeds with the rotation.
+
+### Credits
+
+- Thanks to [Bishwajit Adhikary](https://github.com/bishwajitsz) for the detailed
+  report of both issues (#16).
 
 ## 2.2.0 - 2026-06-24
 
