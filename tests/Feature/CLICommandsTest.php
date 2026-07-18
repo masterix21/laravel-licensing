@@ -52,6 +52,9 @@ beforeEach(function () {
         File::deleteDirectory($keyPath);
     }
 
+    config()->set('licensing.publishing.public_bundle_path', storage_path('app/licensing/public-bundle.json'));
+    File::delete(config('licensing.publishing.public_bundle_path'));
+
     // Clear any cached data
     LicensingKey::forgetCachedPassphrase();
 
@@ -66,9 +69,20 @@ afterEach(function () {
         File::deleteDirectory($keyPath);
     }
 
+    File::delete(config('licensing.publishing.public_bundle_path'));
+
     // Clear any cached data
     LicensingKey::forgetCachedPassphrase();
 });
+
+function readPublicBundle(): array
+{
+    $path = config('licensing.publishing.public_bundle_path');
+
+    expect(File::exists($path))->toBeTrue("Public bundle was not written to {$path}");
+
+    return json_decode(File::get($path), true);
+}
 
 test('can make root key via CLI', function () {
     $tester = runCommand(MakeRootKeyCommand::class);
@@ -402,6 +416,94 @@ test('respects verbose output flag', function () {
     expect($display)->toContain('Creating certificate');
     expect($display)->toContain('Signing certificate with root key');
     expect($display)->toContain('Storing key in keystore');
+});
+
+test('make-root writes the public key bundle file', function () {
+    $tester = runCommand(MakeRootKeyCommand::class);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $bundle = readPublicBundle();
+    $rootKey = LicensingKey::findActiveRoot();
+
+    expect($bundle['root']['kid'])->toBe($rootKey->kid)
+        ->and($bundle['root']['public_key'])->toBe($rootKey->getPublicKey())
+        ->and($bundle['root']['algorithm'])->toBe($rootKey->algorithm)
+        ->and($bundle['signing'])->toBe([]);
+});
+
+test('issue-signing updates the public key bundle', function () {
+    $this->createRootKey();
+
+    $tester = runCommand(IssueSigningKeyCommand::class, [
+        '--kid' => 'bundle-signing-001',
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $bundle = readPublicBundle();
+
+    expect($bundle['root']['kid'])->toBe(LicensingKey::findActiveRoot()->kid);
+
+    $entry = collect($bundle['signing'])->firstWhere('kid', 'bundle-signing-001');
+
+    expect($entry)->not->toBeNull()
+        ->and($entry['public_key'])->not->toBeEmpty()
+        ->and($entry['certificate'])->not->toBeEmpty();
+});
+
+test('rotate updates the public key bundle and excludes revoked keys', function () {
+    $this->createRootKey();
+    $oldSigning = $this->createSigningKey();
+
+    $tester = runCommand(RotateKeysCommand::class, [
+        '--reason' => 'compromised',
+        '--immediate' => true,
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $bundle = readPublicBundle();
+    $kids = array_column($bundle['signing'], 'kid');
+
+    expect($kids)->not->toContain($oldSigning->kid)
+        ->and($kids)->toContain(LicensingKey::findActiveSigning()->kid);
+});
+
+test('revoke updates the public key bundle', function () {
+    // Skip this test on Windows CI due to TTY limitations
+    if (PHP_OS_FAMILY === 'Windows' && (getenv('CI') || getenv('GITHUB_ACTIONS'))) {
+        $this->markTestSkipped('Interactive tests are skipped on Windows CI');
+    }
+    $this->createRootKey();
+    $signingKey = $this->createSigningKey();
+
+    $tester = runCommand(RevokeKeyCommand::class, [
+        'kid' => $signingKey->kid,
+    ], ['yes']);
+
+    expect($tester->getStatusCode())->toBe(0);
+
+    $bundle = readPublicBundle();
+
+    expect(array_column($bundle['signing'], 'kid'))->not->toContain($signingKey->kid);
+});
+
+test('force replace root key proceeds in non-interactive mode', function () {
+    $oldRoot = $this->createRootKey();
+
+    // No inputs → runCommand executes non-interactively (same as --no-interaction)
+    $tester = runCommand(MakeRootKeyCommand::class, ['--force' => true]);
+
+    expect($tester->getStatusCode())->toBe(0);
+    expect($tester->getDisplay())->toContain('Root key generated successfully');
+
+    $oldRoot->refresh();
+    expect($oldRoot->status)->toBe(KeyStatus::Revoked);
+
+    $newRoot = LicensingKey::findActiveRoot();
+    expect($newRoot)->not->toBeNull()
+        ->and($newRoot->id)->not->toBe($oldRoot->id);
 });
 
 test('command return codes follow spec', function () {

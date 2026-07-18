@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Commands;
 
 use Illuminate\Console\Command;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Services\PublicKeyBundleService;
 
 class ExportKeysCommand extends Command
 {
@@ -44,29 +45,7 @@ class ExportKeysCommand extends Command
 
     private function exportAsJson($rootKey, $signingKeys, $includeChain): string
     {
-        $data = [
-            'root' => [
-                'kid' => $rootKey->kid,
-                'public_key' => $rootKey->getPublicKey(),
-                'algorithm' => $rootKey->algorithm,
-            ],
-            'signing' => [],
-        ];
-
-        foreach ($signingKeys as $key) {
-            $keyData = [
-                'kid' => $key->kid,
-                'public_key' => $key->getPublicKey(),
-                'algorithm' => $key->algorithm,
-                'valid_until' => $key->valid_until?->toIso8601String(),
-            ];
-
-            if ($key->certificate) {
-                $keyData['certificate'] = $key->certificate;
-            }
-
-            $data['signing'][] = $keyData;
-        }
+        $data = app(PublicKeyBundleService::class)->build($rootKey, $signingKeys);
 
         // Add chain at root level if requested
         if ($includeChain) {

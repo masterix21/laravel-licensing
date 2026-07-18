@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Commands;
 
 use Illuminate\Console\Command;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Services\PublicKeyBundleService;
 
 class RevokeKeyCommand extends Command
 {
@@ -11,7 +12,7 @@ class RevokeKeyCommand extends Command
 
     protected $description = 'Revoke a signing key';
 
-    public function handle(): int
+    public function handle(PublicKeyBundleService $bundle): int
     {
         $kid = $this->argument('kid');
         $reason = $this->option('reason');
@@ -43,6 +44,10 @@ class RevokeKeyCommand extends Command
         $this->line('Key revoked successfully');
         $this->line('Key ID: '.$kid);
         $this->line('Reason: '.$reason);
+
+        if ($path = $bundle->export()) {
+            $this->line('Public key bundle updated: '.$path);
+        }
 
         return 0;
     }

@@ -69,7 +69,8 @@ php artisan licensing:keys:issue-signing [options]
 - `--nbf=DATETIME` - Valid from (ISO 8601)
 - `--exp=DATETIME` - Valid until (ISO 8601)
 
-The new key is activated immediately.
+The new key is activated immediately and the public key bundle at
+`licensing.publishing.public_bundle_path` is updated.
 
 **Example:**
 
@@ -177,7 +178,9 @@ php artisan licensing:keys:export [options]
 - `--format=json|jwks|pem` - Export format (defaults to `json`)
 - `--include-chain` - Include certificate chain in the bundle
 
-The bundle is written to the path configured by `licensing.publishing.public_bundle_path`.
+The export is printed to stdout (pipe it to a file if needed). The bundle file at
+`licensing.publishing.public_bundle_path` is maintained automatically by the key
+lifecycle commands (`make-root`, `issue-signing`, `rotate`, `revoke`).
 
 **Example:**
 

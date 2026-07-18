@@ -4,6 +4,7 @@ namespace LucaLongo\Licensing\Commands;
 
 use Illuminate\Console\Command;
 use LucaLongo\Licensing\Models\LicensingKey;
+use LucaLongo\Licensing\Services\PublicKeyBundleService;
 
 class MakeRootKeyCommand extends Command
 {
@@ -11,7 +12,7 @@ class MakeRootKeyCommand extends Command
 
     protected $description = 'Generate a new root key pair';
 
-    public function handle(): int
+    public function handle(PublicKeyBundleService $bundle): int
     {
         $existingRoot = LicensingKey::findActiveRoot();
 
@@ -22,7 +23,7 @@ class MakeRootKeyCommand extends Command
                 return 1;
             }
 
-            if (! $this->confirm('This will revoke the existing root key. Continue?')) {
+            if ($this->input->isInteractive() && ! $this->confirm('This will revoke the existing root key. Continue?')) {
                 return 0;
             }
 
@@ -40,15 +41,10 @@ class MakeRootKeyCommand extends Command
 
         $this->line('Root key generated successfully');
         $this->line('Key ID: '.$rootKey->kid);
-        $this->line('Public key bundle exported to: '.$this->getPublicBundlePath());
+        $this->line('Public key bundle exported to: '.$bundle->export());
         $this->line('IMPORTANT: Back up your private key and passphrase securely!');
 
         return 0;
-    }
-
-    private function getPublicBundlePath(): string
-    {
-        return config('licensing.publishing.public_bundle_path', storage_path('app/licensing/public-bundle.json'));
     }
 
     private function ensurePassphrase(): bool

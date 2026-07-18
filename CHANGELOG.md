@@ -2,6 +2,23 @@
 
 All notable changes to `laravel-licensing` will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- **Public key bundle was never written to disk (#16).** `licensing:keys:make-root`
+  printed "Public key bundle exported to: …" but no code path ever wrote the file:
+  the configured `licensing.publishing.public_bundle_path` was dead configuration.
+  The bundle (active root + active signing keys with certificates) is now written
+  by a shared `PublicKeyBundleService` and kept up to date by `make-root`,
+  `issue-signing`, `rotate` and `revoke`, so the published set always excludes
+  revoked keys. `licensing:keys:export` still prints to stdout and now reuses the
+  same bundle builder.
+- **`licensing:keys:make-root --force --no-interaction` silently did nothing (#16).**
+  The confirmation prompt returned `false` in non-interactive mode, so the command
+  exited `0` without rotating the root key. The prompt is now skipped when the
+  input is non-interactive; `--force` proceeds with the rotation.
+
 ## 2.2.0 - 2026-06-24
 
 ### Security

@@ -10,6 +10,7 @@ use LucaLongo\Licensing\Models\LicenseScope;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\AuditLoggerService;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
+use LucaLongo\Licensing\Services\PublicKeyBundleService;
 
 class IssueSigningKeyCommand extends Command
 {
@@ -24,7 +25,8 @@ class IssueSigningKeyCommand extends Command
 
     public function handle(
         AuditLoggerService $auditLogger,
-        CertificateAuthorityService $ca
+        CertificateAuthorityService $ca,
+        PublicKeyBundleService $bundle
     ): int {
         $rootKey = LicensingKey::findActiveRoot();
 
@@ -136,6 +138,7 @@ class IssueSigningKeyCommand extends Command
                 $this->line('Scope: Global');
             }
             $this->line('Valid for: '.$validForDays.' days');
+            $this->line('Public key bundle updated: '.$bundle->export());
 
             return self::SUCCESS;
         } catch (\Exception $e) {

@@ -5,6 +5,7 @@ namespace LucaLongo\Licensing\Commands;
 use Illuminate\Console\Command;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\CertificateAuthorityService;
+use LucaLongo\Licensing\Services\PublicKeyBundleService;
 
 class RotateKeysCommand extends Command
 {
@@ -14,7 +15,7 @@ class RotateKeysCommand extends Command
 
     protected $description = 'Rotate signing keys';
 
-    public function handle(CertificateAuthorityService $ca): int
+    public function handle(CertificateAuthorityService $ca, PublicKeyBundleService $bundle): int
     {
         $reason = $this->option('reason');
         $immediate = $this->option('immediate');
@@ -65,6 +66,7 @@ class RotateKeysCommand extends Command
 
         $this->line('New signing key issued');
         $this->line('Key ID: '.$newKid);
+        $this->line('Public key bundle updated: '.$bundle->export());
 
         if ($reason === 'compromised') {
             $this->line('All tokens signed with the compromised key are now invalid');
