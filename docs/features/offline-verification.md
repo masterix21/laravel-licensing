@@ -80,6 +80,41 @@ class OfflineTokenController
 
 > **Note:** The service automatically selects the correct signing key by reading the token footer `kid`, so scoped keys work out of the box. Clock-skew tolerance can be tuned per license via `meta['offline_token']['clock_skew_seconds']`; when omitted the package falls back to `licensing.offline_token.clock_skew_seconds`.
 
+### Adding Application Claims
+
+Tokens issued by the package's own routes and console commands give you no call site to pass
+options through, so claims your application derives from the license belong in an issuer
+subclass. Override `extendClaims()` and register the subclass as the token service:
+
+```php
+namespace App\Licensing;
+
+use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseUsage;
+use LucaLongo\Licensing\Services\PasetoTokenService;
+
+class AppTokenIssuer extends PasetoTokenService
+{
+    protected function extendClaims(array $claims, License $license, LicenseUsage $usage): array
+    {
+        $claims['entitlements'] = $license->getEntitlements();
+        $claims['organization'] = $license->licensable?->name;
+
+        return $claims;
+    }
+}
+```
+
+```php
+// config/licensing.php
+'offline_token' => [
+    'service' => \App\Licensing\AppTokenIssuer::class,
+],
+```
+
+Claims the package sets take precedence over the ones you return, so an extension can add to a
+token but never contradict its `status`, `max_usages`, or expiration.
+
 ### Token Structure
 
 ```php

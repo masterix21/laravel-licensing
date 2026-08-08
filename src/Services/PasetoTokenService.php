@@ -86,6 +86,9 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             $claims['grace_until'] = $graceUntil->format('c');
         }
 
+        // Package claims win, so an extension cannot weaken what verification relies on.
+        $claims = array_merge($this->extendClaims($claims, $license, $usage), $claims);
+
         $token = Builder::getPublic($privateKey, new Version4)
             ->setIssuedAt($now)
             ->setNotBefore($now)
@@ -315,6 +318,22 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
         }
 
         return (int) config('licensing.offline_token.clock_skew_seconds', 60);
+    }
+
+    /**
+     * Extension point for application-specific claims.
+     *
+     * Lets an application registered through `licensing.offline_token.service` add claims
+     * (feature entitlements, tenant data) without duplicating the signing key handling and
+     * certificate chain assembly in issue(). Claims the package itself sets take precedence,
+     * so an extension can add to the token but never contradict it.
+     *
+     * @param  array<string, mixed>  $claims  the claims the package has assembled so far
+     * @return array<string, mixed>
+     */
+    protected function extendClaims(array $claims, License $license, LicenseUsage $usage): array
+    {
+        return $claims;
     }
 
     private function buildSecretKey(string $base64): AsymmetricSecretKey

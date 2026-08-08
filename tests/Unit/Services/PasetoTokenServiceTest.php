@@ -2,6 +2,8 @@
 
 use LucaLongo\Licensing\Enums\KeyType;
 use LucaLongo\Licensing\Enums\LicenseStatus;
+use LucaLongo\Licensing\Models\License;
+use LucaLongo\Licensing\Models\LicenseUsage;
 use LucaLongo\Licensing\Models\LicensingKey;
 use LucaLongo\Licensing\Services\PasetoTokenService;
 use LucaLongo\Licensing\Tests\Helpers\LicenseTestHelper;
@@ -276,4 +278,38 @@ test('signing key passes paseto misuse resistance on repeated issue calls', func
     expect($first)->toStartWith('v4.public.')
         ->and($second)->toStartWith('v4.public.')
         ->and($third)->toStartWith('v4.public.');
+});
+
+test('issuer subclasses can sign application claims into the token', function () {
+    $service = new class extends PasetoTokenService
+    {
+        protected function extendClaims(array $claims, License $license, LicenseUsage $usage): array
+        {
+            $claims['entitlements'] = ['seats' => $license->max_usages];
+
+            return $claims;
+        }
+    };
+
+    $claims = $service->extractClaims($service->issue($this->license, $this->usage));
+
+    expect($claims['entitlements'])->toBe(['seats' => $this->license->max_usages]);
+});
+
+test('application claims cannot contradict the claims the package signs', function () {
+    $service = new class extends PasetoTokenService
+    {
+        protected function extendClaims(array $claims, License $license, LicenseUsage $usage): array
+        {
+            return ['status' => 'active', 'max_usages' => 9999];
+        }
+    };
+
+    $suspended = $this->createLicense(['status' => LicenseStatus::Suspended, 'max_usages' => 5]);
+    $usage = $this->createUsage($suspended);
+
+    $claims = $service->extractClaims($service->issue($suspended, $usage));
+
+    expect($claims['status'])->toBe('suspended')
+        ->and($claims['max_usages'])->toBe(5);
 });
