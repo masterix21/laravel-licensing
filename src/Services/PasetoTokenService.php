@@ -86,6 +86,8 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             $claims['grace_until'] = $graceUntil->format('c');
         }
 
+        $claims = $this->withApplicationClaims($claims, $options);
+
         $token = Builder::getPublic($privateKey, new Version4)
             ->setIssuedAt($now)
             ->setNotBefore($now)
@@ -101,6 +103,39 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
         ]);
 
         return $token->setFooter($footer)->toString();
+    }
+
+    /**
+     * Claims owned by the package or by PASETO: application claims passed
+     * through the `claims` option can never replace them.
+     */
+    private const RESERVED_CLAIMS = [
+        'kid', 'license_id', 'license_key_hash', 'usage_fingerprint', 'status',
+        'max_usages', 'force_online_after', 'licensable_type', 'licensable_id',
+        'license_expires_at', 'grace_until',
+        'iat', 'nbf', 'exp', 'sub', 'iss', 'aud', 'jti',
+    ];
+
+    /**
+     * @param  array<string, mixed>  $claims
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
+    private function withApplicationClaims(array $claims, array $options): array
+    {
+        $extra = $options['claims'] ?? [];
+
+        if (! is_array($extra)) {
+            throw new \InvalidArgumentException('The claims option must be an array.');
+        }
+
+        $conflicts = array_intersect(array_keys($extra), self::RESERVED_CLAIMS);
+
+        if ($conflicts !== []) {
+            throw new \InvalidArgumentException('Application claims cannot override package claims: '.implode(', ', $conflicts).'.');
+        }
+
+        return array_merge($claims, $extra);
     }
 
     public function refresh(string $token, array $options = []): string

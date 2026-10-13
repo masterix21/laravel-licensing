@@ -277,3 +277,27 @@ test('signing key passes paseto misuse resistance on repeated issue calls', func
         ->and($second)->toStartWith('v4.public.')
         ->and($third)->toStartWith('v4.public.');
 });
+
+test('issue adds application claims', function () {
+    $token = $this->tokenService->issue($this->license, $this->usage, [
+        'claims' => ['module' => 'whatsapp', 'limits' => ['seats' => 2]],
+    ]);
+
+    $claims = $this->tokenService->extractClaims($token);
+
+    expect($claims['module'])->toBe('whatsapp')
+        ->and($claims['limits'])->toBe(['seats' => 2])
+        ->and($claims['license_id'])->toBe($this->license->id);
+});
+
+test('issue refuses application claims that would override package claims', function (string $claim) {
+    $this->tokenService->issue($this->license, $this->usage, [
+        'claims' => [$claim => 'forged'],
+    ]);
+})->throws(InvalidArgumentException::class)->with([
+    'license_id', 'status', 'usage_fingerprint', 'grace_until', 'license_expires_at', 'exp', 'iat', 'kid',
+]);
+
+test('issue refuses a claims option that is not an array', function () {
+    $this->tokenService->issue($this->license, $this->usage, ['claims' => 'module=whatsapp']);
+})->throws(InvalidArgumentException::class);

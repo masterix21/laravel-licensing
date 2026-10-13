@@ -112,6 +112,14 @@ $token = Licensing::issueToken($license, $usage, [
 ]);
 ```
 
+Application claims can be added with the `claims` option. Package and PASETO claims (such as `license_id` or `exp`) are reserved and cannot be overridden:
+
+```php
+$token = app(TokenIssuer::class)->issue($license, $usage, [
+    'claims' => ['module' => 'whatsapp'],
+]);
+```
+
 ### Check license status
 
 ```php
