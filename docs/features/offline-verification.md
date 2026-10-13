@@ -80,6 +80,39 @@ class OfflineTokenController
 
 > **Note:** The service automatically selects the correct signing key by reading the token footer `kid`, so scoped keys work out of the box. Clock-skew tolerance can be tuned per license via `meta['offline_token']['clock_skew_seconds']`; when omitted the package falls back to `licensing.offline_token.clock_skew_seconds`.
 
+### Application Claims
+
+The `claims` option adds your own claims to the signed payload, so a client can trust them offline exactly like the package claims: a module name, a plan, limits computed on the server, dates that follow your own business rules.
+
+```php
+$token = app(TokenIssuer::class)->issue($license, $usage, [
+    'claims' => [
+        'module' => 'whatsapp',
+        'limits' => ['seats' => 2, 'devices' => 5],
+        'works_until' => $license->expires_at?->addDays(30)->format('c'),
+    ],
+]);
+```
+
+The values are serialized as JSON, so nested arrays and `null` are fine; dates must be formatted by you (the package uses `DateTimeInterface::ATOM`).
+
+Three inputs are refused with `InvalidArgumentException`:
+
+- a `claims` option that is not an array;
+- a list instead of an associative array (`['whatsapp']` would become a claim named `0`);
+- a claim whose name belongs to the package or to PASETO: `kid`, `license_id`, `license_key_hash`, `usage_fingerprint`, `status`, `max_usages`, `force_online_after`, `licensable_type`, `licensable_id`, `license_expires_at`, `grace_until`, `iat`, `nbf`, `exp`, `sub`, `iss`, `aud`, `jti`.
+
+Application claims come back with the package ones from `verify()`, `verifyOffline()` and `extractClaims()`:
+
+```php
+$claims = $tokenService->verifyOffline($token, $rootPublicKey);
+
+$claims['module'];          // 'whatsapp'
+$claims['limits']['seats']; // 2
+```
+
+`refresh()` builds a brand-new token from the license and usage, not from the old payload: application claims are not carried over. Pass them again in its options when the refreshed token needs them.
+
 ### Token Structure
 
 ```php

@@ -207,6 +207,8 @@ PASETO v4.public (default) or JWS — `config('licensing.offline_token.format')`
 ## Claims
 `license_id`, `license_key_hash`, `usage_fingerprint`, `status`, `exp`, `nbf`, `iat`, `max_usages`. Optional: `grace_until`, `entitlements`, `licensable_ref`, `serial`.
 
+Application claims: pass `'claims' => [...]` to `TokenIssuer::issue()` (associative array only; package and PASETO names are reserved and throw `InvalidArgumentException`). They are signed with the rest and returned by `verify()`/`verifyOffline()`. `refresh()` does NOT carry them over — pass them again.
+
 ## Headers / metadata
 `kid`, `chain` (signing-key cert signed by root), token `version`.
 
