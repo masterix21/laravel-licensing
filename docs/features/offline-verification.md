@@ -63,7 +63,7 @@ class OfflineTokenController
             'force_online_after' => 14,          // Force online check after 14 days
             'include_entitlements' => true,      // Include all entitlements
             'include_features' => true,          // Include feature flags
-            'custom_claims' => [                 // Add custom claims
+            'claims' => [                        // Add application claims
                 'organization' => $license->licensable->name,
                 'support_level' => $license->meta['support_level'],
             ],
