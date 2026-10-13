@@ -301,3 +301,7 @@ test('issue refuses application claims that would override package claims', func
 test('issue refuses a claims option that is not an array', function () {
     $this->tokenService->issue($this->license, $this->usage, ['claims' => 'module=whatsapp']);
 })->throws(InvalidArgumentException::class);
+
+test('issue refuses application claims without a name', function () {
+    $this->tokenService->issue($this->license, $this->usage, ['claims' => ['whatsapp']]);
+})->throws(InvalidArgumentException::class);

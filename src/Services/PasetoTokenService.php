@@ -129,6 +129,10 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             throw new \InvalidArgumentException('The claims option must be an array.');
         }
 
+        if (array_filter(array_keys($extra), 'is_int') !== []) {
+            throw new \InvalidArgumentException('Application claims must be keyed by name.');
+        }
+
         $conflicts = array_intersect(array_keys($extra), self::RESERVED_CLAIMS);
 
         if ($conflicts !== []) {

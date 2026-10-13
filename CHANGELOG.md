@@ -6,7 +6,7 @@ All notable changes to `laravel-licensing` will be documented in this file.
 
 ### Added
 
-- `TokenIssuer::issue()` accepts a `claims` option to add application claims to offline tokens. Package and PASETO claims are reserved: trying to override one throws `InvalidArgumentException`.
+- `TokenIssuer::issue()` accepts a `claims` option to add application claims to offline tokens. Package and PASETO claims are reserved: trying to override one, or passing claims without a name, throws `InvalidArgumentException`. `refresh()` does not carry application claims over: pass them again in its options.
 
 ## 2.2.1 - 2026-07-18
 

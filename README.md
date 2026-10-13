@@ -120,6 +120,8 @@ $token = app(TokenIssuer::class)->issue($license, $usage, [
 ]);
 ```
 
+`refresh()` does not carry application claims over from the old token: pass them again in its options when you need them.
+
 ### Check license status
 
 ```php
